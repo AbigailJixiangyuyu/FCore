@@ -110,7 +110,7 @@ def test_millisecond_timestamps_fail_snapshot_validation(tmp_path):
             params={"dataset_version": DATASET_VERSION},
         )
     assert response.status_code == 422
-    assert "Unix 秒时间戳" in response.json()["detail"]
+    assert "Unix seconds" in response.json()["detail"]
 
 
 def test_range_aggregation_matches_inclusive_transactions(sample):

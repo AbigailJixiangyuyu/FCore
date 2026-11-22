@@ -12,4 +12,4 @@
 
 接口结果与加载状态由 TanStack Vue Query 管理。每次提交生成新的 `analysisRunId`，用它启用请求并区分缓存。切换算法或阶段时清除提交状态和图中定位，保留参数草稿。
 
-`futureDraft` 和 `futureSubmitted` 分别保存未来查询的 q、k 和阈值草稿与提交值，`predictionModel` 保存 Zebra／UnderGS 选择，默认 Zebra。点击图中节点可填写 q 草稿。点击「开始预测」后加载结果。
+`futureDraft` 和 `futureSubmitted` 分别保存未来查询的目标快照、q、k 和阈值草稿与提交值。点击图中节点可填写 q 草稿。点击 Run Prediction 应用参数，之后阈值随滑条即时更新。

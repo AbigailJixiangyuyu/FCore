@@ -1,13 +1,13 @@
 # 工作台接口接入说明
 
-本文对应真实历史算法、SLADE 账户状态检测及 Zebra／UnderGS 下一快照链接预测。运行服务后可在 `/docs` 查看由 Pydantic 生成的完整字段定义，在 `/openapi.json` 获取机器可读契约。
+本文对应真实历史算法、SLADE 账户状态检测及 Zebra 未来链接预测。运行服务后可在 `/docs` 查看由 Pydantic 生成的完整字段定义，在 `/openapi.json` 获取机器可读契约。
 
 ## 1. 请求顺序与时间边界
 
 1. 读取 `GET /api/health`、`GET /api/capabilities` 和 `GET /api/datasets`。
 2. 根据选定数据集读取 `GET /api/datasets/{id}/snapshots`。清单包含 S01—S13 的时间位置、版本和观察截止，但不包含 S13 的交易或份额。
 3. 历史读取区间聚合图；当前提交以 S12 为终点的结构查询，保存完整 `Structure`。单快照读取 S12 图，多快照使用查询返回的 `window_graph`。异常检测独立返回账户评分。
-4. 时间证据请求携带完整结构。未来查询独立提交 q、k 及模型，使用截至 S12 的观测预测 S13。
+4. 时间证据请求携带完整结构。未来查询独立提交 q、k 及预测步长，使用截至 S12 的观测预测目标快照。
 
 图布局另外复用聚合接口读取固定的 S01—S11，仅用于前端坐标生成。画布和 ForceAtlas2 都使用无向边。全图与社区视图按各自快照或区间的图数据过滤成员与实际连接。
 
@@ -172,16 +172,18 @@ S01—S11 直接请求为 `not_evaluated`、空 accounts；S12 返回 `ok`，空
 
 ## 4. 未来 k-core 社区预测
 
-先读取 `GET /api/datasets/{id}/link-prediction/models?dataset_version=...&observed_until=S12`。模型目录返回 Zebra 和 UnderGS：`status` 为 `ready / not_ready / conflict / not_implemented`，同时返回 `model_version` 和原因。两种方案均已接入，当前均按对应权重返回 ready、not_ready 或 conflict；not_implemented 仅保留类型兼容。
+先读取 `GET /api/datasets/{id}/link-prediction/models?dataset_version=...&observed_until=S12&horizon=1`。模型目录返回所选步长 `horizon` 和 Zebra 状态 `ready / not_ready / conflict`，并提供模型版本或未就绪原因。
 
 已接入近期交互校准的模型返回 `probability_calibration=recent-pair-logistic-v1`。校准输入包含基础模型分数、最后一个已观测快照是否连边，以及最近三个快照内的连边快照数和交互总次数。基础版本的这一字段为 null，概率沿用温度校准。两个预测接口使用当前模型版本的同一份概率。
 
 ```text
 POST /api/link-prediction/community
-{ ...公共上下文, "account": "49", "k": 4, "model": "zebra", "threshold": 0.5 }
+{ ...公共上下文, "account": "49", "k": 4, "threshold": 0.5, "horizon": 2 }
 ```
 
-默认选择 Zebra，默认查询条件读自 `config/query-defaults.json`。`account` 必须是数据集内的节点，`k` 为 0 至 10000 的整数。当前搜索和未来预测的核数快捷项均取查询节点在 S12 整图的 `core_numbers`。S01—S11 每片单独使用无向简单投影求包含 q 的 k-core 连通分量。取成员并集作为候选，再用截至 S12 的概率为候选节点对建图。未舍入的概率须严格大于 `threshold`，最终返回预测图上包含 q 的 k-core 连通分量。k=0 时，已有候选对评分且 q 没有保留连边，可返回仅包含 q 的 0-core。阈值允许 0 至 1，省略时为 0.50。页面滑条每档 0.1，松开后使用已提交的 q、k 更新预测。
+`horizon` 取 1、2 或 3，分别预测 S13、S14 或 S15 中发生至少一次交互的概率。默认值为 1。三个目标窗口等宽，起止时间由 S12 截止点和数据集快照粒度确定，各自使用对应步长的权重。
+
+两个预测接口的 `model` 均可省略或显式传入 `"zebra"`。其他值返回 422。默认查询条件读自 `config/query-defaults.json`。`account` 必须是数据集内的节点，`k` 为 0 至 10000 的整数。当前搜索和未来预测的核数快捷项均取查询节点在 S12 整图的 `core_numbers`。S01—S11 每片单独使用无向简单投影求包含 q 的 k-core 连通分量。取成员并集作为候选，再用截至 S12 的概率为候选节点对建图。未舍入的概率须严格大于 `threshold`，最终返回预测图上包含 q 的 k-core 连通分量。k=0 时，已有候选对评分且 q 没有保留连边，可返回仅包含 q 的 0-core。阈值允许 0 至 1，省略时为 0.50。运行后滑条每移动 0.1，页面便会使用已提交的 q、k 更新预测。
 
 | 响应字段 | 含义 |
 |---|---|
@@ -190,28 +192,28 @@ POST /api/link-prediction/community
 | candidate_member_count / candidate_pair_count / scored_pair_count | 并集成员数、无序顶点对数和实际评分数 |
 | threshold / threshold_edge_count / max_probability | 本次阈值、预筛选保留边数和候选顶点对最高概率 |
 | members / edges | 最终社区成员及全部内部边。每条边带 `u`、`v`、`probability` 和 `currently_connected` |
-| comparison | 同一 q、k 下 S12 实际社区与 S13 预测社区的成员对照及最高核数节点 |
+| comparison | 同一 q、k 下 S12 实际社区与目标快照预测社区的成员对照及最高核数节点 |
 
 空结果返回 200。按失败阶段区分 `no_historical_community`、`no_scored_pairs`、`no_threshold_edges` 与 `no_predicted_community`，成功为 `ok`。历史成员并集为空时直接返回，`model_version` 为 null。没有可评分对时 `max_probability` 为 null。
 
-`comparison` 的 `retained`、`added`、`exited` 分别列出两个社区的交集、S13 独有成员和 S12 独有成员。`max_coreness` 是预测社区内的最高核数，`key_nodes` 包含所有并列最高的节点及其 `account_id`、`observed_coreness` 和 `predicted_coreness`。新增节点的 `observed_coreness` 为 null。预测未形成社区时，`max_coreness` 为 null、关键节点列表为空。没有历史候选或可评分对时，整个 `comparison` 为 null。
+`comparison` 的 `retained`、`added`、`exited` 分别列出两个社区的交集、目标快照独有成员和 S12 独有成员。`max_coreness` 是预测社区内的最高核数，`key_nodes` 包含所有并列最高的节点及其 `account_id`、`observed_coreness` 和 `predicted_coreness`。新增节点的 `observed_coreness` 为 null。预测未形成社区时，`max_coreness` 为 null、关键节点列表为空。没有历史候选或可评分对时，整个 `comparison` 为 null。
 
-页面按数据版本、已提交的 q、k、阈值和模型版本匹配响应。03 展示最终社区并支持悬停查看无向连边概率，05 展示成员变化和关键节点。两种模型均以 S12 为观察截止且共享各自的全图概率缓存。权重缺失、损坏或 CUDA 不可用返回 503，数据版本或模型指纹冲突返回 409。
+页面按数据版本、已提交的 q、k、阈值、目标快照和模型版本匹配响应。03 展示最终社区并支持悬停查看无向连边概率，05 展示成员变化和预计退出的节点。全图概率按步长缓存，S13 概率供两个预测接口复用。权重缺失、损坏或 CUDA 不可用返回 503，数据版本或模型指纹冲突返回 409。
 
 ### 成对预测兼容接口
 
 ```text
 POST /api/link-prediction/predict
-{ ...公共上下文, "structure": <完整 Structure>, "model": "zebra" }
+{ ...公共上下文, "structure": <完整 Structure> }
 ```
 
-结构必须来自以 S12 为截止的当前查询，回溯结构沿用完整成员。两种模型均使用截至 S12 的全图历史预测 S13，`currently_connected` 只表示 S12 内是否已有连接。省略 model 默认 Zebra，指定 `model="undergs"` 使用 UnderGS。未知模型或多余 source_account 字段返回 422。成员顺序会先规范化，增删成员或更改查询条件仍须重新查询。
+结构必须来自以 S12 为截止的当前查询，回溯结构沿用完整成员。Zebra 使用截至 S12 的全图历史预测 S13，`currently_connected` 表示 S12 内是否已有连接。多余的 `source_account` 字段返回 422。成员顺序会先规范化，增删成员或更改查询条件仍须重新查询。
 
-两个方案分别加载自身权重和 S11 预热状态，再消费真实 S12。Zebra 使用事件流，UnderGS 使用完整快照；都只读取截至 S12 的信息。目录分别报告状态，一个方案缺失或损坏不会隐藏另一方案，也不会自动替代用户的选择。群内链接预测能力在至少一个匹配模型就绪时标记可用。
+Zebra 加载权重和 S11 预热状态，再处理真实 S12 事件。匹配模型就绪时，群内链接预测能力标记为可用。
 
-缓存同时包含模型名称、权重版本及 SHA-256、历史／S12 指纹和观察截止。缓存命中仍检查模型文件和 CUDA。
+缓存键包含权重版本及 SHA-256、历史／S12 指纹和观察截止。缓存命中仍检查模型文件和 CUDA。
 
-响应使用 `LinkPredictionResponse`，含公共元数据、`method=zebra-window-v1 / undergs-window-v1`、`result_kind=computed`，以及：
+响应使用 `LinkPredictionResponse`，包含公共元数据、`method=zebra-window-v1`、`result_kind=computed` 和下列字段。
 
 | 字段 | 含义 |
 |---|---|
@@ -230,11 +232,11 @@ POST /api/link-prediction/predict
 
 同一对顶点跨社区概率一致。真实事件推进与成对评分分开，评分只读模型状态。
 
-权重缺失/损坏、GPU 不可用或未接入方案返回 503；模型与历史数据指纹或数据版本冲突返回 409。前端隐藏失配结果并提供重试，不回退旧示例。
+权重缺失、损坏或 GPU 不可用返回 503。模型与历史数据指纹或数据版本冲突返回 409。前端隐藏失配结果并提供重试。
 
 ### 兼容接口
 
-`POST /api/affinity/predict`、`POST /api/affinity/observed` 仍接受旧 `structure + source_account` 请求并保留旧份额响应，OpenAPI 标记 deprecated。新页面不调用这两个接口。只有显式调用旧 observed 接口才读取 S13 交易；它不参与 Zebra／UnderGS 训练、校准、回测或预测。
+`POST /api/affinity/predict`、`POST /api/affinity/observed` 仍接受旧 `structure + source_account` 请求并保留旧份额响应，OpenAPI 标记 deprecated。只有显式调用旧 observed 接口才读取 S13 交易。Zebra 的训练、校准、回测和预测只读取截至 S12 的交易。
 
 ## 5. 来源、错误与前端缓存
 
@@ -254,7 +256,7 @@ POST /api/link-prediction/predict
 | 404 | 数据集、已观测快照或本地数据文件不存在 |
 | 409 | 数据版本、模型训练事件指纹或所选结构上下文不一致 |
 | 422 | 参数、时间边界、账户、结构成员或来源无效 |
-| 503 | SLADE、Zebra 或 UnderGS 权重缺失／损坏／加载失败，或 CUDA 不可用 |
+| 503 | SLADE 或 Zebra 权重缺失／损坏／加载失败，或 CUDA 不可用 |
 
 错误信息使用 FastAPI 的 `detail` 字段。前端错误时隐藏失配结果并提供重试。聚合缓存键包含版本和起止快照，拖动约 150ms 防抖、释放立即提交。历史挖掘缓存键包含版本、方法和已提交参数。当前查询缓存包含版本、快照、已提交条件，证据增加成员哈希。未来社区缓存按观察截止、数据版本、已提交的 q、k、阈值、模型和模型版本区分。
 
@@ -265,7 +267,7 @@ POST /api/link-prediction/predict
 - `app/services/patterns.py`：历史逐快照投影、参数分发和结果证据映射。
 - `app/services/analysis.py` 的 `patterns()`：统一结构、参考统计和来源元数据。
 - `algorithms/anomaly/`：SLADE 原始模型、事件准备、CUDA 配置和版本权重；`app/services/anomalies.py` 负责数据与请求适配。
-- `algorithms/link_prediction/`：Zebra 编码与公共窗口标签、指标；`undergs/`：UnderGS 邻居库、GCN、训练及产物；`adapters.py`：模型分派。
+- `algorithms/link_prediction/` 包含 Zebra 编码、窗口标签与指标。`undergs/` 保留离线对照实现。
 - `app/services/link_prediction.py`：模型目录、指纹检查、全图概率缓存与社区筛选。
 - `app/services/future_community.py`：逐快照成员并集、按概率建图和未来局部核查询。
 - `algorithms/affinity/demo.py`：仅供旧接口兼容的份额适配器。

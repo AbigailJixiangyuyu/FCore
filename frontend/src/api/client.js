@@ -17,7 +17,7 @@ async function requestJson(path, { signal, method = 'GET', body } = {}) {
       throw error
     }
 
-    throw new Error('无法连接服务，请稍后重试。', { cause: error })
+    throw new Error('Could not reach the service. Try again.', { cause: error })
   }
 
   if (!response.ok) {
@@ -30,16 +30,16 @@ async function requestJson(path, { signal, method = 'GET', body } = {}) {
         .map(function (item) {
           return item.msg
         })
-        .join('；')
+        .join(' | ')
     throw new Error(
       typeof detail === 'string'
         ? detail
-        : `请求失败（HTTP ${response.status}），请稍后重试。`,
+        : `Request failed (HTTP ${response.status}). Try again.`,
     )
   }
 
   if (!response.headers.get('content-type')?.includes('application/json')) {
-    throw new Error('服务未返回有效的 JSON 数据。')
+    throw new Error('The service did not return valid JSON.')
   }
 
   return response.json()

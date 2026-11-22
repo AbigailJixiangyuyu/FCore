@@ -91,7 +91,7 @@ function layoutComponent(members, graph, random) {
     component.nodes().map(function (id) {
       const { x, y } = component.getNodeAttributes(id)
       if (!Number.isFinite(x) || !Number.isFinite(y))
-        throw new Error('布局计算产生了无效坐标')
+        throw new Error('The graph layout returned invalid coordinates')
       return [id, { x, y }]
     }),
   )

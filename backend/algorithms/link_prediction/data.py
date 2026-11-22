@@ -5,6 +5,8 @@ from datetime import datetime
 import hashlib
 import json
 
+MAX_FORECAST_HORIZON = 3
+
 
 @dataclass(frozen=True)
 class Event:
@@ -48,16 +50,16 @@ def read_window(repository, manifest, meta, origin_timestamp: float) -> Window:
 def prepare_history(repository, manifest) -> tuple[tuple[Window, ...], dict]:
     metas = sorted(manifest.snapshots, key=lambda m: m.index)
     if [m.kind for m in metas] != ["history"] * 11 + ["present", "future"]:
-        raise ValueError("链接预测需要 11 个历史、1 个当前和1个未来等宽快照")
+        raise ValueError("Link prediction requires 11 historical snapshots, one current snapshot, and one future snapshot of equal duration.")
     if metas[11].snapshot_id != manifest.observed_until:
-        raise ValueError("观察截止与当前快照不一致")
+        raise ValueError("The observation cutoff must match the current snapshot.")
     origin = datetime.fromisoformat(metas[0].starts_at).timestamp()
     width = manifest.snapshot_minutes * 60
     for i, meta in enumerate(metas):
         start = datetime.fromisoformat(meta.starts_at).timestamp()
         end = datetime.fromisoformat(meta.ends_at).timestamp()
         if start != origin + i * width or end != start + width:
-            raise ValueError("链接预测需要连续等宽快照")
+            raise ValueError("Link prediction requires consecutive snapshots of equal duration.")
     windows = tuple(read_window(repository, manifest, meta, origin) for meta in metas[:11])
     metadata = {
         "dataset_id": manifest.dataset_id, "dataset_version": manifest.dataset_version,

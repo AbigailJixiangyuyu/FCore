@@ -74,7 +74,7 @@ export function useGraphLayout(referenceQuery, currentQuery, context, ready) {
         }
         worker.onerror = function (event) {
           if (token !== generation) return
-          error.value = event.message || '无法启动布局计算'
+          error.value = event.message || 'Could not start the graph layout'
           loading.value = false
           stopWorker()
         }

@@ -80,7 +80,7 @@ def scenarios() -> dict:
                 "members": list(map(account, members)),
                 "color": COLORS[index],
                 "generation_profile": profile,
-                "description": "预置模式成员用于演示配色与跨快照跟踪；下方证据由实际合成交易统计，不是正式挖掘评分。",
+                "description": "Preset members demonstrate coloring and snapshot tracking. Evidence summarizes the synthetic interactions.",
             }
             for index, (identifier, members, profile) in enumerate(groups)
         ]
@@ -179,7 +179,7 @@ def generate_dataset(output_dir: Path) -> dict:
     manifest = {
         "dataset_id": DATASET_ID,
         "dataset_version": DATASET_VERSION,
-        "name": "金融交易合成样例",
+        "name": "Synthetic Sample",
         "synthetic": True,
         "seed": SEED,
         "timestamp_unit": "seconds",

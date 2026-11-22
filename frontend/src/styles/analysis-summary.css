@@ -1,6 +1,6 @@
 .analysis-summary {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.65fr) minmax(0, 2.1fr);
+  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1.65fr) minmax(0, 1.95fr);
   grid-template-rows: minmax(0, 1fr);
   margin-top: 10px;
   height: 256px;
@@ -237,31 +237,30 @@
   overflow-wrap: anywhere;
 }
 
-.forecast-key-nodes {
-  margin-top: 6px;
-  margin-bottom: 0;
+.forecast-exits-heading {
+  margin: 9px 0 2px;
 }
 
-.forecast-key-node-list {
-  --key-node-row-height: 21px;
-  max-height: calc(4 * var(--key-node-row-height));
+.forecast-exit-table {
+  --exit-row-height: 21px;
+  max-height: calc(4 * var(--exit-row-height));
   scrollbar-width: thin;
   scrollbar-color: #d6dfe9 transparent;
 }
 
-.forecast-key-node-list table {
-  table-layout: fixed;
+.forecast-exit-table table {
   border-collapse: separate;
   border-spacing: 0;
 }
 
-.forecast-key-node-list :is(th, td) {
-  height: var(--key-node-row-height);
+.forecast-exit-table :is(th, td) {
+  height: var(--exit-row-height);
   padding: 2px 6px;
-  overflow: hidden;
   line-height: 16px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+}
+
+.forecast-exit-table :is(th, td):not(:first-child) {
+  text-align: right;
 }
 
 .risk-top-count {

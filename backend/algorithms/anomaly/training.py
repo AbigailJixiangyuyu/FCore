@@ -12,7 +12,7 @@ from .state import MemoryState
 
 def train(events: tuple[Event, ...], config: SladeConfig, progress=None):
     if not events:
-        raise ValueError("训练历史没有交互事件")
+        raise ValueError("The training history contains no interactions.")
     device = cuda_device()
     torch.manual_seed(config.seed)
     torch.cuda.manual_seed_all(config.seed)
@@ -32,7 +32,7 @@ def train(events: tuple[Event, ...], config: SladeConfig, progress=None):
             optimizer.zero_grad()
             loss = model.training_loss(state, batch, previous_batch)
             if not torch.isfinite(loss):
-                raise ValueError("SLADE 训练损失不是有限数")
+                raise ValueError("The SLADE training loss is not finite.")
             loss.backward()
             optimizer.step()
             state.detach()

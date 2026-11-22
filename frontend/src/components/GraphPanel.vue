@@ -4,8 +4,9 @@ import { DEFAULT_GRAPH_ZOOM } from '../composables/useGraphCanvas.js'
 import { useGraphLayout } from '../composables/useGraphLayout.js'
 import { usePeriodicCommunity } from '../composables/workbench/usePeriodicCommunity.js'
 import { currentAlgorithms, useWorkbench } from '../composables/workbenchContext.js'
+import { formatCount } from '../domain/format.js'
 import {
-  forecastAccountColor, forecastCommunityColor, futureScene, locatedAccountColor, observedScene,
+  forecastNodeColors, futureScene, graphEdgeColor, locatedAccountColor, observedScene,
 } from '../graph/scene.js'
 import GraphCanvas from './GraphCanvas.vue'
 import QueryState from './QueryState.vue'
@@ -56,8 +57,8 @@ const rangeLabel = computed(function () {
 const periodicStamp = computed(function () {
   const view = periodic.value
   if (!view || view.state === null) return ''
-  const status = view.state === 1 ? '形成' : '未形成'
-  return `${view.end} · ${status} ${view.k}-core`
+  const status = view.state === 1 ? 'formed' : 'absent'
+  return `${view.end} · ${view.k}-core ${status}`
 })
 const location = computed(function () {
   if (store.stage !== 'present') return null
@@ -74,10 +75,15 @@ const standaloneLocation = computed(function () {
 })
 const graphStamp = computed(function () {
   if (overview.value) {
-    if (future.value) return 'S12 · 已观测全图'
-    return `${rangeLabel.value || 'S12'} · 全图`
+    if (future.value) return 'S12 · Observed graph'
+    return `${rangeLabel.value || 'S12'} · Full graph`
   }
-  if (showPrediction.value) return 'S13 / PREDICTED'
+  if (showPrediction.value) {
+    const result = matchingPrediction.value
+    return result
+      ? `${result.target_snapshot} / PREDICTED · Threshold ${result.threshold.toFixed(2)}`
+      : `${store.futureSnapshotId} / PREDICTED`
+  }
   if (standaloneLocation.value) return 'S12 / OBSERVED'
   if (periodicStamp.value) return periodicStamp.value
   if (rangeLabel.value) return `${rangeLabel.value} / AGGREGATED`
@@ -127,8 +133,8 @@ const sceneKey = computed(function () {
   const base = `${store.datasetId}:${layout.value?.key || 'pending'}`
   if (overview.value) return `overview:${base}`
   if (showPrediction.value) {
-    const { model, account, k, threshold } = store.futureParameters
-    const identity = [model, account, k, threshold, activePredictionModel.value?.model_version]
+    const { account, k, horizon } = store.futureParameters
+    const identity = [account, k, horizon, activePredictionModel.value?.model_version]
     return `future:${base}:${JSON.stringify(identity)}`
   }
   if (standaloneLocation.value) return `anomaly:${base}:${standaloneLocation.value.accountId}`
@@ -145,43 +151,43 @@ watch(
 const legend = computed(function () {
   if (!scene.value?.nodes.length) return []
   if (showPrediction.value) {
-    const { k } = matchingPrediction.value
     return [
-      { label: `预测 ${k}-core 社区`, color: forecastCommunityColor },
-      { label: '查询节点 q', color: forecastAccountColor },
+      { label: 'Added nodes', color: forecastNodeColors.added },
+      { label: 'Retained nodes', color: forecastNodeColors.retained },
+      { label: 'Query node q', color: forecastNodeColors.query },
     ]
   }
   const items = []
   if (!overview.value && !standaloneLocation.value) {
     const structure = selected.value
     const label = structure.method === currentAlgorithms.pkmc.method
-      ? `全局 ${structure.parameters.max_core}-core`
+      ? `Global ${structure.parameters.max_core}-core`
       : structure.label
     items.push({ label, color: structure.color })
   }
   const request = location.value
-  if (request) items.push({ label: `定位节点 ${request.accountId}`, color: locatedAccountColor })
+  if (request) items.push({ label: `Node ${request.accountId}`, color: locatedAccountColor })
   return items
 })
 const emptyText = computed(function () {
-  if (overview.value) return '当前范围没有账户'
-  if (standaloneLocation.value) return '当前快照没有该账户'
-  if (!selected.value) return patternResponse.value?.message || '当前条件未找到社区'
-  if (periodic.value?.outsideSearch) return '该快照超出本次挖掘范围'
-  if (periodic.value?.state === 0) return `该快照未形成 ${periodic.value.k}-core`
-  if (periodic.value?.state === null) return '该快照暂无周期社区状态'
-  return '当前区间没有可显示的社区成员'
+  if (overview.value) return 'No nodes in this range'
+  if (standaloneLocation.value) return 'This node is absent from the current snapshot'
+  if (!selected.value) return patternResponse.value?.message || 'No matching community'
+  if (periodic.value?.outsideSearch) return 'This snapshot is outside the mining range'
+  if (periodic.value?.state === 0) return `No ${periodic.value.k}-core formed in this snapshot`
+  if (periodic.value?.state === null) return 'No periodic community status for this snapshot'
+  return 'No community members in this range'
 })
 </script>
 
 <template>
-  <section class="panel graph-panel" aria-label="图结构探索">
+  <section class="panel graph-panel" aria-label="Graph exploration">
     <div class="panel-heading">
-      <h2><span class="panel-number">03</span>图结构</h2>
+      <h2><span class="panel-number">03</span>Graph</h2>
       <span class="count-chip">{{
         scene
-          ? `${scene.nodes.length} 个账户 · ${scene.edges.length} 条${showPrediction ? '预测边' : '无向边'}`
-          : '尚无图数据'
+          ? `${formatCount(scene.nodes.length, 'node')} · ${formatCount(scene.edges.length, showPrediction ? 'predicted edge' : 'edge')}`
+          : 'No graph data'
       }}</span>
     </div>
     <div
@@ -193,22 +199,22 @@ const emptyText = computed(function () {
         :class="{ 'periodic-stamp': periodicStamp, 'is-formed': periodic?.state === 1 }"
         aria-live="polite"
       >{{ graphStamp }}</span>
-      <div class="graph-toolbar" role="group" aria-label="图形显示工具">
+      <div class="graph-toolbar" role="group" aria-label="Graph display tools">
         <template v-if="standaloneLocation">
-          <el-button text @click="store.graphLocation = null">返回社区</el-button>
+          <el-button text @click="store.graphLocation = null">Back to Community</el-button>
           <span class="tool-divider"></span>
         </template>
-        <el-button text aria-label="缩小图形" @click="canvas?.zoom(1.25)"
+        <el-button text aria-label="Zoom out" @click="canvas?.zoom(1.25)"
           >−</el-button
         >
-        <output aria-label="图形缩放比例">{{ zoom }}%</output>
-        <el-button text aria-label="放大图形" @click="canvas?.zoom(0.8)"
+        <output aria-label="Zoom level">{{ zoom }}%</output>
+        <el-button text aria-label="Zoom in" @click="canvas?.zoom(0.8)"
           >＋</el-button
         >
         <span class="tool-divider"></span>
-        <el-button text @click="canvas?.fit()">适应画布</el-button>
+        <el-button text @click="canvas?.fit()">Fit</el-button>
         <el-button text :aria-pressed="labels" @click="labels = !labels"
-          >标签</el-button
+          >Labels</el-button
         >
       </div>
       <GraphCanvas
@@ -235,11 +241,11 @@ const emptyText = computed(function () {
         <QueryState :query="layoutReference" />
       </div>
       <div v-else-if="error" class="graph-failure" role="alert">
-        <p>布局计算失败：{{ error }}</p>
-        <el-button plain @click="retry">重试</el-button>
+        <p>Graph layout failed. {{ error }}</p>
+        <el-button plain @click="retry">Retry</el-button>
       </div>
       <p v-else-if="loading || !layout" class="request-state" role="status">
-        <span class="loading-dot"></span>正在整理图布局…
+        <span class="loading-dot"></span>Computing layout…
       </p>
       <div v-else-if="!showPrediction && !scene?.nodes.length" class="prediction-empty">
         <QueryState :query="observedQuery" empty :empty-text="emptyText" />
@@ -251,10 +257,14 @@ const emptyText = computed(function () {
           ><i class="group-dot" :style="{ '--group': item.color }"></i
           >{{ item.label }}</span
         >
-        <span v-if="scene.edges.length"
-          ><i class="legend-line" :class="{ predicted: showPrediction }"></i
-          >{{ showPrediction ? '预测连边概率' : '已观测交易' }}</span
-        >
+        <span v-if="scene.edges.length">
+          <i
+            class="legend-line"
+            :class="{ predicted: showPrediction }"
+            :style="{ color: graphEdgeColor }"
+          ></i>
+          {{ showPrediction ? 'Link probability' : 'Observed edges' }}
+        </span>
       </div>
     </div>
   </section>

@@ -1,6 +1,6 @@
 # UnderGS 下一快照链接预测
 
-依据 [Understanding Evolving Graph Structures for Large Discrete-Time Dynamic Graph Representation](https://www.vldb.org/pvldb/vol19/p862-xu.pdf)，PVLDB 19(5):862–875，2026，及[作者代码](https://github.com/dani0108/UnderGS)。本实现采用 GCN 骨干，方法版本为 `undergs-window-v1`；它与 Zebra 独立训练，可在同一预测接口中切换。
+该实现保留作离线对照。它依据 [Understanding Evolving Graph Structures for Large Discrete-Time Dynamic Graph Representation](https://www.vldb.org/pvldb/vol19/p862-xu.pdf)（PVLDB 2026）及[作者代码](https://github.com/dani0108/UnderGS)，采用 GCN 骨干，方法版本为 `undergs-window-v1`。
 
 ## 输入与核心计算
 
@@ -65,7 +65,7 @@ uv run --directory backend python -m scripts.train_undergs --dataset email-eu-co
 
 产物为 `models/{dataset_id}/undergs/{model_version}/checkpoint.pt` 和 `manifest.json`；上级 `current.json` 独立于 Zebra。保存当前权重、账户映射、S11 节点表示和邻居库、温度、配置、事件指纹、训练曲线、指标及运行环境。使用当前 PyTorch 的 `weights_only=True` 加载，核对校验和、状态维度、邻居键和时间边界。保存恢复及继续处理 S12 的结果精确一致后才激活。
 
-`GET /api/datasets/{id}/link-prediction/models` 分别报告两种模型。`POST /api/link-prediction/predict` 指定 `model="undergs"`，返回社区内全部无序顶点对，`method=undergs-window-v1`、`result_kind=computed`。缺失、损坏或 GPU 不可用返回 503；数据指纹冲突返回 409，不自动切换 Zebra。成员顺序先规范化再核验完整结构，成员、哈希或提交条件变化仍拒绝。
+Demo 预测接口只接收 Zebra。UnderGS 仍可通过训练脚本复现实验，或向 `scripts.calibrate_links` 传入 `--model undergs` 校准其离线模型。
 
 服务缓存按模型名称、版本、数据版本、历史与 S12 指纹、观察截止隔离，只缓存 CPU 概率与已知账户集合。每次重新推理独立恢复 GPU 状态，锁保护并发计算。全图表示决定分数，社区筛选保留每对账户的原始概率。
 
@@ -82,6 +82,6 @@ S12 回测使用 3,828 个候选对，其中 320 个正例；没有因未出现�
 | 最近 S11 是否连接 | 0.334629 | 0.696563 | 0.064263 | 1.775662 |
 | 最近三快照出现频率 | 0.511911 | 0.810107 | 0.049315 | 0.878433 |
 
-基础 UnderGS 的已有连接组为 188 对、131 个正例，AP=0.751276，未连接组为 3,640 对、189 个正例，AP=0.086110。页面使用按无向口径重训并经 S11 校准的 `undergs-ea61cb576ce05a4b`，S12 回测 Brier=0.0533、对数损失=0.2032。
+基础 UnderGS 的已有连接组为 188 对、131 个正例，AP=0.751276，未连接组为 3,640 对、189 个正例，AP=0.086110。按无向口径重训并经 S11 校准的版本为 `undergs-ea61cb576ce05a4b`，S12 回测 Brier=0.0533、对数损失=0.2032。
 
 未来社区页面从概率超过所设阈值的连边提取包含查询节点的 k-core 分量。模型恢复、时间隔离和并发详见 [验收记录](../../../../VALIDATION.md)。

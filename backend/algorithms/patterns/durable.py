@@ -16,12 +16,12 @@ def mine_durable(
     and the deterministic tie and zero-duration conventions.
     """
     if not snapshots:
-        raise ValueError("持久社区搜索至少需要一个快照")
+        raise ValueError("Durable community search requires at least one snapshot.")
     if isinstance(k, bool) or not isinstance(k, int) or k < 1:
-        raise ValueError("持久社区的 k 必须为正整数")
+        raise ValueError("k must be a positive integer for durable community search.")
     accounts = sorted({node for snapshot in snapshots for node in snapshot})
     if account not in accounts:
-        raise ValueError("查询账户不在历史快照中")
+        raise ValueError("The query node is absent from the historical snapshots.")
 
     # Each of the T(T+1)/2 projected cores is computed once. The adjacency sets
     # belong to this function; the caller's snapshots remain unchanged.

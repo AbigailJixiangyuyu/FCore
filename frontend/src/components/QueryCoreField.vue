@@ -43,7 +43,7 @@ function useCoreness() {
 
 <template>
   <div class="compact-field number-field">
-    <label :for="id">核心阶数 k</label>
+    <label :for="id">Core k</label>
     <div
       class="query-core-input"
       @mouseenter="showCoreness = true"
@@ -69,7 +69,7 @@ function useCoreness() {
         size="small"
         native-type="button"
         @click="useCoreness"
-      >填入节点 {{ account }} 核数 {{ coreness }}</el-button>
+      >Use coreness {{ coreness }} of node {{ account }}</el-button>
     </div>
   </div>
 </template>

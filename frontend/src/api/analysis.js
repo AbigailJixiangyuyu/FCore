@@ -44,8 +44,8 @@ export function analyze(path, context, parameters, options) {
   return postJson(path, { ...context, ...parameters }, options)
 }
 
-export function getPredictionModels(context, options) {
-  const params = contextParams(context)
+export function getPredictionModels(context, horizon, options) {
+  const params = contextParams(context, { horizon })
   return getJson(
     `/datasets/${encodeURIComponent(context.dataset_id)}/link-prediction/models?${params}`,
     options,

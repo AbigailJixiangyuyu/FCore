@@ -81,17 +81,17 @@ def test_import_registers_sorted_interactions_and_preserves_the_observation_cuto
 def test_invalid_upload_reports_a_row_and_leaves_no_partial_dataset(tmp_path):
     with TestClient(create_app(Settings(project_root=tmp_path))) as client:
         cases = [
-            ("v,u,t\n", "第 1 行", "表头"),
-            ("u,v,t\nu,v\n", "第 2 行", "三列"),
-            ("u,v,t\nu,v,1,2\n", "第 2 行", "三列"),
-            ("u,v,t\n,001,1\n", "第 2 行", "非空"),
-            ("u,v,t\n001, ,1\n", "第 2 行", "非空"),
-            ("u,v,t\n001,002,1\n001,002,NaN\n", "第 3 行", "非负有限"),
-            ("u,v,t\n001,002,-1\n", "第 2 行", "非负有限"),
-            ("u,v,t\n001,002,inf\n", "第 2 行", "非负有限"),
-            ("u,v,t\n001,002,2026-01-01\n", "第 2 行", "非负有限"),
-            ("u,v,t\n001,002,1767232805000\n", "第 2 行", "Unix 秒"),
-            ("u,v,t", "第 2 行", "至少需要一条"),
+            ("v,u,t\n", "line 1", "header"),
+            ("u,v,t\nu,v\n", "line 2", "three columns"),
+            ("u,v,t\nu,v,1,2\n", "line 2", "three columns"),
+            ("u,v,t\n,001,1\n", "line 2", "nonempty"),
+            ("u,v,t\n001, ,1\n", "line 2", "nonempty"),
+            ("u,v,t\n001,002,1\n001,002,NaN\n", "line 3", "nonnegative finite"),
+            ("u,v,t\n001,002,-1\n", "line 2", "nonnegative finite"),
+            ("u,v,t\n001,002,inf\n", "line 2", "nonnegative finite"),
+            ("u,v,t\n001,002,2026-01-01\n", "line 2", "nonnegative finite"),
+            ("u,v,t\n001,002,1767232805000\n", "line 2", "Unix seconds"),
+            ("u,v,t", "line 2", "at least one interaction"),
         ]
         for content, row, reason in cases:
             response = upload(client, content)

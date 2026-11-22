@@ -27,8 +27,8 @@ export const currentAlgorithms = {
 }
 
 export const metricLabels = {
-  internal_edges: '内部连接数',
-  transaction_count: '交易次数',
+  internal_edges: 'Internal edges',
+  transaction_count: 'Interactions',
 }
 
 export function probabilityLabel(value) {

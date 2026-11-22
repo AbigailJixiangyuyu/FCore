@@ -15,7 +15,7 @@ class CudaUnavailable(RuntimeError):
 def cuda_device() -> torch.device:
     if not torch.cuda.is_available():
         raise CudaUnavailable(
-            "SLADE 需要 cuda:0，但当前环境无法使用 CUDA；请使用项目的 GPU 虚拟环境并检查显卡驱动"
+            "SLADE requires cuda:0. Use the project GPU environment and check the GPU driver."
         )
     torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.benchmark = False

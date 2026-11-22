@@ -15,7 +15,7 @@ const blue = '#4776b7'
 const option = computed(function () {
   const { box, median } = props.risk
   const { lowerWhisker, q1, q3, upperWhisker, minimum, maximum } = box
-  const category = '社区成员'
+  const category = 'Community members'
   const collapsed = lowerWhisker === upperWhisker
   const center = collapsed
     ? { type: 'scatter', symbolSize: 7, itemStyle: { color: blue }, data: [[median, category]] }
@@ -34,17 +34,17 @@ const option = computed(function () {
       trigger: 'item',
       formatter(point) {
         if (point.seriesIndex === 1) {
-          return `箱线图离群点\n账户 ${point.name} · 异常分 ${point.value[0].toFixed(4)}`
+          return `Box plot outlier\nNode ${point.name} · Anomaly score ${point.value[0].toFixed(4)}`
         }
         return [
-          `中位数 ${median.toFixed(4)}`,
-          `中间 50% ${q1.toFixed(4)}–${q3.toFixed(4)}`,
-          `箱须 ${lowerWhisker.toFixed(4)}–${upperWhisker.toFixed(4)}`,
+          `Median ${median.toFixed(4)}`,
+          `Middle 50% ${q1.toFixed(4)}–${q3.toFixed(4)}`,
+          `Whiskers ${lowerWhisker.toFixed(4)}–${upperWhisker.toFixed(4)}`,
         ].join('\n')
       },
     },
     xAxis: {
-      name: 'SLADE 异常分',
+      name: 'SLADE anomaly score',
       nameLocation: 'middle',
       nameGap: 27,
       nameTextStyle: { color: muted },
@@ -71,12 +71,12 @@ const option = computed(function () {
 
 <template>
   <dl class="summary-metrics risk-metrics">
-    <div title="已评分社区成员的平均 SLADE 异常分，范围 0–1">
-      <dt>平均异常分</dt>
+    <div title="Mean SLADE anomaly score (0–1) among scored members">
+      <dt>Mean Score</dt>
       <dd>{{ risk.mean.toFixed(4) }}</dd>
     </div>
-    <div title="已评分社区成员的 SLADE 异常分中位数，范围 0–1">
-      <dt>中位异常分</dt>
+    <div title="Median SLADE anomaly score (0–1) among scored members">
+      <dt>Median Score</dt>
       <dd>{{ risk.median.toFixed(4) }}</dd>
     </div>
   </dl>
@@ -84,10 +84,10 @@ const option = computed(function () {
     class="community-risk-chart"
     :option="option"
     :height="102"
-    label="社区成员 SLADE 异常分箱线图"
+    label="Box plot of SLADE anomaly scores for community members"
   />
-  <div class="summary-line risk-top-count" title="进入全图 SLADE 排名前 10 的人数占社区总人数的比例">
-    <span>全图 Top-10 命中</span>
-    <strong>{{ risk.topCount }} / {{ memberCount }}（{{ probabilityLabel(risk.topCount / memberCount) }}）</strong>
+  <div class="summary-line risk-top-count" title="Share of community members in the full graph top 10 for anomaly score">
+    <span>Members in Top 10</span>
+    <strong>{{ risk.topCount }} / {{ memberCount }} ({{ probabilityLabel(risk.topCount / memberCount) }})</strong>
   </div>
 </template>

@@ -1,7 +1,7 @@
 <script setup>
 import { computed, ref } from 'vue'
 
-import { formatNumber } from '../../domain/analysisSummary.js'
+import { formatNumber } from '../../domain/format.js'
 import { snapshotIndex } from '../../domain/timeline.js'
 
 const props = defineProps({
@@ -63,20 +63,20 @@ function selectWindow(edge) {
     :style="{ '--snapshot-count': snapshots.length, '--pattern-color': structure.color }"
   >
     <div class="pattern-facts frequency-facts">
-      <span>最少达标邻居 <strong>{{ minDegree }}</strong>（k = {{ structure.parameters.k }}）</span>
-      <span>至少 <strong>{{ structure.parameters.t }}</strong> 个活跃快照 · 频率 ≥ <strong>{{ percent(structure.parameters.f) }}</strong></span>
+      <span>Min. qualified degree <strong>{{ minDegree }}</strong> (k = {{ structure.parameters.k }})</span>
+      <span><strong>{{ structure.parameters.t }}</strong> min. active · Freq. ≥ <strong>{{ percent(structure.parameters.f) }}</strong></span>
     </div>
-    <table class="frequency-table" aria-label="达标连边的最佳时间窗和频率">
+    <table class="frequency-table" aria-label="Best windows and frequencies for qualifying edges">
       <colgroup><col class="edge-column" /><col /><col class="score-column" /></colgroup>
       <thead>
         <tr>
-          <th scope="col">账户对</th>
-          <th scope="col" aria-label="最佳交互窗口">
+          <th scope="col">Node Pair</th>
+          <th scope="col" aria-label="Best interaction window">
             <div class="frequency-axis">
               <span v-for="id in snapshots" :key="id">{{ id }}</span>
             </div>
           </th>
-          <th scope="col" title="活跃快照数 / 窗口快照数 · 交互频率">活跃/窗口 · 频率</th>
+          <th scope="col" title="Active snapshots / total snapshots in the window and interaction frequency">Active / Total</th>
         </tr>
       </thead>
       <tbody>
@@ -88,8 +88,8 @@ function selectWindow(edge) {
                 class="frequency-window"
                 :class="{ 'is-viewed': showsWindow(edge) }"
                 :style="{ gridColumn: `${edge.witness_start + 1} / ${edge.witness_end + 2}` }"
-                :title="`${rangeLabel(edge)} 有 ${edge.numerator} / ${edge.denominator} 个活跃快照`"
-                :aria-label="`查看账户对 ${edge.u}—${edge.v} 的窗口 ${rangeLabel(edge)}`"
+                :title="`${rangeLabel(edge)} · ${edge.numerator} of ${edge.denominator} snapshots active`"
+                :aria-label="`View window ${rangeLabel(edge)} for node pair ${edge.u}–${edge.v}`"
                 type="button"
                 @click="selectWindow(edge)"
               >{{ rangeLabel(edge) }}</button>
@@ -100,20 +100,20 @@ function selectWindow(edge) {
       </tbody>
     </table>
     <div class="frequency-footer">
-      <span>点击最佳窗口查看聚合图</span>
-      <nav class="frequency-pages" aria-label="达标边分页">
+      <span>Select a window to view its graph</span>
+      <nav class="frequency-pages" aria-label="Qualifying edge pages">
         <button
           v-if="edges.length > pageSize"
           type="button"
-          aria-label="上一页达标边"
+          aria-label="Previous page of edges"
           :disabled="first === 0"
           @click="page--"
         >‹</button>
-        <span aria-live="polite">{{ pageRange }} / {{ edges.length }} 条</span>
+        <span aria-live="polite">{{ pageRange }} of {{ edges.length }}</span>
         <button
           v-if="edges.length > pageSize"
           type="button"
-          aria-label="下一页达标边"
+          aria-label="Next page of edges"
           :disabled="last === edges.length"
           @click="page++"
         >›</button>

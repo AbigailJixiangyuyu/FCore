@@ -35,7 +35,7 @@ def read_source(path: Path) -> tuple[list[dict], dict]:
             continue
         fields = line.split()
         if len(fields) != 3:
-            raise ValueError(f"原始文件第 {line_number} 行必须包含 u v t 三列")
+            raise ValueError(f"Source line {line_number} must contain exactly three columns (u, v, and t).")
         u, v, timestamp = fields
         try:
             if int(u) < 0 or int(v) < 0 or int(timestamp) < 0:
@@ -43,12 +43,12 @@ def read_source(path: Path) -> tuple[list[dict], dict]:
             timestamp = int(timestamp)
         except ValueError as error:
             raise ValueError(
-                f"原始文件第 {line_number} 行的节点和相对秒必须是非负整数"
+                f"Source line {line_number} must use nonnegative integers for node IDs and relative seconds."
             ) from error
         u, v = undirected_pair(u, v)
         events.append({"u": u, "v": v, "t": timestamp})
     if not events:
-        raise ValueError("原始文件没有交互记录")
+        raise ValueError("The source has no interactions.")
     events.sort(key=lambda event: event["t"])
     return events, {
         "archive_sha256": hashlib.sha256(compressed).hexdigest(),
@@ -81,7 +81,7 @@ def dataset_files(source: Path) -> dict:
         if RETAINED_START_INCLUSIVE <= event["t"] < RETAINED_END_EXCLUSIVE
     ]
     if not events:
-        raise ValueError("原始文件在指定截断范围内没有交互记录")
+        raise ValueError("The source has no interactions within the selected cutoff.")
     accounts = sorted({e[key] for e in events for key in ("u", "v")}, key=int)
     start = events[0]["t"] // 60 * 60
     span = events[-1]["t"] - start + 1
@@ -128,7 +128,7 @@ def dataset_files(source: Path) -> dict:
     manifest = DatasetManifest(
         dataset_id=DATASET_ID,
         dataset_version=version,
-        name="Email Dept3（真实邮件，相对时间）",
+        name="EmailDept3",
         synthetic=False,
         seed=0,
         timestamp_unit="seconds",
@@ -235,7 +235,7 @@ def import_dataset(source: Path, output_dir: Path) -> dict:
     if existing.exists():
         previous = json.loads(existing.read_text(encoding="utf-8"))
         if previous.get("dataset_id") != DATASET_ID:
-            raise ValueError("目标目录已有其他数据集，拒绝覆盖")
+            raise ValueError("The output directory already contains another dataset. Choose a different directory.")
     write_dataset(output_dir, files, indent=2)
     return files
 

@@ -23,7 +23,7 @@ def prepare_training(repository, manifest):
         if meta.snapshot_id == manifest.observed_until
     )
     if not metas or any(meta.index >= present.index for meta in metas):
-        raise ValueError("训练历史范围无效")
+        raise ValueError("The training range is invalid.")
     origin = metas[0].starts_at
     events = tuple(
         event
@@ -67,7 +67,7 @@ def score_accounts(scope: AnalysisScope, request: AnomalyQuery, models_dir: Path
             "training_snapshot_ids": [],
             "accounts": [],
             "unscored_accounts": [],
-            "message": "该快照尚未评估；当前检测使用 S12。",
+            "message": "This snapshot has not been evaluated. Anomaly scores are available for S12.",
         }
     try:
         _, training = prepare_training(repository, manifest)
@@ -81,7 +81,7 @@ def score_accounts(scope: AnalysisScope, request: AnomalyQuery, models_dir: Path
         if seconds(meta.starts_at, training["origin_time"]) < seconds(
             training["ends_at"], training["origin_time"]
         ):
-            raise ValueError("检测时间与模型训练范围重叠")
+            raise ValueError("The scoring window overlaps the training range.")
         model.replay(state, events)
         accounts, unscored = model.score(
             state,
@@ -105,5 +105,5 @@ def score_accounts(scope: AnalysisScope, request: AnomalyQuery, models_dir: Path
         "training_snapshot_ids": training["snapshot_ids"],
         "accounts": accounts[:request.top_r],
         "unscored_accounts": unscored,
-        "message": "" if accounts else "当前没有具备交互历史的可评分账户。",
+        "message": "" if accounts else "No nodes have interaction history to score.",
     }

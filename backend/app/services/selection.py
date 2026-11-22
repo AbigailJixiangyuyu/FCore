@@ -26,7 +26,7 @@ def resolve_structure(
         or structure.dataset_version != scope.context.dataset_version
         or structure.observed_until != scope.context.observed_until
     ):
-        raise HTTPException(409, "所选结构与当前数据上下文不一致，请重新选择")
+        raise HTTPException(409, "The selected community does not match the current dataset context. Select it again.")
     base = scope.context.model_dump(
         include={"dataset_id", "dataset_version", "observed_until"}
     )
@@ -60,7 +60,7 @@ def resolve_structure(
                 scope, DensityQuery(**base, **structure.parameters), parallel_core
             )
     except (ValidationError, TypeError) as error:
-        raise HTTPException(422, "所选结构的原查询条件无效") from error
+        raise HTTPException(422, "The saved query parameters for this community are invalid.") from error
     for expected in result["structures"]:
         if (
             expected.structure_id == structure.structure_id
@@ -69,4 +69,4 @@ def resolve_structure(
             and expected.snapshot_id == structure.snapshot_id
         ):
             return expected
-    raise HTTPException(422, "所选结构的成员或条件已变化，请重新查询")
+    raise HTTPException(422, "The selected community or its parameters changed. Run the query again.")

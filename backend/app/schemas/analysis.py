@@ -4,13 +4,14 @@ from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, StringConstraints, field_validator, model_validator
 
+from algorithms.link_prediction.data import MAX_FORECAST_HORIZON
 from app.core.interactions import undirected_dataset_version
 from app.core.query_defaults import apply_query_defaults
 from app.schemas.system import DatasetQueryDefaults
 
 ResultKind = Literal["computed", "demo_heuristic", "demo_fixture"]
 Origin = Literal["local_core", "max_core", "density", "pattern"]
-LinkModel = Literal["zebra", "undergs"]
+LinkModel = Literal["zebra"]
 
 
 class AnalysisContext(BaseModel):
@@ -67,7 +68,7 @@ class PatternContext(AnalysisContext):
     @model_validator(mode="after")
     def require_both_bounds(self):
         if (self.start_snapshot_id is None) != (self.end_snapshot_id is None):
-            raise ValueError("请同时指定挖掘起始快照和结束快照")
+            raise ValueError("Specify both the start and end snapshots for mining.")
         return self
 
 
@@ -151,6 +152,7 @@ class FutureCommunityQuery(AnalysisContext):
     account: QueryAccount
     k: int = Field(ge=0, le=10000, strict=True)
     model: LinkModel = "zebra"
+    horizon: int = Field(default=1, ge=1, le=MAX_FORECAST_HORIZON, strict=True)
     threshold: float = Field(default=0.5, ge=0, le=1, strict=True, allow_inf_nan=False)
 
     @model_validator(mode="before")
@@ -178,9 +180,9 @@ class SnapshotData(BaseModel):
     def validate_accounts(self) -> "SnapshotData":
         present = set(self.present_accounts)
         if len(present) != len(self.present_accounts):
-            raise ValueError("快照账户不能重复")
+            raise ValueError("Snapshot node IDs must be unique.")
         if any(t.u not in present or t.v not in present for t in self.transactions):
-            raise ValueError("交易端点必须在当前快照中")
+            raise ValueError("Both endpoints of each interaction must appear in the snapshot.")
         return self
 
 
@@ -322,6 +324,7 @@ class LinkPredictionModel(BaseModel):
 
 
 class LinkPredictionModelsResponse(AnalysisResult):
+    horizon: int
     models: list[LinkPredictionModel]
 
 

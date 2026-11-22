@@ -4,7 +4,7 @@ import { computed, toValue } from 'vue'
 import { analyze } from '../../api/analysis.js'
 
 // Read the route and payload from the key that started this request.
-export function useAnalysisQuery({ name, path, context, parameters, enabled, version, runId }) {
+export function useAnalysisQuery({ name, path, context, parameters, enabled, version, runId, placeholderData }) {
   return useQuery({
     queryKey: computed(function () {
       return [name, toValue(path), context.value, toValue(parameters), toValue(version), toValue(runId)]
@@ -13,6 +13,7 @@ export function useAnalysisQuery({ name, path, context, parameters, enabled, ver
       return analyze(requestPath, requestContext, requestParameters, { signal })
     },
     enabled: computed(() => toValue(enabled) && (!runId || toValue(runId) != null)),
+    placeholderData,
     staleTime: runId ? Infinity : undefined,
   })
 }

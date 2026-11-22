@@ -35,4 +35,4 @@ def load_artifact(models_dir, dataset_id, expected, version=None):
             raise ValueError("Non-finite UnderGS weights")
         return model, state, temperature, artifact
     except (OSError, ValueError, KeyError, TypeError, RuntimeError, EOFError, pickle.UnpicklingError, IndexError, AttributeError) as error:
-        raise ModelUnavailable("UnderGS 权重或预热状态加载失败，请重新训练后重试") from error
+        raise ModelUnavailable("Could not load the UnderGS weights or warm-up state. Retrain UnderGS and try again.") from error

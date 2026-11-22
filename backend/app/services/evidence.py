@@ -15,8 +15,8 @@ def evidence_series(
         resolve_structure(scope, item, parallel_core) for item in request.structures
     ]
     unit = {
-        "internal_edges": "条无向内部连接",
-        "transaction_count": "笔",
+        "internal_edges": "undirected edges",
+        "transaction_count": "interactions",
     }[request.metric]
     series = []
     for structure in structures:

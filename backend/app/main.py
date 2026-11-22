@@ -11,8 +11,8 @@ def create_app(
 ) -> FastAPI:
     settings = settings or Settings()
     application = FastAPI(
-        title="时序交易图分析 Demo API",
-        description="本地交易数据、快照与算法的统一接口。",
+        title="Temporal Graph Analysis Demo API",
+        description="Access local interaction data, snapshots, and temporal graph analysis.",
         version=settings.version,
     )
     application.state.settings = settings

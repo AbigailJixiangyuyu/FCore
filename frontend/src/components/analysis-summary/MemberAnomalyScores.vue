@@ -13,15 +13,15 @@ function locateMember(id, hide) {
 <template>
   <el-popover trigger="click" placement="top-end" :width="245" :persistent="false">
     <template #reference>
-      <el-button link type="primary">成员异常分数</el-button>
+      <el-button link type="primary" aria-label="Show community member anomaly scores">Scores</el-button>
     </template>
     <template #default="{ hide }">
-      <div class="member-table" role="region" aria-label="社区成员异常分数" tabindex="0">
+      <div class="member-table" role="region" aria-label="Community member anomaly scores" tabindex="0">
         <table>
           <thead>
             <tr>
-              <th scope="col">节点 ID</th>
-              <th scope="col" title="SLADE 综合异常分，范围 0–1">SLADE 异常分</th>
+              <th scope="col">Node ID</th>
+              <th scope="col" title="Combined SLADE anomaly score (0–1)">SLADE Score</th>
             </tr>
           </thead>
           <tbody>
@@ -35,11 +35,11 @@ function locateMember(id, hide) {
                 <button
                   type="button"
                   class="member-locate-button"
-                  :aria-label="`在图中定位节点 ${member.account_id}`"
-                  :title="`在图中定位节点 ${member.account_id}`"
+                  :aria-label="`Locate node ${member.account_id} on the graph`"
+                  :title="`Locate node ${member.account_id} on the graph`"
                 >{{ member.account_id }}</button>
               </td>
-              <td>{{ member.score == null ? '未评分' : member.score.toFixed(4) }}</td>
+              <td>{{ member.score == null ? 'Unscored' : member.score.toFixed(4) }}</td>
             </tr>
           </tbody>
         </table>

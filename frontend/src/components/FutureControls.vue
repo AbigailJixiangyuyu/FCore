@@ -1,41 +1,39 @@
 <script setup>
 import { useWorkbench } from '../composables/workbenchContext.js'
+import { FORECAST_HORIZONS, forecastSnapshotId } from '../domain/timeline.js'
 import QueryAccountField from './QueryAccountField.vue'
 import QueryCoreField from './QueryCoreField.vue'
+import QueryForm from './QueryForm.vue'
 import QueryState from './QueryState.vue'
 const {
-  store, predictionModels, prediction, canPredict, needsModelCheck, runPrediction, recheckPredictionModels,
+  store, predictionModels, prediction, canRunPrediction, needsModelCheck, runPrediction, recheckPredictionModel,
 } = useWorkbench()
-
-function modelLabel(model) {
-  if (model.status === 'ready')
-    return model.probability_calibration ? `${model.name} · 历史校准` : model.name
-  if (model.status === 'conflict') return `${model.name} · 版本不匹配`
-  return `${model.name} · 未就绪`
-}
 </script>
 
 <template>
   <section class="algorithm-picker">
-    <h3 id="prediction-algorithm-heading">选择算法</h3>
-    <el-select
-      :model-value="store.predictionModel"
-      aria-labelledby="prediction-algorithm-heading"
-      class="full"
-      @update:model-value="store.selectAlgorithm('predictionModel', $event)"
-    >
-      <el-option
-        v-for="model in predictionModels.data.value?.models || []"
-        :key="model.id"
-        :label="modelLabel(model)"
-        :value="model.id"
-        :disabled="model.status !== 'ready'"
-      />
-    </el-select>
+    <h3>Algorithm</h3>
+    <p>Zebra: When Temporal Graph Neural Networks Meet Temporal Personalized PageRank</p>
     <QueryState :query="predictionModels" />
   </section>
-  <form class="control-parameters" @submit.prevent="runPrediction">
-    <h3>参数设置</h3>
+  <QueryForm v-slot="{ clearError }" @submit="runPrediction">
+    <h3>Parameters</h3>
+    <div class="compact-field forecast-target">
+      <label for="forecast-target-input">Target snapshot</label>
+      <el-select
+        id="forecast-target-input"
+        v-model="store.futureDraft.horizon"
+        aria-label="Target snapshot"
+        size="small"
+      >
+        <el-option
+          v-for="horizon in FORECAST_HORIZONS"
+          :key="horizon"
+          :value="horizon"
+          :label="forecastSnapshotId(horizon)"
+        />
+      </el-select>
+    </div>
     <QueryAccountField v-model="store.futureDraft.account" />
     <QueryCoreField
       id="forecast-k-input"
@@ -43,10 +41,10 @@ function modelLabel(model) {
       :account="store.futureDraftParameters.account"
     />
     <div class="compact-field forecast-threshold">
-      <span>连边阈值</span>
+      <span>Edge threshold</span>
       <el-slider
         v-model="store.futureDraft.threshold"
-        aria-label="连边阈值"
+        aria-label="Link probability threshold"
         size="small"
         :min="0"
         :max="1"
@@ -57,17 +55,17 @@ function modelLabel(model) {
       <output>{{ store.futureDraft.threshold.toFixed(2) }}</output>
     </div>
     <div class="control-actions">
-      <el-button @click="store.resetFutureDraft()">重置</el-button>
+      <el-button @click="store.resetFutureDraft(); clearError()">Reset</el-button>
       <el-button
         native-type="submit"
         type="primary"
-        :loading="canPredict && prediction.isFetching.value"
-        :disabled="!canPredict || !store.validFutureParameters"
-      >开始预测</el-button>
+        :loading="canRunPrediction && prediction.isFetching.value"
+        :disabled="!canRunPrediction || !store.validFutureParameters"
+      >Run Prediction</el-button>
     </div>
-  </form>
+  </QueryForm>
   <p v-if="store.hasPendingFutureParameters" class="helper query-status pending">
-    参数已修改，提交后更新结果。
+    Run the prediction to apply your changes.
   </p>
-  <el-button v-if="needsModelCheck" plain @click="recheckPredictionModels">重新检查模型</el-button>
+  <el-button v-if="needsModelCheck" plain @click="recheckPredictionModel">Check Model</el-button>
 </template>

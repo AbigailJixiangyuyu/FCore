@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 import { useGraphCanvas } from '../composables/useGraphCanvas.js'
+import { formatCount } from '../domain/format.js'
 
 const props = defineProps({
   scene: { type: Object, required: true },
@@ -19,7 +20,9 @@ const {
 defineExpose({ zoom, fit })
 
 const accessibleSummary = computed(function () {
-  return `${props.scene.nodes.length} 个账户，${props.scene.edges.length} 条${props.future ? '预测关系' : '无向边'}。方向键定位，回车选择账户。`
+  const nodes = formatCount(props.scene.nodes.length, 'node')
+  const edges = formatCount(props.scene.edges.length, props.future ? 'predicted edge' : 'undirected edge')
+  return `${nodes}, ${edges}. Use the arrow keys to move focus and Enter to select a node.`
 })
 </script>
 
@@ -42,8 +45,8 @@ const accessibleSummary = computed(function () {
     <div ref="container" class="sigma-container"></div>
     <div v-if="failure" class="graph-failure" role="alert">
       <p>{{ failure }}</p>
-      <p class="helper">需要支持 WebGL 2 的浏览器。</p>
-      <el-button plain @click="initialize">重试</el-button>
+      <p class="helper">This graph requires WebGL 2.</p>
+      <el-button plain @click="initialize">Retry</el-button>
     </div>
     <div v-else class="graph-overlays" aria-hidden="true">
       <span

@@ -37,7 +37,7 @@ def window_bounds(
 ) -> tuple[SnapshotMeta, SnapshotMeta]:
     by_id = {meta.snapshot_id: meta for meta in scope.manifest.snapshots}
     if start_snapshot_id not in by_id or end_snapshot_id not in by_id:
-        raise HTTPException(404, "区间包含不存在的快照")
+        raise HTTPException(404, "The range contains an unknown snapshot.")
     return by_id[start_snapshot_id], by_id[end_snapshot_id]
 
 
@@ -45,7 +45,7 @@ def observed_window(
     scope: AnalysisScope, start: SnapshotMeta, end: SnapshotMeta
 ) -> tuple[SnapshotData, list[str]]:
     if start.index > end.index:
-        raise HTTPException(422, "区间起点不能晚于终点")
+        raise HTTPException(422, "The start snapshot must be at or before the end snapshot.")
     selected = sorted(
         (
             meta
@@ -55,7 +55,7 @@ def observed_window(
         key=lambda meta: meta.index,
     )
     if any(meta.kind == "future" for meta in selected):
-        raise HTTPException(422, "区间不能包含未观测快照")
+        raise HTTPException(422, "Choose a range of observed snapshots.")
     snapshot_ids = [meta.snapshot_id for meta in selected]
     frames = [
         scope.repository.snapshot(scope.context.dataset_id, snapshot_id)
@@ -76,7 +76,7 @@ def observed_window(
 def aggregate(scope: AnalysisScope, start_snapshot_id: str, end_snapshot_id: str) -> dict:
     start, end = window_bounds(scope, start_snapshot_id, end_snapshot_id)
     if start.kind != "history" or end.kind != "history":
-        raise HTTPException(422, "区间聚合仅支持历史 S01—S11")
+        raise HTTPException(422, "Aggregate queries support historical snapshots S01–S11.")
     frame, snapshot_ids = observed_window(scope, start, end)
     payload = graph_payload(scope, frame)
     return {

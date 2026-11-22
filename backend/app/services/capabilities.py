@@ -11,38 +11,38 @@ def list_capabilities(
     capabilities = [
         Capability(
             id="patterns",
-            name="历史模式挖掘",
-            description="在快照序列中挖掘周期、持久与爆发模式。",
+            name="Historical Community Mining",
+            description="Find periodic communities, durable communities, bursting cores, and frequency-aware cores.",
         ),
         Capability(
             id="local_core",
-            name="并行核分解",
-            description="查询指定账户在 S12 的 k-core 中所属的连通结构。",
+            name="Parallel Core Decomposition",
+            description="Find the connected component of the S12 k-core containing the query node.",
         ),
         Capability(
             id="max_core",
-            name="最大核查询",
-            description="提取当前快照的最大非空核及其连通分量。",
+            name="Maximum-Core Query",
+            description="Find the highest nonempty core and its connected components in the current snapshot.",
         ),
         Capability(
             id="density",
-            name="密度约束查询",
-            description="按照确定的密度条件与算法查找图中结构。",
+            name="Density-Constrained Query",
+            description="Find subgraphs that meet a density threshold.",
         ),
         Capability(
             id="anomaly",
-            name="SLADE 账户异常检测",
-            description="基于时间对比与记忆生成，计算当前账户异常程度排名。",
+            name="SLADE Anomaly Scoring",
+            description="Rank nodes by anomaly score using temporal contrast and memory generation.",
         ),
         Capability(
             id="evidence",
-            name="子图时间证据",
-            description="统计固定账户集合在各快照中的指标变化。",
+            name="Subgraph Evidence over Time",
+            description="Track metrics for a fixed set of nodes across snapshots.",
         ),
         Capability(
             id="affinity",
-            name="群内链接预测",
-            description="选择 Zebra 或 UnderGS，预测所选结构内各顶点对在下一快照的连边概率。",
+            name="Community Link Prediction",
+            description="Estimate link probabilities for node pairs in a selected future snapshot using Zebra.",
         ),
     ]
     computed = {"patterns", "max_core", "evidence"}

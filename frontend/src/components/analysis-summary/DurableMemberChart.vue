@@ -40,25 +40,25 @@ const option = computed(function () {
         if (!point) return ''
         const end = endpoints.value[point.dataIndex]
         const window = end === beginning ? beginning : `${beginning}—${end}`
-        return `${window}\n成员数 ${point.value} 人`
+        return `${window}\nMembers ${point.value}`
       },
     },
     xAxis: {
       type: 'category', data: endpoints.value, boundaryGap: false,
-      name: `窗口终点（起点 ${beginning}）`, nameLocation: 'middle', nameGap: 22,
+      name: `Window end (start ${beginning})`, nameLocation: 'middle', nameGap: 22,
       nameTextStyle: { color: '#687b91' },
       axisLine: { lineStyle: { color: '#dce4ef' } },
       axisTick: { show: false },
       axisLabel: { color: '#687b91', interval: 0, margin: 4 },
     },
     yAxis: {
-      type: 'value', name: '成员数', nameGap: 5, scale: true, minInterval: 1, splitNumber: 3,
+      type: 'value', name: 'Members', nameGap: 5, scale: true, minInterval: 1, splitNumber: 3,
       nameTextStyle: { color: '#687b91' },
       axisLabel: { color: '#7c8da3' },
       splitLine: { lineStyle: { color: '#f0f3f8' } },
     },
     series: [{
-      name: '社区成员数', type: 'line', symbol: 'circle', symbolSize: 5,
+      name: 'Community size', type: 'line', symbol: 'circle', symbolSize: 5,
       itemStyle: { color }, lineStyle: { width: 2 },
       label: { position: 'top', color: '#4b3a66', formatter: '{c}' },
       data: counts.map(function (value, index) {
@@ -83,7 +83,7 @@ const option = computed(function () {
     class="durable-member-chart"
     :option="option"
     :height="92"
-    :label="`固定起点 ${endpoints[0]} 的社区成员数`"
+    :label="`Community size with fixed start ${endpoints[0]}`"
     interactive
     @select-index="selectEndpoint"
   />

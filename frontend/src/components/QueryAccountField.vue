@@ -12,14 +12,19 @@ function selectRankedAccount(id) {
 
 <template>
   <div class="compact-field account-field">
-    <label for="query-account-id">查询节点</label>
+    <label for="query-account-id">Query node</label>
     <el-input id="query-account-id" v-model="account" placeholder="ID" />
     <el-dropdown
       trigger="click"
       :disabled="!anomalyResults.length"
       @command="selectRankedAccount"
     >
-      <el-button size="small" :loading="rankingLoading" title="从 S12 异常排名选择节点">异常排名</el-button>
+      <el-button
+        size="small"
+        :loading="rankingLoading"
+      >
+        Anomaly Scores
+      </el-button>
       <template #dropdown>
         <el-dropdown-menu>
           <el-dropdown-item

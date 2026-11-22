@@ -26,9 +26,6 @@
   line-height: 1.35;
   overflow-wrap: anywhere;
 }
-.algorithm-picker .paper-options .el-radio.is-checked {
-  font-weight: 700;
-}
 .control-parameters {
   margin-top: 12px;
   padding-top: 12px;
@@ -54,7 +51,7 @@
 .account-field {
   grid-template-columns: auto minmax(0, 1fr) auto;
 }
-.number-field {
+.number-field, .forecast-target {
   grid-template-columns: auto minmax(0, 1fr);
   align-self: end;
 }

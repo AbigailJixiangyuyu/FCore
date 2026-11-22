@@ -23,7 +23,7 @@ from app.repositories.datasets import DatasetRepository
 
 
 def main():
-    parser = argparse.ArgumentParser(description="GPU UnderGS：训练、窗口校准与 S12 独立回测；不读取 S13")
+    parser = argparse.ArgumentParser(description="Train and calibrate UnderGS on the GPU, with S12 held out for evaluation.")
     parser.add_argument("--dataset", default="email-eu-core-dept3")
     arguments = parser.parse_args()
     settings = Settings()

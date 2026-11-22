@@ -45,9 +45,9 @@ const option = computed(function () {
       axisPointer: { type: 'shadow' },
       formatter: function ([point]) {
         if (!point) return ''
-        const degree = `${point.axisValueLabel} · 内部度 ${node.degree_sequence[point.dataIndex]}`
+        const degree = `${point.axisValueLabel} · Internal degree ${node.degree_sequence[point.dataIndex]}`
         if (!inWitness(point.dataIndex)) return degree
-        return `${degree}\n${witnessRange.value} 平均内部度 ${mean.value}\n区间长度至少 ${l} 个快照 · 阈值 ${threshold.value}`
+        return `${degree}\n${witnessRange.value} mean internal degree ${mean.value}\nMin. span ${l} snapshots · Threshold ${threshold.value}`
       },
     },
     xAxis: {
@@ -63,7 +63,7 @@ const option = computed(function () {
       splitLine: { lineStyle: { color: '#f0f3f8' } },
     },
     series: [{
-      name: '内部度',
+      name: 'Internal degree',
       type: 'bar',
       barMaxWidth: 20,
       data: node.degree_sequence.map((value, index) => ({
@@ -85,7 +85,7 @@ const option = computed(function () {
         data: view.length ? [[{ xAxis: view[0] }, { xAxis: view.at(-1) }]] : [],
       },
     }, {
-      name: '区间平均内部度',
+      name: 'Window mean internal degree',
       type: 'line',
       silent: true,
       symbol: 'none',
@@ -100,14 +100,14 @@ const option = computed(function () {
 <template>
   <div v-if="witness" class="pattern-evidence">
     <div class="pattern-facts">
-      <span title="最大 l 段密度（MSD）">
-        最大平均内部度 <strong>{{ mean }}</strong> · 阈值 {{ threshold }}
+      <span title="Maximum l-segment density (MSD)">
+        Max. mean internal degree <strong>{{ mean }}</strong> · Threshold {{ threshold }}
       </span>
     </div>
     <ChartCanvas
       :option="option"
       :height="104"
-      :label="`账户 ${witness.account} 的内部度序列，最佳区间 ${witnessRange}`"
+      :label="`Internal degree over time for node ${witness.account}. Best window ${witnessRange}`"
       interactive
       @select-index="selectSnapshot"
     />

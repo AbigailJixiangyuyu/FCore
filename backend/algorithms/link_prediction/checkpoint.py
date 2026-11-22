@@ -32,6 +32,7 @@ class CheckpointStore:
     name: str
     method: str
     version_includes_method: bool = False
+    pointer_filename: str = "current.json"
 
     def model_root(self, models_dir: Path, dataset_id: str) -> Path:
         return models_dir / dataset_id / self.model_id
@@ -77,7 +78,7 @@ class CheckpointStore:
         root = self.model_root(models_dir, dataset_id)
         try:
             if version is None:
-                pointer = json.loads((root / "current.json").read_text(encoding="utf-8"))
+                pointer = json.loads((root / self.pointer_filename).read_text(encoding="utf-8"))
                 version = pointer["model_version"]
             if not isinstance(version, str) or not re.fullmatch(
                 rf"{re.escape(self.model_id)}-[0-9a-f]{{16}}", version
@@ -89,7 +90,7 @@ class CheckpointStore:
                 raise ValueError(f"Invalid {self.name} manifest")
             if artifact["metadata"] != expected:
                 raise ModelConflict(
-                    f"{self.name} 模型与当前数据版本、历史事件或快照配置不匹配，请重新训练"
+                    f"The dataset version, interaction history, or snapshot configuration does not match the {self.name} model. Retrain the model."
                 )
             calibration = artifact.get("probability_calibration")
             if calibration is not None:
@@ -100,11 +101,11 @@ class CheckpointStore:
             return directory, artifact
         except (OSError, ValueError, KeyError, TypeError) as error:
             raise ModelUnavailable(
-                f"{self.name} 模型未就绪或文件损坏，请运行 train_{self.model_id} 后重试"
+                f"The {self.name} model is missing or corrupt. Run scripts.train_{self.model_id} to prepare it."
             ) from error
 
     def activate(self, models_dir, dataset_id, artifact) -> None:
         _atomic_json(
-            self.model_root(models_dir, dataset_id) / "current.json",
+            self.model_root(models_dir, dataset_id) / self.pointer_filename,
             {"model_version": artifact["model_version"]},
         )

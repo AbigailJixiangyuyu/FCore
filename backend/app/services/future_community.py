@@ -1,14 +1,14 @@
-"""Forecast the connected k-core containing a query account in the next snapshot."""
+"""Forecast the connected k-core containing a query account in a future snapshot."""
 
 from pathlib import Path
 
 from fastapi import HTTPException
 
 from algorithms.core.queries import adjacency, core_numbers, local_core
-from algorithms.link_prediction.adapters import MODELS
+from algorithms.link_prediction.adapters import ZEBRA
 from app.schemas.analysis import FutureCommunityQuery
 from app.services.context import AnalysisScope
-from app.services.link_prediction import score_network
+from app.services.link_prediction import prediction_target, score_network
 from app.services.statistics import graph_of
 
 
@@ -46,7 +46,7 @@ def forecast_community(
     dataset_id, account, k = manifest.dataset_id, request.account, request.k
     threshold = request.threshold
     if not any(node["id"] == account for node in repository.accounts(dataset_id)):
-        raise HTTPException(422, "查询节点不在当前数据集中")
+        raise HTTPException(422, "The query node is not in this dataset.")
 
     history = sorted(
         (meta for meta in manifest.snapshots if meta.kind == "history"),
@@ -61,7 +61,7 @@ def forecast_community(
     scored_pairs = []
     model_version = None
     if candidates:
-        scores = score_network(scope, models_dir, request.model)
+        scores = score_network(scope, models_dir, horizon=request.horizon)
         scored_pairs = [
             edge for edge in scores["pairs"]
             if edge["u"] in candidates and edge["v"] in candidates
@@ -85,19 +85,19 @@ def forecast_community(
 
     status, message = "ok", ""
     if not candidates:
-        status, message = "no_historical_community", f"历史快照中没有包含 {account} 的 {k}-core 社区。"
+        status, message = "no_historical_community", f"No historical {k}-core community contains node {account}."
     elif not scored_pairs:
-        status, message = "no_scored_pairs", "候选成员中没有可评分的顶点对。"
+        status, message = "no_scored_pairs", "No candidate node pairs can be scored."
     elif not threshold_edges and not members:
-        status, message = "no_threshold_edges", f"没有连边概率超过 {threshold * 100:g}%。"
+        status, message = "no_threshold_edges", f"No link probabilities exceed {threshold * 100:g}%."
     elif not members:
-        status, message = "no_predicted_community", f"预测图中没有包含 {account} 的 {k}-core 社区。"
+        status, message = "no_predicted_community", f"No predicted {k}-core community contains node {account}."
 
     comparison = _compare_communities(scope, request, predicted_cores) if scored_pairs else None
-    target = next(meta for meta in manifest.snapshots if meta.kind == "future")
+    target = prediction_target(manifest, request.horizon)
     n = len(candidates)
     return {
-        **scope.metadata("computed", MODELS[request.model].method),
+        **scope.metadata("computed", ZEBRA.method),
         "account": account,
         "k": k,
         "model": request.model,

@@ -44,7 +44,7 @@ onMounted(async function () {
       categoryAxis: { axisLabel: textStyle },
       valueAxis: { axisLabel: textStyle },
       tooltip: { textStyle, renderMode: 'html', confine: true, className: 'chart-tooltip' },
-    })
+    }, { locale: 'EN' })
     renderOption(props.option)
     chart.getZr().on('click', function (event) {
       if (
@@ -60,7 +60,7 @@ onMounted(async function () {
     })
     observer.observe(container.value)
   } catch (error) {
-    failure.value = `图表加载失败：${error.message}`
+    failure.value = `Could not load chart. ${error.message}`
   }
 })
 watch(

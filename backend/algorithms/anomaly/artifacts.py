@@ -103,7 +103,7 @@ def load_artifact(
         if not isinstance(version, str) or not re.fullmatch(
             r"slade-[0-9a-f]{16}", version
         ):
-            raise ValueError("模型版本格式错误")
+            raise ValueError("Invalid model version format.")
         directory = directory / version
         manifest = json.loads((directory / "manifest.json").read_text(encoding="utf-8"))
         checkpoint = directory / "checkpoint.pt"
@@ -114,16 +114,16 @@ def load_artifact(
             or digest != manifest["checkpoint_sha256"]
             or version != f"slade-{digest[:16]}"
         ):
-            raise ValueError("模型文件校验失败")
+            raise ValueError("Model file checksum verification failed.")
         if manifest["training"] != expected_training:
-            raise ModelConflict("模型与当前数据版本或历史事件不匹配，请重新训练 SLADE")
+            raise ModelConflict("The dataset version or interaction history does not match the SLADE model. Retrain SLADE.")
         payload = torch.load(checkpoint, map_location="cpu", weights_only=True)
         if (
             payload["method"] != METHOD
             or payload["training"] != expected_training
             or payload["config"] != manifest["config"]
         ):
-            raise ValueError("模型元数据与权重不一致")
+            raise ValueError("Model metadata does not match the weights.")
         device = cuda_device()
         model = Slade(SladeConfig(**payload["config"])).to(device)
         model.load_state_dict(payload["model_state"], strict=True)
@@ -138,7 +138,7 @@ def load_artifact(
             or state.seen.shape != (count,)
             or len(state.neighbors) != count
         ):
-            raise ValueError("预热状态维度无效")
+            raise ValueError("Invalid dimensions in the saved warm-up state.")
         tensors = [
             *model.state_dict().values(),
             state.memory,
@@ -146,11 +146,11 @@ def load_artifact(
             state.last_update,
         ]
         if not all(torch.isfinite(tensor).all() for tensor in tensors):
-            raise ValueError("模型或预热状态包含非有限数")
+            raise ValueError("The model or its warm-up state contains nonfinite values.")
         return model, state, manifest
     except (ModelConflict, CudaUnavailable):
         raise
     except Exception as error:
         raise ModelNotReady(
-            "SLADE 模型尚未就绪或文件损坏，请先运行离线训练命令"
+            "The SLADE model is missing or corrupt. Run scripts.train_slade to prepare it."
         ) from error

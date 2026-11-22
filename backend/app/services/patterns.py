@@ -13,10 +13,10 @@ from app.services.structures import COLORS, make_structure
 
 # Method version, public label, result ID and palette index for each algorithm.
 _PATTERN_DETAILS = {
-    "periodic": ("lpc-td-ftac-v1", "周期社区", "P1", 0),
-    "durable": ("tdc-once-v1", "持久社区", "D1", 1),
-    "burst": ("mbc-exact-segments-v1", "爆发核", "B1", 2),
-    "frequency": ("frequency-aware-kcore-online-v1", "频率感知核", "F1", 3),
+    "periodic": ("lpc-td-ftac-v1", "Periodic Community", "P1", 0),
+    "durable": ("tdc-once-v1", "Durable Community", "D1", 1),
+    "burst": ("mbc-exact-segments-v1", "Bursting Core", "B1", 2),
+    "frequency": ("frequency-aware-kcore-online-v1", "Frequency-Aware Core", "F1", 3),
 }
 
 
@@ -30,12 +30,12 @@ def historical_snapshots(
     if request.start_snapshot_id is not None and request.end_snapshot_id is not None:
         start, end = window_bounds(scope, request.start_snapshot_id, request.end_snapshot_id)
         if start.kind != "history" or end.kind != "history":
-            raise HTTPException(422, "挖掘范围只能包含历史快照")
+            raise HTTPException(422, "Mining requires a range of historical snapshots.")
         if start.index > end.index:
-            raise HTTPException(422, "挖掘起点不能晚于终点")
+            raise HTTPException(422, "The first snapshot to mine must be at or before the last snapshot.")
         metadata = [meta for meta in metadata if start.index <= meta.index <= end.index]
     if not metadata:
-        raise HTTPException(404, "没有可分析的历史快照")
+        raise HTTPException(404, "No historical snapshots are available to mine.")
     frames = [
         scope.repository.snapshot(scope.context.dataset_id, meta.snapshot_id)
         for meta in metadata
@@ -61,9 +61,9 @@ def mine_pattern(
     from algorithms.patterns.periodic import mine_periodic
 
     if request.pattern == "burst" and request.l > len(snapshots):
-        raise HTTPException(422, "最小长度 l 不能超过挖掘范围的快照数")
+        raise HTTPException(422, "The minimum span l cannot exceed the number of snapshots in the mining range.")
     if request.pattern == "frequency" and request.t > len(snapshots):
-        raise HTTPException(422, "最少活跃快照数 t 不能超过挖掘范围的快照数")
+        raise HTTPException(422, "The minimum active snapshot count t cannot exceed the number of snapshots in the mining range.")
     if not snapshots[0]:
         return None
     if (
@@ -71,7 +71,7 @@ def mine_pattern(
         and request.account is not None
         and request.account not in snapshots[0]
     ):
-        raise HTTPException(422, "查询账户不在所选挖掘范围内")
+        raise HTTPException(422, "The query node is absent from the selected mining range.")
     try:
         if request.pattern == "periodic":
             return mine_periodic(snapshots, request.account, request.k, request.epsilon)
@@ -138,9 +138,9 @@ def find_patterns(scope: AnalysisScope, request: PatternQuery) -> dict:
         )
         structure.label = label
         structures.append(structure)
-    empty_message = f"当前条件未找到{label}"
+    empty_message = f"No {label.lower()} matches the query."
     if request.pattern == "burst" and request.account is not None:
-        empty_message = f"当前条件未找到包含 {request.account} 的{label}"
+        empty_message = f"No {label.lower()} containing node {request.account} matches the query."
     return {
         **scope.metadata("computed", method),
         "analysis_snapshot_ids": snapshot_ids,

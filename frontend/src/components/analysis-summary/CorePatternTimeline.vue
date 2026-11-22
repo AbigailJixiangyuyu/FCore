@@ -27,19 +27,19 @@ const bands = computed(function () {
     return Array.from({ length: frequency }, (_, index) => {
       const first = start + index * period
       const last = first + period - 1
-      const label = `第 ${index + 1} 轮`
+      const label = `Cycle ${index + 1}`
       return { first, last, label, kind: 'period', title: `${label} · ${rangeLabel(first, last)}` }
     })
   }
   const { formation_start: start, formation_end: formed, stable_end: last } = evidence.value
   const result = [{
-    first: start, last: formed, kind: 'formation', label: '形成',
-    title: `${rangeLabel(start, formed)} 形成 ${coreLabel.value}`,
+    first: start, last: formed, kind: 'formation', label: 'Formation',
+    title: `${coreLabel.value} formed in ${rangeLabel(start, formed)}`,
   }]
   if (last > formed) {
     result.push({
-      first: formed + 1, last, kind: 'stable', label: '稳定',
-      title: `${rangeLabel(formed, last)} 成员保持不变`,
+      first: formed + 1, last, kind: 'stable', label: 'Stable',
+      title: `${rangeLabel(formed, last)} · Stable membership`,
     })
   }
   return result
@@ -48,11 +48,11 @@ const bands = computed(function () {
 function snapshotLabel(id, index) {
   if (periodic.value) {
     const formed = evidence.value.kcore_series[index] === 1
-    return `${id} · ${formed ? '形成' : '未形成'} ${coreLabel.value}`
+    return `${id} · ${coreLabel.value} ${formed ? 'formed' : 'absent'}`
   }
-  if (index === evidence.value.formation_end) return `${id} · 社区形成`
+  if (index === evidence.value.formation_end) return `${id} · Community formation`
   if (index > evidence.value.formation_end && index <= evidence.value.stable_end)
-    return `${id} · 成员保持不变`
+    return `${id} · Stable membership`
   return id
 }
 
@@ -68,16 +68,16 @@ const ticks = computed(() => snapshots.value.map((id, index) => ({
 <template>
   <div class="pattern-evidence" :style="{ '--pattern-color': structure.color }">
     <div v-if="periodic" class="pattern-facts">
-      <span>周期长 <strong>{{ evidence.period }}</strong> 个快照</span>
-      <span :title="`各轮之间的 Jaccard 相似度至少为 ${structure.parameters.epsilon.toFixed(2)}`">
-        重复 <strong>{{ evidence.frequency }}</strong> 次
+      <span>Period <strong>{{ evidence.period }}</strong> snapshots</span>
+      <span :title="`Jaccard similarity between cycles is at least ${structure.parameters.epsilon.toFixed(2)}`">
+        <strong>{{ evidence.frequency }}</strong> cycles
       </span>
     </div>
     <div
       class="core-pattern-timeline"
       :style="{ '--snapshot-count': snapshots.length }"
       role="group"
-      :aria-label="periodic ? 'k-core 状态序列' : '社区形成与稳定区间'"
+      :aria-label="periodic ? 'k-core presence by snapshot' : 'Community formation and stability windows'"
     >
       <span
         v-for="band in bands"
@@ -109,7 +109,7 @@ const ticks = computed(() => snapshots.value.map((id, index) => ({
         <span>{{ tick.id }}</span>
       </button>
     </div>
-    <p v-if="periodic" class="pattern-key">1 形成 {{ coreLabel }} <span>0 未形成</span></p>
+    <p v-if="periodic" class="pattern-key">1 {{ coreLabel }} present <span>0 absent</span></p>
     <DurableMemberChart
       v-if="!periodic && evidence.member_count_series?.length"
       :structure="structure"

@@ -5,12 +5,20 @@ import json
 
 import torch
 
-from algorithms.link_prediction.adapters import MODELS
+from algorithms.link_prediction.adapters import ModelAdapter, ZEBRA
 from algorithms.link_prediction.calibration import fit_probability_calibration, link_probabilities
 from algorithms.link_prediction.data import prepare_history, read_window
 from algorithms.link_prediction.evaluation import backtest
+from algorithms.link_prediction.undergs import artifacts as undergs_artifacts
+from algorithms.link_prediction.undergs.model import METHOD as UNDERGS_METHOD
 from app.core.config import Settings
 from app.repositories.datasets import DatasetRepository
+
+
+MODELS = {
+    "zebra": ZEBRA,
+    "undergs": ModelAdapter("UnderGS", UNDERGS_METHOD, undergs_artifacts),
+}
 
 
 def calibrate_model(model_id, settings, repository, manifest, history, metadata) -> dict:
@@ -23,7 +31,7 @@ def calibrate_model(model_id, settings, repository, manifest, history, metadata)
 
     calibration = fit_probability_calibration(adapter, model, history)
     if calibration is None:
-        raise ValueError(f"{adapter.name} 校准窗口需要同时包含连边与未连边样本")
+        raise ValueError(f"The {adapter.name} calibration window needs both positive and negative node pairs.")
 
     cutoff_meta = next(meta for meta in manifest.snapshots if meta.snapshot_id == manifest.observed_until)
     observed = read_window(repository, manifest, cutoff_meta, metadata["origin_timestamp"])
@@ -35,7 +43,7 @@ def calibrate_model(model_id, settings, repository, manifest, history, metadata)
     original_metrics = original[model_id]
     calibrated_metrics = calibrated[model_id]
     if any(calibrated_metrics[key] >= original_metrics[key] for key in ("brier", "log_loss")):
-        raise RuntimeError(f"{adapter.name} 历史校准未同时改善回测的 Brier 分数和对数损失")
+        raise RuntimeError(f"The {adapter.name} calibration did not improve both the Brier score and log loss on the holdout window.")
 
     report = {
         **base["report"],
@@ -55,7 +63,7 @@ def calibrate_model(model_id, settings, repository, manifest, history, metadata)
         pairs, logits = model.all_pairs(state, observed.end)
         restored_pairs, restored_logits = restored.all_pairs(warmup, observed.end)
         if pairs != restored_pairs:
-            raise RuntimeError(f"{adapter.name} 模型恢复后的顶点对不一致")
+            raise RuntimeError(f"The restored {adapter.name} model returned different node pairs.")
         torch.testing.assert_close(logits, restored_logits, rtol=0, atol=0)
         expected = link_probabilities(pairs, logits, (*history, observed), temperature, calibration)
         probabilities = link_probabilities(
@@ -77,7 +85,7 @@ def calibrate_model(model_id, settings, repository, manifest, history, metadata)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="用 S11 校准已有链接模型，验证至 S12")
+    parser = argparse.ArgumentParser(description="Calibrate an existing link prediction model on S11 and evaluate it on S12.")
     parser.add_argument("--dataset", default="email-eu-core-dept3")
     parser.add_argument("--model", choices=MODELS, action="append")
     args = parser.parse_args()
@@ -85,7 +93,7 @@ def main():
     repository = DatasetRepository(settings.data_dir)
     _, manifest = repository.locate(args.dataset)
     history, metadata = prepare_history(repository, manifest)
-    for model_id in args.model or MODELS:
+    for model_id in args.model or ["zebra"]:
         report = calibrate_model(model_id, settings, repository, manifest, history, metadata)
         print(json.dumps(report, ensure_ascii=False), flush=True)
 

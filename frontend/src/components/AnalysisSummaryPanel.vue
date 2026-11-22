@@ -30,7 +30,7 @@ const risk = computed(function () {
 </script>
 
 <template>
-  <section class="panel analysis-summary" aria-label="05 分析概览">
+  <section class="panel analysis-summary" aria-label="05 Analysis overview">
     <DatasetStatistics />
     <ResultAnalysis :track="track" :risk="risk" />
     <AnalysisReport :track="track" :risk="risk" />

@@ -30,12 +30,12 @@ def query_structures(
     if end.snapshot_id != scope.manifest.observed_until or (
         use_pkmc and end.snapshot_id != "S12"
     ):
-        raise HTTPException(422, "当前结构查询必须以观察截止 S12 为终点")
+        raise HTTPException(422, "The current query range must end at S12.")
     use_tccs = False
     if local_query:
         spans_snapshots = start.snapshot_id != end.snapshot_id
         if spans_snapshots and local_query.algorithm == "parallel":
-            raise HTTPException(422, "并行核分解仅支持 S12 单快照")
+            raise HTTPException(422, "Parallel core decomposition runs on S12 only.")
         use_tccs = spans_snapshots or local_query.algorithm == "tccs"
 
     numbers = None
@@ -49,25 +49,25 @@ def query_structures(
     result_kind = "computed"
     if local_query:
         if use_tccs and local_query.account not in graph:
-            raise HTTPException(422, "查询账户不在所选时间范围中")
+            raise HTTPException(422, "The query node is absent from the selected range.")
         origin = "local_core"
         parameters = {"account": local_query.account, "k": local_query.k}
         if local_query.algorithm is not None:
             parameters["algorithm"] = local_query.algorithm
         components = local_core(graph, local_query.account, local_query.k, numbers=numbers)
         prefix, method = "L", PARALLEL_CORE_METHOD
-        description = "对 S12 的无向简单投影进行并行核分解，返回 k-core 中包含 q 的连通分量。"
+        description = "Decompose the undirected S12 graph in parallel and return the k-core component containing q."
         if use_tccs:
             parameters["start_snapshot_id"] = start.snapshot_id
             method = "tccs-online-v1"
-            description = "在回溯窗口的无向简单投影上提取 k-core，返回包含 q 的连通分量。"
+            description = "Return the k-core component containing q in the undirected graph of the selected window."
     elif isinstance(request, DensityQuery):
         origin = "density"
         parameters = {"threshold": request.threshold}
         components = density_candidates(graph, request.threshold)
         prefix, method = "R", "core-neighborhood-density-demo-v1"
         result_kind = "demo_heuristic"
-        description = "演示算法：筛选各层 core 分量及闭一跳邻域；不保证枚举全部满足密度约束的子图。"
+        description = "Demo heuristic that filters core components and closed one-hop neighborhoods by density."
     else:
         origin = "max_core"
         prefix = "M"
@@ -76,12 +76,12 @@ def query_structures(
             components = [members] if members else []
             parameters = {"algorithm": "pkmc", "max_core": maximum}
             method = PKMC_METHOD
-            description = "在 S12 的无向简单投影上运行 PKMC，返回完整的最高阶非空核。"
+            description = "Run PKMC on the undirected S12 graph and return the entire highest nonempty core."
         else:
             maximum, components = maximum_core(graph)
             parameters = {"max_core": maximum}
             method = "maximum-core-v1"
-            description = "当前完整图的最大非空核及其连通分量。"
+            description = "Return the highest nonempty core and its connected components in the current graph."
     structures = [
         make_structure(
             scope,
@@ -100,7 +100,7 @@ def query_structures(
     ]
     result = {
         "structures": structures,
-        "message": "" if structures else "当前条件没有匹配结构；完整交易图仍保留。",
+        "message": "" if structures else "No community matches the query.",
     }
     if use_tccs and include_window_graph:
         result["window_graph"] = {

@@ -1,9 +1,3 @@
-export function formatNumber(value, digits = 0) {
-  return value == null
-    ? '—'
-    : value.toLocaleString('zh-CN', { maximumFractionDigits: digits })
-}
-
 function largestComponentSize(neighbors) {
   const unseen = new Set(neighbors.keys())
   let largest = 0
@@ -22,10 +16,10 @@ function largestComponentSize(neighbors) {
 
 export function summarizeGraph({ nodes, edges, stats, core_numbers = {}, snapshot_ids }) {
   const neighbors = new Map(nodes.map(node => [node.id, new Set()]))
-  for (const { source, target } of edges) {
-    if (source === target) continue
-    neighbors.get(source).add(target)
-    neighbors.get(target).add(source)
+  for (const { u, v } of edges) {
+    if (u === v) continue
+    neighbors.get(u).add(v)
+    neighbors.get(v).add(u)
   }
 
   const degrees = Array.from(neighbors.values(), accounts => accounts.size)

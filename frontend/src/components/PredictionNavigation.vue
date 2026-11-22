@@ -10,17 +10,17 @@ const { store, selectTime } = useWorkbench()
     v-if="store.stage !== 'history'"
     class="prediction-actions"
     role="group"
-    aria-label="预测视图导航"
+    aria-label="Prediction navigation"
   >
     <el-button
       v-if="store.stage === 'present'"
       type="primary"
       class="full"
       @click="selectTime(FUTURE_INDEX)"
-      >进行预测 →</el-button
+      >Go to Prediction →</el-button
     >
     <el-button v-else class="full" @click="selectTime(PRESENT_INDEX)"
-      >← 返回现在</el-button
+      >← Back to Current</el-button
     >
   </div>
 </template>

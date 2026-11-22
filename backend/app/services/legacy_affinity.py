@@ -21,9 +21,9 @@ def interaction_shares(
         structure.origin == "pattern"
         or structure.snapshot_id != scope.manifest.observed_until
     ):
-        raise HTTPException(422, "未来分析必须来自现在选中的查询结构")
+        raise HTTPException(422, "This prediction requires a community selected from the current query.")
     if request.source_account not in structure.members:
-        raise HTTPException(422, "查看账户不在所选结构中")
+        raise HTTPException(422, "The node is outside the selected community.")
     source_index = structure.members.index(request.source_account)
     ordered = (
         structure.members[source_index + 1 :] + structure.members[:source_index]
@@ -50,7 +50,7 @@ def interaction_shares(
             if error.status_code != 404:
                 raise
             raise HTTPException(
-                503, "当前数据集尚未接入群内交互份额预测"
+                503, "Interaction share predictions are unavailable for this dataset."
             ) from error
         values = profile_weights(len(ordered), profile)
     total = sum(values)

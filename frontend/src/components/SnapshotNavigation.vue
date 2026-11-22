@@ -2,6 +2,7 @@
 import { ArrowDown, Plus } from '@element-plus/icons-vue'
 import { computed, ref } from 'vue'
 import { useWorkbench } from '../composables/workbenchContext.js'
+import { formatNumber } from '../domain/format.js'
 import DatasetImportDialog from './DatasetImportDialog.vue'
 import HistoryRangeSelector from './HistoryRangeSelector.vue'
 import QueryState from './QueryState.vue'
@@ -15,22 +16,17 @@ const snapshots = computed(function () {
 const history = computed(() => snapshots.value.filter((meta) => meta.kind === 'history'))
 const stageStops = computed(() => snapshots.value.filter((meta) => meta.kind !== 'history'))
 const snapshotMinutes = computed(function () {
-  return dataset.value?.snapshot_minutes.toLocaleString('zh-CN') ?? '—'
+  return formatNumber(dataset.value?.snapshot_minutes)
 })
-function datasetLabel(item) {
-  if (item?.dataset_id === 'email-eu-core-dept3') return 'EmailDept3'
-  if (item?.dataset_id === 'synthetic-small') return '合成样例'
-  return item?.name
-}
 </script>
 
 <template>
-  <section class="panel time-navigation" aria-label="快照时间导航">
+  <section class="panel time-navigation" aria-label="Snapshot navigation">
     <div class="time-navigation-settings">
       <span class="panel-number">01</span>
       <el-dropdown trigger="click" placement="bottom-start" @command="selectDataset">
-        <el-button class="time-setting-button" :title="datasetLabel(dataset)">
-          数据集选择<ArrowDown class="time-setting-caret" aria-hidden="true" />
+        <el-button class="time-setting-button" :title="dataset?.name">
+          Dataset<ArrowDown class="time-setting-caret" aria-hidden="true" />
         </el-button>
         <template #dropdown>
           <el-dropdown-menu>
@@ -40,8 +36,8 @@ function datasetLabel(item) {
               :command="item"
               :aria-current="item.dataset_id === store.datasetId ? 'true' : undefined"
             >
-              {{ datasetLabel(item) }}
-              <span v-if="item.dataset_id === store.datasetId" class="dataset-current">当前</span>
+              {{ item.name }}
+              <span v-if="item.dataset_id === store.datasetId" class="dataset-current">Selected</span>
             </el-dropdown-item>
           </el-dropdown-menu>
         </template>
@@ -49,16 +45,16 @@ function datasetLabel(item) {
       <el-popover trigger="click" placement="bottom-start" :width="190">
         <template #reference>
           <el-button class="time-setting-button">
-            时间粒度选择<ArrowDown class="time-setting-caret" aria-hidden="true" />
+            Granularity<ArrowDown class="time-setting-caret" aria-hidden="true" />
           </el-button>
         </template>
         <div class="snapshot-granularity">
-          <span>当前粒度</span>
-          <strong>{{ snapshotMinutes }} 分钟／快照</strong>
+          <span>Snapshot interval</span>
+          <strong>{{ snapshotMinutes }} min per snapshot</strong>
         </div>
       </el-popover>
       <el-button class="time-setting-button" :icon="Plus" @click="importOpen = true">
-        数据集新增
+        Add Dataset
       </el-button>
       <DatasetImportDialog v-model="importOpen" />
     </div>
@@ -74,8 +70,8 @@ function datasetLabel(item) {
         :aria-pressed="meta.index === store.timeIndex"
         @click="selectTime(meta.index)"
       >
-        <span>{{ meta.kind === 'present' ? '现在' : '未来' }}</span>
-        <strong>{{ meta.snapshot_id }}</strong>
+        <span>{{ meta.kind === 'present' ? 'Current' : 'Future' }}</span>
+        <strong>{{ meta.kind === 'future' ? store.futureSnapshotId : meta.snapshot_id }}</strong>
       </button>
     </div>
   </section>

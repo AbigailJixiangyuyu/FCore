@@ -19,7 +19,7 @@ from app.services.anomalies import prepare_training
 
 def main():
     parser = argparse.ArgumentParser(
-        description="训练 SLADE 并保存 S11 截止的模型预热状态"
+        description="Train SLADE and save its warm-up state through S11."
     )
     parser.add_argument("--dataset", default="synthetic-small")
     arguments = parser.parse_args()
@@ -46,7 +46,7 @@ def main():
         next(model.parameters()).device.type != "cuda"
         or state.memory.device.type != "cuda"
     ):
-        raise RuntimeError("训练模型或预热状态未位于 GPU")
+        raise RuntimeError("Training requires the model and its warm-up state on the GPU.")
     artifact = save_artifact(
         settings.models_dir,
         manifest.dataset_id,
@@ -78,7 +78,7 @@ def main():
     expected = model.score(original_state, current_frame.present_accounts, cutoff)
     actual = restored.score(restored_state, current_frame.present_accounts, cutoff)
     if actual != expected:
-        raise RuntimeError("GPU 权重保存与恢复后的 S12 评分不一致，未切换当前模型")
+        raise RuntimeError("The restored GPU model returned different S12 scores. The previously active model is still selected.")
     activate_artifact(settings.models_dir, manifest.dataset_id, artifact)
     print(
         json.dumps(

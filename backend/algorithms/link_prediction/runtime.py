@@ -19,7 +19,7 @@ ZebraUnavailable = ModelUnavailable
 
 def cuda_device(model_name: str = "Zebra") -> torch.device:
     if not torch.cuda.is_available():
-        raise ModelUnavailable(f"{model_name} 需要 cuda:0；请使用当前 GPU 虚拟环境并检查显卡驱动")
+        raise ModelUnavailable(f"{model_name} requires cuda:0. Use the project GPU environment and check the GPU driver.")
     torch.use_deterministic_algorithms(True)
     torch.backends.cudnn.benchmark = False
     torch.backends.cudnn.deterministic = True

@@ -103,7 +103,7 @@ def test_failed_decomposition_is_not_cached(settings):
     def solve(graph):
         attempts.append(graph)
         if len(attempts) == 1:
-            raise ParallelCoreError("并行核分解执行超时，请重试。")
+            raise ParallelCoreError("Parallel core decomposition timed out. Try again.")
         return core_numbers(graph)
 
     with TestClient(create_app(settings, core_solver=solve)) as client:

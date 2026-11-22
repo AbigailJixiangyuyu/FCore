@@ -58,12 +58,12 @@ def datasets(request: Request) -> DatasetsResponse:
 @router.post("/datasets/import", response_model=DatasetSummary, status_code=201)
 def upload_dataset(request: Request, files: Annotated[list[UploadFile], File(alias="file")]) -> DatasetSummary:
     if len(files) != 1:
-        raise HTTPException(422, "请上传一个 CSV 文件")
+        raise HTTPException(422, "Upload exactly one CSV file.")
     file = files[0]
     try:
         manifest = import_dataset(request.app.state.settings.data_dir, file.filename or "", file.file.read())
     except OSError as error:
-        raise HTTPException(500, "保存数据集失败，请检查本地数据目录后重试") from error
+        raise HTTPException(500, "Could not save the dataset. Check the local data directory and try again.") from error
     return DatasetSummary.model_validate(manifest.model_dump())
 
 

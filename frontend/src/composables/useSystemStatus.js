@@ -4,9 +4,9 @@ import { computed } from 'vue'
 import { getCapabilities, getDatasets, getHealth } from '../api/system.js'
 
 const endpoints = [
-  { key: 'health', label: '服务状态', load: getHealth },
-  { key: 'capabilities', label: '功能模块', load: getCapabilities },
-  { key: 'datasets', label: '数据集', load: getDatasets },
+  { key: 'health', label: 'Service status', load: getHealth },
+  { key: 'capabilities', label: 'Capabilities', load: getCapabilities },
+  { key: 'datasets', label: 'Datasets', load: getDatasets },
 ]
 
 export function useSystemStatus() {

@@ -1,7 +1,7 @@
 {
   "dataset_id": "email-eu-core-dept3",
   "dataset_version": "email-eu-core-dept3-v2-430dde7de92f",
-  "name": "Email Dept3（真实邮件，相对时间）",
+  "name": "EmailDept3",
   "synthetic": false,
   "seed": 0,
   "timestamp_unit": "seconds",

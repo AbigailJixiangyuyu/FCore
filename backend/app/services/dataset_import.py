@@ -79,22 +79,22 @@ def account_catalog(windows: list[list[dict]]) -> list[dict]:
 def import_dataset(data_dir: Path, filename: str, content: bytes) -> DatasetManifest:
     filename = filename.replace("\\", "/").rsplit("/", 1)[-1]
     if not filename.lower().endswith(".csv"):
-        raise HTTPException(422, "请选择一个 .csv 文件")
+        raise HTTPException(422, "Choose a .csv file.")
     try:
         csv_text = content.decode("utf-8-sig")
     except UnicodeDecodeError as error:
-        raise HTTPException(422, "CSV 文件必须使用 UTF-8 编码") from error
+        raise HTTPException(422, "The CSV file must use UTF-8 encoding.") from error
 
     rows = sorted(interaction_rows(csv_text, filename), key=lambda row: row[1]["t"])
     if not rows:
-        raise HTTPException(422, f"{filename} 第 2 行缺失：至少需要一条交互记录")
+        raise HTTPException(422, f"{filename}, line 2. Include at least one interaction.")
     last_line, last_event = rows[-1]
     start_minute, width = observed_windows(rows[0][1]["t"], last_event["t"])
     try:
         snapshots = snapshot_metadata(start_minute, width)
     except OverflowError as error:
         raise HTTPException(
-            422, f"{filename} 第 {last_line} 行的时间范围过大，请检查 t 是否为 Unix 秒"
+            422, f"{filename}, line {last_line}. The timestamp range is too large. Use Unix seconds for t."
         ) from error
 
     windows: list[list[dict]] = [[] for _ in range(OBSERVED_COUNT)]
@@ -109,7 +109,7 @@ def import_dataset(data_dir: Path, filename: str, content: bytes) -> DatasetMani
     manifest = DatasetManifest(
         dataset_id=dataset_id,
         dataset_version=f"{dataset_id}-v1",
-        name=filename[:-4].strip() or "导入数据集",
+        name=filename[:-4].strip() or "Imported Dataset",
         synthetic=False,
         seed=0,
         snapshot_minutes=width,

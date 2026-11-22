@@ -42,14 +42,14 @@ class ParallelCoreCache:
             if key in self._entries:
                 index = self._entries[key]
                 if account not in index.graph:
-                    raise HTTPException(422, "查询账户不在 S12 中")
+                    raise HTTPException(422, "The query node is not in S12.")
                 self._entries.move_to_end(key)
                 return index
 
             frame = repository.snapshot(context.dataset_id, context.observed_until)
             graph = graph_of(frame)
             if account not in graph:
-                raise HTTPException(422, "查询账户不在 S12 中")
+                raise HTTPException(422, "The query node is not in S12.")
             try:
                 numbers = (
                     self._solver(graph) if self._solver is not None

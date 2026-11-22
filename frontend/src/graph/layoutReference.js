@@ -24,7 +24,7 @@ export function normalizeReference(frame, current = frame) {
   for (const edge of referenceEdges) {
     const { u, v } = edge
     if (!known.has(u) || !known.has(v))
-      throw new Error('布局参考图的连接包含未知账户')
+      throw new Error('The layout reference contains an edge with an unknown endpoint')
     if (u === v) continue
     pairs.add(JSON.stringify([u, v].sort(compareIds)))
   }

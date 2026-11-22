@@ -43,9 +43,9 @@ class SladeConfig:
             < 1
             or self.memory_dim % self.heads
         ):
-            raise ValueError("SLADE 维度、批大小和训练轮数无效")
+            raise ValueError("Invalid SLADE dimensions, batch size, or epoch count.")
         if not 0 <= self.dropout < 1 or self.alpha <= 0 or self.beta <= 0:
-            raise ValueError("SLADE 编码或 dropout 配置无效")
+            raise ValueError("Invalid SLADE encoding or dropout configuration.")
 
 
 class FixedTimeEncoding(nn.Module):
@@ -142,7 +142,7 @@ class Slade(nn.Module):
         self, state: MemoryState, events: tuple[Event, ...]
     ) -> tuple[Tensor, Tensor, Tensor]:
         if not events:
-            raise ValueError("更新批不能为空")
+            raise ValueError("The update batch must contain events.")
         state.ensure_accounts(a for event in events for a in (event.u, event.v))
         mapping = {account: index for index, account in enumerate(state.accounts)}
         device = state.memory.device
@@ -156,7 +156,7 @@ class Slade(nn.Module):
         nodes, others = torch.cat((u, v)), torch.cat((v, u))
         endpoint_times = times.repeat(2)
         if torch.any(endpoint_times < state.last_update[nodes]):
-            raise ValueError("不能向账户记忆写入过去的交互")
+            raise ValueError("Cannot write earlier interactions to the node memory.")
         raw = torch.cat(
             (
                 state.memory[others],
@@ -224,7 +224,7 @@ class Slade(nn.Module):
 
     def score(self, state: MemoryState, accounts: list[str], timestamp: float):
         if torch.any(state.last_update[state.seen] >= timestamp):
-            raise ValueError("评分截止必须晚于记忆中已处理的全部交互")
+            raise ValueError("The scoring cutoff must be later than all interactions in memory.")
         mapping = {account: index for index, account in enumerate(state.accounts)}
         valid, unscored = [], []
         seen = state.seen.tolist()

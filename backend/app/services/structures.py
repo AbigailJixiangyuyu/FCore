@@ -47,9 +47,9 @@ def make_structure(
     ).hexdigest()[:24]
     if metrics_frame is None:
         metrics_frame = scope.repository.snapshot(scope.context.dataset_id, snapshot_id)
-    label = f"结构 {identifier}"
+    label = f"Community {identifier}"
     if origin == "pattern":
-        label = f"子图 {identifier}"
+        label = f"Subgraph {identifier}"
     return Structure(
         structure_id=identifier,
         label=label,

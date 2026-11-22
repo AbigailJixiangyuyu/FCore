@@ -1,5 +1,6 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Query, Request
 
+from algorithms.link_prediction.data import MAX_FORECAST_HORIZON
 from app.repositories.datasets import DatasetRepository
 from app.schemas.analysis import (
     AffinityQuery,
@@ -117,9 +118,15 @@ def evidence(body: EvidenceQuery, request: Request) -> dict:
 
 
 @router.get("/datasets/{dataset_id}/link-prediction/models", response_model=LinkPredictionModelsResponse)
-def prediction_models(dataset_id: str, dataset_version: str, request: Request, observed_until: str = "S12") -> dict:
+def prediction_models(
+    dataset_id: str,
+    dataset_version: str,
+    request: Request,
+    observed_until: str = "S12",
+    horizon: int = Query(default=1, ge=1, le=MAX_FORECAST_HORIZON),
+) -> dict:
     context = AnalysisContext(dataset_id=dataset_id, dataset_version=dataset_version, observed_until=observed_until)
-    return model_catalog(analysis_scope(request, context), request.app.state.settings.models_dir)
+    return model_catalog(analysis_scope(request, context), request.app.state.settings.models_dir, horizon=horizon)
 
 
 @router.post("/link-prediction/predict", response_model=LinkPredictionResponse)

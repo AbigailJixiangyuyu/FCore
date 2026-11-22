@@ -1,6 +1,24 @@
-# Zebra 下一快照链接预测
+# Zebra 未来链接预测
 
-算法依据：[Zebra: When Temporal Graph Neural Networks Meet Temporal Personalized PageRank](https://www.vldb.org/pvldb/vol16/p1332-li.pdf)，PVLDB 16(6):1332–1345，2023；[作者代码](https://github.com/LuckyLYM/Zebra)。本实现的方法版本为 `zebra-window-v1`。UnderGS 已作为独立备选模型接入，复现机制与训练结果见 [UnderGS 说明](undergs/README.md)。
+Demo 的预测模型为 Zebra，方法标识为 `zebra-window-v1`。实现依据为 [Zebra 论文](https://www.vldb.org/pvldb/vol16/p1332-li.pdf)（PVLDB 2023）和[作者代码](https://github.com/LuckyLYM/Zebra)。UnderGS 复现与权重供[离线对照](undergs/README.md)。
+
+## 多步预测
+
+S14 和 S15 使用同一套冻结的 Zebra 编码器，各自训练对称 MLP 预测头。每个样本仅回放截至输入快照的真实交互，以相隔 2 或 3 片的单个快照是否连边为标签。两种步长各用 S10 标签选模、S11 标签校准和 S12 标签独立回测。
+
+| 预测步长 | 训练标签 | S10 选模输入 | S11 校准输入 | S12 回测输入 | AP | ROC-AUC |
+| --- | --- | --- | --- | --- | ---: | ---: |
+| 2（S14） | S03—S09 | 截至 S08 | 截至 S09 | 截至 S10 | 0.5975 | 0.8506 |
+| 3（S15） | S04—S09 | 截至 S07 | 截至 S08 | 截至 S09 | 0.5578 | 0.8570 |
+
+两种步长的线上推理都处理截至 S12 的事件。权重保存在与 S13 版本相同的模型目录中，由 `current-h2.json` 和 `current-h3.json` 分别指向验证后的版本。在 `demo/` 目录使用已训练的 Zebra 权重执行以下命令。
+
+```powershell
+uv run --no-sync --directory backend python -m scripts.train_zebra --dataset email-eu-core-dept3 --horizon 2
+uv run --no-sync --directory backend python -m scripts.train_zebra --dataset email-eu-core-dept3 --horizon 3
+```
+
+Dept3 在 q=49、k=4、阈值 0.40 时，S14 预测社区为 23 个节点和 66 条边，S15 为 7 个节点和 15 条边。阈值 0.50 时这两个时间片均未形成该 4-core。
 
 ## 任务与输入
 

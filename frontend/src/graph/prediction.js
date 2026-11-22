@@ -1,5 +1,5 @@
 import { matchesContext } from '../api/analysis.js'
-import { FUTURE_INDEX, snapshotId } from '../domain/timeline.js'
+import { forecastSnapshotId } from '../domain/timeline.js'
 
 export function matchesCommunityPrediction(response, context, parameters, model) {
   if (!matchesContext(response, context) || !model || response.model !== model.id) return false
@@ -9,8 +9,7 @@ export function matchesCommunityPrediction(response, context, parameters, model)
     response.account === parameters.account &&
     response.k === parameters.k &&
     response.threshold === parameters.threshold &&
-    response.model === parameters.model &&
-    response.target_snapshot === snapshotId(FUTURE_INDEX) &&
+    response.target_snapshot === forecastSnapshotId(parameters.horizon) &&
     (withoutModel || response.model_version === model.model_version)
   )
 }

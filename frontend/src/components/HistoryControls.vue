@@ -5,6 +5,7 @@ import { useWorkbench } from '../composables/workbenchContext.js'
 import { HISTORY_LENGTH } from '../domain/timeline.js'
 import HistoryRangeFields from './HistoryRangeFields.vue'
 import QueryAccountField from './QueryAccountField.vue'
+import QueryForm from './QueryForm.vue'
 import QueryState from './QueryState.vue'
 const { store, patternResult, patternResponse, historyResults, runHistory } = useWorkbench()
 const thresholdInput = { min: 0, step: 0.01, precision: 2, controls: false }
@@ -23,11 +24,11 @@ const paperTitles = {
 
 <template>
   <section class="algorithm-picker">
-    <h3>选择算法</h3>
+    <h3>Algorithm</h3>
     <el-radio-group
       :model-value="store.pattern"
       class="paper-options"
-      aria-label="历史挖掘算法"
+      aria-label="Historical mining algorithm"
       @update:model-value="store.selectAlgorithm('pattern', $event)"
     >
       <el-radio v-for="(title, pattern) in paperTitles" :key="pattern" :value="pattern">
@@ -35,8 +36,8 @@ const paperTitles = {
       </el-radio>
     </el-radio-group>
   </section>
-  <form @submit.prevent="runHistory" class="control-parameters">
-    <h3>参数设置</h3>
+  <QueryForm :key="store.pattern" v-slot="{ clearError }" @submit="runHistory">
+    <h3>Parameters</h3>
     <HistoryRangeFields />
     <QueryAccountField
       v-if="store.historyUsesAccount"
@@ -44,7 +45,7 @@ const paperTitles = {
     />
     <div v-if="store.pattern !== 'burst'" class="field-row">
       <div class="compact-field number-field">
-        <label for="history-k-input">核心阶数 k</label>
+        <label for="history-k-input">Core k</label>
         <el-input-number
           id="history-k-input"
           v-model="store.historyDraft.k"
@@ -55,7 +56,7 @@ const paperTitles = {
         />
       </div>
       <div v-if="store.pattern === 'periodic'" class="compact-field number-field">
-        <label for="history-epsilon-input">相似度阈值 ε</label>
+        <label for="history-epsilon-input">Similarity ε</label>
         <el-input-number
           id="history-epsilon-input"
           v-model="store.historyDraft.epsilon"
@@ -64,7 +65,7 @@ const paperTitles = {
         />
       </div>
       <div v-else-if="store.pattern === 'frequency'" class="compact-field number-field short-number-field">
-        <label for="history-t-input" title="同一对账户在同一快照中只计一次">最少活跃快照 t</label>
+        <label for="history-t-input" title="A node pair counts once per snapshot">Min. active t</label>
         <el-input-number
           id="history-t-input"
           v-model="store.historyDraft.t"
@@ -78,7 +79,7 @@ const paperTitles = {
     </div>
     <div v-else class="field-row">
       <div class="compact-field number-field short-number-field">
-        <label for="history-length-input">最小长度 l</label>
+        <label for="history-length-input" title="Minimum window length in snapshots">Span l</label>
         <el-input-number
           id="history-length-input"
           v-model="store.historyDraft.l"
@@ -90,7 +91,7 @@ const paperTitles = {
         />
       </div>
       <div class="compact-field number-field">
-        <label for="history-delta-input">平均度阈值 δ</label>
+        <label for="history-delta-input" title="Minimum average internal degree">Avg. deg. δ</label>
         <el-input-number
           id="history-delta-input"
           v-model="store.historyDraft.delta"
@@ -99,7 +100,7 @@ const paperTitles = {
       </div>
     </div>
     <div v-if="store.pattern === 'frequency'" class="compact-field number-field">
-      <label for="history-f-input" title="最密集的合格区间内，活跃快照数占区间快照数的比例">最低频率 f</label>
+      <label for="history-f-input" title="Minimum share of active snapshots in a qualifying window">Min. freq. f</label>
       <el-input-number
         id="history-f-input"
         v-model="store.historyDraft.f"
@@ -108,25 +109,25 @@ const paperTitles = {
       />
     </div>
     <p v-if="requiredSnapshots > store.historySearchLength" class="helper query-status">
-      当前范围只有 {{ store.historySearchLength }} 个快照，所设参数至少需要 {{ requiredSnapshots }} 个。
+      At least {{ requiredSnapshots }} snapshots required. The selected range has {{ store.historySearchLength }}.
     </p>
     <div class="control-actions">
-      <el-button @click="store.resetHistoryDraft()">重置</el-button>
+      <el-button @click="store.resetHistoryDraft(); clearError()">Reset</el-button>
       <el-button
         native-type="submit"
         type="primary"
         :loading="patternResult.isFetching.value"
         :disabled="!store.validHistoryParameters"
-      >开始挖掘</el-button>
+      >Run Query</el-button>
     </div>
-  </form>
+  </QueryForm>
   <p v-if="store.hasPendingHistoryParameters" class="helper query-status pending">
-    参数已修改，提交后更新结果。
+    Run the query to apply your changes.
   </p>
   <QueryState
     v-if="store.analysisRunId"
     :query="patternResult"
     :empty="!historyResults.length"
-    :empty-text="patternResponse?.message || '当前条件没有匹配模式'"
+    :empty-text="patternResponse?.message || 'No matching community'"
   />
 </template>

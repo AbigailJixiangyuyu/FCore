@@ -2,6 +2,7 @@
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import { useWorkbench } from '../composables/workbenchContext.js'
+import { formatCount } from '../domain/format.js'
 import { HISTORY_LENGTH, LAST_HISTORICAL_SNAPSHOT_ID, snapshotId } from '../domain/timeline.js'
 
 defineProps({
@@ -25,10 +26,10 @@ const selectionStyle = computed(() => {
   }
 })
 const caption = computed(() => {
-  if (!selection.value) return `历史 · S01—${LAST_HISTORICAL_SNAPSHOT_ID}`
+  if (!selection.value) return `History · S01–${LAST_HISTORICAL_SNAPSHOT_ID}`
   const [start, end] = selection.value
   const range = start === end ? snapshotId(start) : `${snapshotId(start)}—${snapshotId(end)}`
-  return `历史 · ${range} · ${end - start + 1} 个快照`
+  return `History · ${range} · ${formatCount(end - start + 1, 'snapshot')}`
 })
 
 // Dragging only changes the local selection. The workbench reads the committed range.
@@ -185,13 +186,13 @@ onBeforeUnmount(cancelDrag)
   <div
     class="historical-timeline"
     role="group"
-    aria-label="历史快照"
+    aria-label="Historical snapshots"
     :style="{ '--history-length': HISTORY_LENGTH }"
     @keydown="shiftSelection"
   >
     <div class="history-caption">
       <span>{{ caption }}</span>
-      <span v-if="preview" class="history-preview">预览</span>
+      <span v-if="preview" class="history-preview">Preview</span>
     </div>
     <div
       class="history-track"
@@ -202,7 +203,7 @@ onBeforeUnmount(cancelDrag)
       @pointercancel="cancelPointerDrag"
       @lostpointercapture="cancelPointerDrag"
     >
-      <div class="history-track-cells" title="拖动框选历史区间" aria-hidden="true">
+      <div class="history-track-cells" title="Drag to select a historical range" aria-hidden="true">
         <span v-for="meta in snapshots" :key="meta.snapshot_id"></span>
       </div>
       <div
@@ -211,9 +212,9 @@ onBeforeUnmount(cancelDrag)
         :style="selectionStyle"
         :tabindex="committedRange ? 0 : -1"
         role="group"
-        aria-label="平移历史区间"
+        aria-label="Move the historical range"
         aria-keyshortcuts="ArrowLeft ArrowRight"
-        title="拖动或按左右键平移历史区间"
+        title="Drag or press the left and right arrow keys to move the range"
       >
         <div
           v-for="(boundary, index) in boundaries"
@@ -224,12 +225,12 @@ onBeforeUnmount(cancelDrag)
           role="slider"
           :tabindex="committedRange ? 0 : -1"
           :aria-hidden="committedRange ? undefined : 'true'"
-          :aria-label="boundary === 'start' ? '历史区间起点' : '历史区间终点'"
+          :aria-label="boundary === 'start' ? 'Start of historical range' : 'End of historical range'"
           :aria-valuemin="boundary === 'start' ? 0 : selection[0]"
           :aria-valuemax="boundary === 'start' ? selection[1] : lastIndex"
           :aria-valuenow="selection[index]"
           :aria-valuetext="snapshotId(selection[index])"
-          :title="boundary === 'start' ? '拖动调整起点' : '拖动调整终点'"
+          :title="boundary === 'start' ? 'Drag to adjust the start' : 'Drag to adjust the end'"
           @keydown="adjustBoundary($event, boundary)"
         ></div>
       </div>
@@ -240,7 +241,7 @@ onBeforeUnmount(cancelDrag)
         :key="meta.snapshot_id"
         type="button"
         :class="{ 'in-range': selection && meta.index >= selection[0] && meta.index <= selection[1] }"
-        :aria-label="`查看 ${meta.snapshot_id} 单快照`"
+        :aria-label="`View snapshot ${meta.snapshot_id}`"
         :aria-pressed="committedRange?.[0] === meta.index && committedRange?.[1] === meta.index"
         @click="selectHistoryRange(meta.index, meta.index)"
       >

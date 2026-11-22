@@ -5,17 +5,58 @@ import pickle
 import torch
 
 from .checkpoint import CheckpointStore
+from .data import MAX_FORECAST_HORIZON
 from .model import METHOD, Zebra, ZebraConfig, ZebraState
 from .runtime import ZebraUnavailable, cuda_device
 
-_STORE = CheckpointStore("zebra", "Zebra", METHOD)
-save_artifact = _STORE.save
-read_artifact = _STORE.read
-activate_artifact = _STORE.activate
+_STORES = {
+    horizon: CheckpointStore(
+        "zebra", "Zebra", METHOD,
+        pointer_filename="current.json" if horizon == 1 else f"current-h{horizon}.json",
+    )
+    for horizon in range(1, MAX_FORECAST_HORIZON + 1)
+}
 
 
-def load_artifact(models_dir, dataset_id, expected, version=None):
-    directory, artifact = read_artifact(models_dir, dataset_id, expected, version)
+def _forecast_metadata(metadata, horizon):
+    if horizon == 1:
+        return metadata
+    snapshot_ids = metadata["history_snapshot_ids"]
+    validation_index = snapshot_ids.index(metadata["validation_snapshot_id"])
+    return {
+        **metadata,
+        "forecast_horizon": horizon,
+        "task": "undirected-target-snapshot-occurrence",
+        "training_target_snapshot_ids": snapshot_ids[horizon:validation_index],
+    }
+
+
+def save_artifact(
+    models_dir, model, state, temperature, metadata, report, *, probability_calibration=None, horizon=1,
+):
+    return _STORES[horizon].save(
+        models_dir, model, state, temperature, _forecast_metadata(metadata, horizon), report,
+        probability_calibration=probability_calibration,
+    )
+
+
+def read_artifact(models_dir, dataset_id, expected, version=None, *, horizon=1):
+    try:
+        return _STORES[horizon].read(models_dir, dataset_id, _forecast_metadata(expected, horizon), version)
+    except ZebraUnavailable as error:
+        if horizon == 1:
+            raise
+        raise ZebraUnavailable(f"The Zebra model for a {horizon}-snapshot forecast is missing or corrupt.") from error
+
+
+def activate_artifact(models_dir, dataset_id, artifact, *, horizon=1):
+    if artifact["metadata"].get("forecast_horizon", 1) != horizon:
+        raise ValueError("The Zebra artifact does not match the forecast horizon")
+    _STORES[horizon].activate(models_dir, dataset_id, artifact)
+
+
+def load_artifact(models_dir, dataset_id, expected, version=None, *, horizon=1):
+    directory, artifact = read_artifact(models_dir, dataset_id, expected, version, horizon=horizon)
     device = cuda_device()
     try:
         config_values = dict(artifact["config"])
@@ -35,4 +76,4 @@ def load_artifact(models_dir, dataset_id, expected, version=None):
             raise ValueError("Non-finite model weights")
         return model, state, temperature, artifact
     except (OSError, ValueError, KeyError, TypeError, RuntimeError, EOFError, pickle.UnpicklingError, IndexError) as error:
-        raise ZebraUnavailable("Zebra 权重或预热状态加载失败，请重新训练后重试") from error
+        raise ZebraUnavailable("Could not load the Zebra weights or warm-up state. Retrain Zebra and try again.") from error

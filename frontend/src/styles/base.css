@@ -95,7 +95,7 @@ p.helper {
 }
 .workspace {
   display: grid;
-  grid-template-columns: 256px minmax(0, 1fr) 316px;
+  grid-template-columns: 320px minmax(0, 1fr) 348px;
   gap: 12px;
   height: clamp(340px, calc(100dvh - var(--workspace-offset)), 650px);
 }
@@ -124,10 +124,6 @@ p.helper {
   color: #8b9db5;
   border-radius: 3px;
   flex-shrink: 0;
-}
-.heading-hint {
-  color: #a3b0c2;
-  margin-left: auto;
 }
 .sidebar-content {
   overflow: auto;
@@ -206,7 +202,7 @@ p.helper {
     padding: 0 14px;
   }
   .workspace {
-    grid-template-columns: 238px minmax(0, 1fr) 288px;
+    grid-template-columns: 302px minmax(0, 1fr) 320px;
     gap: 10px;
   }
 }

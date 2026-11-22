@@ -178,11 +178,11 @@
 }
 .legend-line {
   width: 17px;
-  border-top: 1px solid #a6b8d0;
+  border-top: 1px solid currentColor;
   display: inline-block;
 }
 .legend-line.predicted {
-  border-top: 2px dashed #a087d4;
+  border-top: 2px dashed currentColor;
 }
 .prediction-empty {
   height: 100%;

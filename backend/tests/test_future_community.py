@@ -65,10 +65,10 @@ def test_future_local_core_uses_snapshot_member_union_and_strict_threshold(
     }
     probabilities = {pair: 0.8 for pair in positive}
     probabilities[q, c] = probabilities[a, c] = probabilities[b, c] = 0.5
-    models_called = []
+    scored_horizons = []
 
-    def fixture_scores(repository, manifest, models_dir, model):
-        models_called.append(model)
+    def fixture_scores(repository, manifest, models_dir, *, horizon):
+        scored_horizons.append(horizon)
         return {
             "model_version": "test-model",
             "pairs": [
@@ -84,7 +84,7 @@ def test_future_local_core_uses_snapshot_member_union_and_strict_threshold(
     monkeypatch.setattr(link_prediction, "full_network_prediction", fixture_scores)
     body = {
         "dataset_id": DATASET_ID, "dataset_version": DATASET_VERSION,
-        "account": q, "k": 2, "model": "undergs",
+        "account": q, "k": 2,
     }
     with TestClient(app_with_test_core(settings)) as client:
         def predict(**overrides):
@@ -95,7 +95,8 @@ def test_future_local_core_uses_snapshot_member_union_and_strict_threshold(
         result = predict(account=f" {q} ")
         assert result["account"] == q and result["k"] == 2
         assert result["target_snapshot"] == "S13" and result["threshold"] == 0.5
-        assert result["model_version"] == "test-model" and models_called == ["undergs"]
+        assert result["model"] == "zebra" and result["model_version"] == "test-model"
+        assert scored_horizons == [1]
         assert set(result["history_snapshot_ids"]) == {
             f"S{index:02d}" for index in range(1, 12)
         }
@@ -116,6 +117,19 @@ def test_future_local_core_uses_snapshot_member_union_and_strict_threshold(
                 for member, before in [(q, 2), (a, 2), (b, None)]
             ],
         }
+
+        # Advancing the forecast target uses a different scorer but the same observed history.
+        for horizon in (2, 3):
+            later = predict(horizon=horizon)
+            assert later["target_snapshot"] == f"S{12 + horizon}"
+            window = datetime.fromisoformat(result["target_ends_at"]) - datetime.fromisoformat(result["target_starts_at"])
+            assert datetime.fromisoformat(later["target_starts_at"]) == (
+                datetime.fromisoformat(result["target_starts_at"]) + (horizon - 1) * window
+            )
+            assert later["observed_until"] == "S12"
+        assert scored_horizons == [1, 2, 3]
+        assert client.post("/api/link-prediction/community", json={**body, "horizon": 4}).status_code == 422
+        assert snapshots_read == set(result["history_snapshot_ids"]) | {"S12"}
 
         result_without_baseline = predict(account=b)
         assert result_without_baseline["comparison"]["added"] == [q, a, b]
@@ -160,10 +174,10 @@ def test_future_local_core_uses_snapshot_member_union_and_strict_threshold(
         assert result["status"] == "no_threshold_edges" and result["max_probability"] == 0.5
         assert result["threshold_edge_count"] == 0
 
-        calls_before = len(models_called)
+        calls_before = len(scored_horizons)
         result = predict(k=3)
         assert result["status"] == "no_historical_community" and result["candidate_member_count"] == 0
-        assert result["model_version"] is None and len(models_called) == calls_before
+        assert result["model_version"] is None and len(scored_horizons) == calls_before
         assert result["comparison"] is None
 
         candidate_pairs.clear()

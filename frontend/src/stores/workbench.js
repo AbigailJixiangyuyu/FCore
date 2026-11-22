@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import queryDefaults from '../../../config/query-defaults.json'
 import {
   FUTURE_INDEX, LAST_HISTORICAL_SNAPSHOT_ID, PRESENT_INDEX, PRESENT_SNAPSHOT_ID,
-  snapshotId, snapshotIndex,
+  forecastSnapshotId, snapshotId, snapshotIndex,
 } from '../domain/timeline.js'
 
 export const DEFAULT_DATASET_ID = 'email-eu-core-dept3'
@@ -58,9 +58,8 @@ function initialState(datasetId = DEFAULT_DATASET_ID, suggested) {
     historySelection: '',
     currentAnchor: account,
     historyAnchor: historyAccount,
-    futureDraft: { ...profile.future_core, threshold: 0.5 },
-    futureSubmitted: { ...profile.future_core, threshold: 0.5 },
-    predictionModel: 'zebra',
+    futureDraft: { ...profile.future_core, threshold: 0.5, horizon: 1 },
+    futureSubmitted: { ...profile.future_core, threshold: 0.5, horizon: 1 },
     metric: 'auto',
   }
 }
@@ -173,10 +172,13 @@ export const useWorkbenchStore = defineStore('workbench', {
     futureDraftParameters: function (state) {
       return { ...state.futureDraft, account: queryAccount(state.futureDraft.account, state.datasetId) }
     },
+    futureSnapshotId: function (state) {
+      return forecastSnapshotId(state.futureSubmitted.horizon)
+    },
     futureParameters: function (state) {
       return {
         ...state.futureSubmitted,
-        model: state.predictionModel,
+        threshold: state.futureDraft.threshold,
       }
     },
     validFutureParameters: function () {
@@ -184,9 +186,11 @@ export const useWorkbenchStore = defineStore('workbench', {
       return !!account.trim() && Number.isInteger(k) && k >= 0 && k <= 10000
     },
     hasPendingFutureParameters: function (state) {
-      const { account, k, threshold } = this.futureDraftParameters
+      const { account, k, threshold, horizon } = this.futureDraftParameters
       return account !== state.futureSubmitted.account ||
-        k !== state.futureSubmitted.k || threshold !== state.futureSubmitted.threshold
+        k !== state.futureSubmitted.k ||
+        horizon !== state.futureSubmitted.horizon ||
+        (!state.analysisRunId && threshold !== state.futureSubmitted.threshold)
     },
   },
   actions: {

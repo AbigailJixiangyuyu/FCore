@@ -32,9 +32,9 @@ def _pair_features(pairs, logits, observed_windows):
     return torch.column_stack((logits.double(), interaction_features))
 
 
-def fit_probability_calibration(adapter, model, history) -> dict | None:
-    """Fit the probability layer on S11, with model state and features through S10."""
-    observed, target = history[:-1], history[-1]
+def fit_probability_calibration(adapter, model, history, *, horizon=1) -> dict | None:
+    """Fit on S11 labels using history through the cutoff for this horizon."""
+    observed, target = history[:-horizon], history[-1]
     with torch.no_grad():
         state = model.initial_state()
         for window in observed:

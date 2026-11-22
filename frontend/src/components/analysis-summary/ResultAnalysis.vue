@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 
 import { metricLabels, useWorkbench } from '../../composables/workbenchContext.js'
-import { formatNumber } from '../../domain/analysisSummary.js'
+import { formatCount, formatNumber } from '../../domain/format.js'
 import { PRESENT_INDEX } from '../../domain/timeline.js'
 import EvidenceChart from '../EvidenceChart.vue'
 import QueryState from '../QueryState.vue'
@@ -55,25 +55,25 @@ function locateMember(accountId) {
 <template>
   <section class="summary-column result-summary" aria-labelledby="result-summary-title">
     <div class="summary-heading">
-      <h2 id="result-summary-title">查询结果分析</h2>
+      <h2 id="result-summary-title">Query Analysis</h2>
       <span v-if="analysisRange" class="summary-context">
-        挖掘范围 {{ analysisRange }}
+        Range {{ analysisRange }}
       </span>
       <span v-else-if="selected" class="summary-context risk-coverage">
-        {{ selected.observed_until }}<template v-if="risk"> 已评分 {{ risk.scoredCount }}/{{ members.length }}</template> ·
+        {{ selected.observed_until }}<template v-if="risk"> · {{ risk.scoredCount }}/{{ members.length }} scored</template> ·
         <el-popover trigger="click" placement="top-end" :width="235">
           <template #reference>
-            <el-button link type="primary" :aria-label="`查看全部 ${members.length} 个社区成员的核数`">
-              成员核数
+            <el-button link type="primary" :aria-label="`Show coreness for all ${members.length} community members`">
+              Coreness
             </el-button>
           </template>
-          <div class="member-table" role="region" aria-label="社区成员核数" tabindex="0">
+          <div class="member-table" role="region" aria-label="Community member coreness" tabindex="0">
             <table>
               <thead>
                 <tr>
-                  <th scope="col">节点 ID</th>
-                  <th scope="col" title="节点在查询图中所属的最高 k-core 阶数">
-                    核数 · {{ store.currentWindowLabel || selected.snapshot_id }}
+                  <th scope="col">Node ID</th>
+                  <th scope="col" title="Highest k-core containing the node in the query graph">
+                    Coreness · {{ store.currentWindowLabel || selected.snapshot_id }}
                   </th>
                 </tr>
               </thead>
@@ -99,32 +99,34 @@ function locateMember(accountId) {
         v-if="matchingPrediction"
         :key="matchingPrediction.request_id"
         :prediction="matchingPrediction"
+        :observed-frame="snapshot"
+        :anomaly-response="anomalyResponse"
       />
       <QueryState v-else-if="predictionRequest" :query="predictionRequest" />
       <p v-else class="summary-empty">{{ predictionMessage }}</p>
     </template>
     <template v-else-if="!selected">
       <p v-if="!store.analysisRunId" class="summary-empty">
-        {{ store.stage === 'history' ? '点击「开始挖掘」查看结果。' : '点击「开始查询」查看结果。' }}
+        Run a query to see the community.
       </p>
       <QueryState
         v-else-if="query.isFetching.value || query.isError.value"
         :query="query"
       />
-      <p v-else class="summary-empty">{{ patternResponse?.message || '当前没有匹配的查询结构。' }}</p>
+      <p v-else class="summary-empty">{{ patternResponse?.message || 'No matching community.' }}</p>
     </template>
     <template v-else-if="store.stage === 'history'">
       <div class="summary-line">
         <span><i class="group-dot" :style="{ '--group': selected.color }"></i>
-          {{ selected.label }} · {{ formatNumber(members.length) }} 个成员
+          {{ selected.label }} · {{ formatCount(members.length, 'member') }}
         </span>
         <el-select
           v-if="!patternView"
           v-model="store.metric"
-          aria-label="分析视图"
+          aria-label="Analysis metric"
           class="summary-metric-select"
         >
-          <el-option label="自动选择指标" value="auto" />
+          <el-option label="Automatic" value="auto" />
           <el-option v-for="(label, value) in metricLabels" :key="value" :label="label" :value="value" />
         </el-select>
       </div>
@@ -138,7 +140,7 @@ function locateMember(accountId) {
           @select-index="selectEvidenceTime"
           @select-range="selectHistoryRange"
         />
-        <p v-else class="summary-empty">暂无算法判定依据。</p>
+        <p v-else class="summary-empty">No algorithm evidence for this result.</p>
       </template>
       <EvidenceChart
         v-else-if="track"
@@ -152,23 +154,23 @@ function locateMember(accountId) {
       <QueryState v-else :query="evidenceResult" />
     </template>
     <template v-else-if="store.stage === 'present'">
-      <dl class="summary-metrics community-metrics" aria-label="社区结构">
+      <dl class="summary-metrics community-metrics" aria-label="Community structure">
         <div>
-          <dt>节点数</dt>
+          <dt>Nodes</dt>
           <dd>{{ formatNumber(selected.metrics.node_count) }}</dd>
         </div>
-        <div title="社区内部的无向简单边数">
-          <dt>内部边数</dt>
+        <div title="Number of undirected edges within the community">
+          <dt>Internal Edges</dt>
           <dd>{{ formatNumber(selected.metrics.internal_edges) }}</dd>
         </div>
-        <div title="社区内部边数占所有可能无向连边的比例">
-          <dt>密度</dt>
+        <div title="Share of possible edges present within the community">
+          <dt>Density</dt>
           <dd>{{ formatNumber(selected.metrics.density * 100, 2) }}%</dd>
         </div>
       </dl>
       <CommunityRiskSummary v-if="risk?.scoredCount" :risk="risk" :member-count="members.length" />
       <QueryState v-else-if="anomalyQuery.isFetching.value || anomalyQuery.isError.value" :query="anomalyQuery" />
-      <p v-else class="summary-empty">{{ anomalyResponse?.message || '该社区暂无 SLADE 评分。' }}</p>
+      <p v-else class="summary-empty">{{ anomalyResponse?.message || 'No SLADE scores for this community.' }}</p>
     </template>
   </section>
 </template>

@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 
+import { formatCount } from '../domain/format.js'
 import { HISTORY_LENGTH, snapshotId } from '../domain/timeline.js'
 import ChartCanvas from './ChartCanvas.vue'
 
@@ -24,8 +25,10 @@ const option = computed(function () {
       trigger: 'axis',
       formatter: function ([point]) {
         if (!point) return ''
-        const value = point.value == null ? '成员未出现' : `${point.value} ${props.unit}`
-        return `${point.axisValueLabel}\n${props.metricLabel} ${value}`
+        const value = point.value == null
+          ? 'Members absent'
+          : formatCount(point.value, props.unit.replace(/s$/, ''))
+        return `${point.axisValueLabel}\n${value}`
       },
     },
     xAxis: {
@@ -77,7 +80,7 @@ const option = computed(function () {
   <ChartCanvas
     :option="option"
     :height="126"
-    :label="`固定成员的${metricLabel}轨迹`"
+    :label="`${metricLabel} over time for the selected members`"
     :data-range-start="selectedRange[0]"
     :data-range-end="selectedRange[1]"
     interactive

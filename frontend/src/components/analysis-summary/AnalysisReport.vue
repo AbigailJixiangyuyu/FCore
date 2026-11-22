@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 
 import { metricLabels, probabilityLabel, useWorkbench } from '../../composables/workbenchContext.js'
-import { formatNumber } from '../../domain/analysisSummary.js'
+import { formatCount, formatNumber } from '../../domain/format.js'
 
 const props = defineProps({
   track: { type: Object, default: null },
@@ -11,43 +11,43 @@ const props = defineProps({
 const { store, selected, metric, matchingPrediction, activePredictionModel } = useWorkbench()
 
 function timeFeatures({ label, members, parameters, evidence }) {
-  const scope = `${label}包含 ${formatNumber(members.length)} 个成员。`
+  const scope = `${label} has ${formatCount(members.length, 'member')}.`
   if (!evidence) return scope
   if (parameters.pattern === 'periodic')
-    return `${scope}${evidence.start_index_snapshot_id}—${evidence.end_index_snapshot_id} 内每 ${evidence.period} 个快照重复，出现 ${evidence.frequency} 轮。`
+    return `${scope} It repeats every ${formatCount(evidence.period, 'snapshot')} from ${evidence.start_index_snapshot_id} to ${evidence.end_index_snapshot_id}, with ${formatCount(evidence.frequency, 'cycle')}.`
   if (parameters.pattern === 'durable') {
-    const formed = `${scope}在 ${evidence.formation_start_snapshot_id}—${evidence.formation_end_snapshot_id} 形成。`
+    const formed = `${scope} It formed during ${evidence.formation_start_snapshot_id}–${evidence.formation_end_snapshot_id}.`
     return evidence.duration > 0
-      ? `${formed}成员保持到 ${evidence.stable_end_snapshot_id}，稳定时长为 ${evidence.duration} 个快照。`
-      : `${formed}形成后的稳定时长为 0。`
+      ? `${formed} Membership stayed fixed through ${evidence.stable_end_snapshot_id} for ${formatCount(evidence.duration, 'snapshot')}.`
+      : `${formed} Its stability duration was 0 snapshots.`
   }
   if (parameters.pattern === 'burst') {
     const peak = evidence.nodes.reduce((best, node) => (
       !best || node.max_average_degree > best.max_average_degree ? node : best
     ), null)
-    if (peak) return `${scope}账户 ${peak.account} 在 ${peak.witness_start_snapshot_id}—${peak.witness_end_snapshot_id} 的平均度最高（${peak.max_average_degree.toFixed(2)}）。`
+    if (peak) return `${scope} Node ${peak.account} had the highest average internal degree of ${peak.max_average_degree.toFixed(2)} in ${peak.witness_start_snapshot_id}–${peak.witness_end_snapshot_id}.`
   }
   if (parameters.pattern === 'frequency')
-    return `${scope}其中 ${formatNumber(evidence.qualified_edges.length)} 对连边达到频率阈值。`
+    return `${scope} It has ${formatCount(evidence.qualified_edges.length, 'edge')} meeting the frequency threshold.`
   return scope
 }
 
 function evolution(points) {
   const [start, end] = [store.historyStartIndex, store.timeIndex]
   const view = points.filter(point => point.index >= start && point.index <= end)
-  if (!view.length) return '当前展示区间超出本次挖掘范围。'
+  if (!view.length) return 'The displayed range is outside the mining range.'
   const range = view.length === 1 ? view[0].snapshot_id : `${view[0].snapshot_id}—${view.at(-1).snapshot_id}`
   const visible = view.filter(point => point.status === 'ok')
-  if (!visible.length) return `${range} 内未观测到所选成员。`
+  if (!visible.length) return `No selected members appear in ${range}.`
   const label = metricLabels[metric.value]
   const peak = visible.reduce((best, point) => Number(point.value) > Number(best.value) ? point : best)
   const first = visible[0]
   const last = visible.at(-1)
-  const maximum = `${range} 内${label}峰值为 ${formatNumber(Number(peak.value), 2)}（${peak.snapshot_id}）。`
+  const maximum = `In ${range}, ${label.toLowerCase()} peaked at ${formatNumber(Number(peak.value), 2)} in ${peak.snapshot_id}.`
   if (first === last) return maximum
   const delta = Number(last.value) - Number(first.value)
-  const change = delta === 0 ? '持平' : `${delta > 0 ? '增加' : '减少'} ${formatNumber(Math.abs(delta), 2)}`
-  return `${maximum}${first.snapshot_id} 至 ${last.snapshot_id} ${change}。`
+  const change = delta === 0 ? 'stayed the same' : `${delta > 0 ? 'rose' : 'fell'} by ${formatNumber(Math.abs(delta), 2)}`
+  return `${maximum} The value ${change} from ${first.snapshot_id} to ${last.snapshot_id}.`
 }
 
 const rows = computed(function () {
@@ -56,48 +56,48 @@ const rows = computed(function () {
     if (!result) return []
     const { members, edges, k, account, status, message } = result
     const findings = [{
-      label: '社区预测',
+      label: 'Prediction',
       text: status === 'ok'
-        ? `${result.target_snapshot} 中包含 ${account} 的 ${k}-core 社区有 ${formatNumber(members.length)} 个成员及 ${formatNumber(edges.length)} 条预测边。`
+        ? `In ${result.target_snapshot}, the predicted ${k}-core containing node ${account} has ${formatCount(members.length, 'member')} and ${formatCount(edges.length, 'edge')}.`
         : message,
     }]
     if (edges.length) {
       const retained = edges.filter(edge => edge.currently_connected).length
       findings.push({
-        label: '连边构成',
-        text: `社区内 ${formatNumber(retained)} 条预测边在 ${result.observed_until} 已连接，${formatNumber(edges.length - retained)} 条在该快照未连接。`,
+        label: 'Edge Status',
+        text: `Of the predicted edges, ${formatNumber(retained)} were present in ${result.observed_until} and ${formatNumber(edges.length - retained)} were absent.`,
       })
     }
     return findings
   }
   if (!selected.value) return []
   if (store.stage === 'history') {
-    const result = [{ label: '时序特征', text: timeFeatures(selected.value) }]
-    if (props.track) result.push({ label: '演化分析', text: evolution(props.track.points) })
+    const result = [{ label: 'Time Pattern', text: timeFeatures(selected.value) }]
+    if (props.track) result.push({ label: 'Change', text: evolution(props.track.points) })
     return result
   }
   if (store.stage === 'present' && props.risk) {
     const { topCount, focus } = props.risk
     const size = selected.value.members.length
     const result = [{
-      label: '异常成员占比',
-      text: `社区有 ${topCount} / ${size} 名成员（${probabilityLabel(topCount / size)}）进入 S12 异常排名 Top-10。`,
+      label: 'Top 10 Share',
+      text: `${topCount} of ${size} members (${probabilityLabel(topCount / size)}) are in the S12 top 10 for anomaly score.`,
     }]
     if (focus) {
       const { account_id, score, temporal_contrast_score, memory_generation_score } = focus
       result.push({
-        label: '成员异常分析',
-        text: `账户 ${account_id} 的异常分为 ${score.toFixed(4)}，与自身历史的差异为 ${temporal_contrast_score.toFixed(4)}，与邻域推断状态的差异为 ${memory_generation_score.toFixed(4)}。`,
+        label: 'Score Details',
+        text: `Node ${account_id} has an anomaly score of ${score.toFixed(4)}, a temporal contrast score of ${temporal_contrast_score.toFixed(4)}, and a memory generation score of ${memory_generation_score.toFixed(4)}.`,
       })
-    } else result.push({ label: '成员异常分析', text: '该社区没有已评分成员。' })
+    } else result.push({ label: 'Score Details', text: 'No members have anomaly scores.' })
     return result
   }
   return []
 })
 const source = computed(function () {
-  if (store.stage === 'history') return '历史挖掘 · 逐快照证据'
-  if (store.stage === 'present') return '社区查询 · SLADE'
-  return activePredictionModel.value?.name || '链接预测'
+  if (store.stage === 'history') return 'History · Snapshot evidence'
+  if (store.stage === 'present') return 'Current · SLADE'
+  return activePredictionModel.value?.name || 'Link prediction'
 })
 </script>
 
@@ -105,7 +105,7 @@ const source = computed(function () {
   <section class="summary-column report-summary" aria-labelledby="report-summary-title">
     <div class="summary-heading">
       <h2 id="report-summary-title">LLM-based Report</h2>
-      <span class="summary-context">前端摘要</span>
+      <span class="summary-context">Template Summary</span>
     </div>
     <template v-if="rows.length">
       <p class="report-source">{{ source }}</p>
@@ -116,6 +116,6 @@ const source = computed(function () {
         </div>
       </dl>
     </template>
-    <p v-else class="summary-empty">暂无分析摘要。</p>
+    <p v-else class="summary-empty">No analysis summary yet.</p>
   </section>
 </template>

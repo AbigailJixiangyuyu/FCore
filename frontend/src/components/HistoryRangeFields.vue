@@ -10,10 +10,10 @@ const snapshots = Array.from({ length: HISTORY_LENGTH }, function (_, index) {
 
 <template>
   <div class="compact-field range-field">
-    <span>范围</span>
+    <span>Range</span>
     <el-select
       v-model="store.historyDraft.start_snapshot_id"
-      aria-label="挖掘起始快照"
+      aria-label="First snapshot to mine"
     >
       <el-option
         v-for="snapshot in snapshots"
@@ -23,10 +23,10 @@ const snapshots = Array.from({ length: HISTORY_LENGTH }, function (_, index) {
         :disabled="snapshot > store.historyDraft.end_snapshot_id"
       />
     </el-select>
-    <span aria-hidden="true">至</span>
+    <span aria-hidden="true">–</span>
     <el-select
       v-model="store.historyDraft.end_snapshot_id"
-      aria-label="挖掘结束快照"
+      aria-label="Last snapshot to mine"
     >
       <el-option
         v-for="snapshot in snapshots"

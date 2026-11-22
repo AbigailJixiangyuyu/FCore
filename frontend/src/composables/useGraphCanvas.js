@@ -1,5 +1,6 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
+import { formatCount } from '../domain/format.js'
 import { probabilityLabel } from './workbenchContext.js'
 import { applyCommunityHover } from '../graph/hover.js'
 import { measureNodeLabels, placeNodeLabels } from '../graph/labels.js'
@@ -140,7 +141,7 @@ export function useGraphCanvas(props, emit) {
       setHover(node)
       const attributes = renderer.getGraph().getNodeAttributes(node)
       showTooltip(
-        `${node}${attributes.core_number !== undefined ? ` · core number ${attributes.core_number}` : ''}${attributes.query ? ' · 查询节点 q' : ''}`,
+        `${node}${attributes.core_number !== undefined ? ` · Coreness ${attributes.core_number}` : ''}${attributes.query ? ' · Query node q' : ''}`,
         event,
       )
     })
@@ -153,15 +154,15 @@ export function useGraphCanvas(props, emit) {
       const attributes = renderer.getGraph().getEdgeAttributes(edge)
       let text = `${attributes.u} — ${attributes.v}`
       if (attributes.predicted)
-        text += ` · ${attributes.target_snapshot} 连边概率 ${probabilityLabel(attributes.probability)}（模型估计） · S12 ${attributes.currently_connected ? '已有连接' : '未连接'}`
+        text += ` · ${attributes.target_snapshot} link probability ${probabilityLabel(attributes.probability)} · ${attributes.currently_connected ? 'Connected' : 'Not connected'} in S12`
       else {
         const scope = attributes.aggregated
-          ? `${attributes.observation_scope} 区间累计`
+          ? `${attributes.observation_scope} total`
           : attributes.observation_scope
-        text += ` · ${scope} · 交互 ${attributes.transaction_count} 次`
+        text += ` · ${scope} · ${formatCount(attributes.transaction_count, 'interaction')}`
         const witness = attributes.frequencyEvidence
         if (witness)
-          text += ` · 历史频率 ${witness.frequency.toFixed(3)} · ${witness.witness_start_snapshot_id} 至 ${witness.witness_end_snapshot_id}`
+          text += ` · Historical frequency ${witness.frequency.toFixed(3)} · ${witness.witness_start_snapshot_id}–${witness.witness_end_snapshot_id}`
       }
       showTooltip(text, event)
     })
@@ -186,7 +187,7 @@ export function useGraphCanvas(props, emit) {
       updateScene()
       locate(props.location?.accountId)
     } catch (error) {
-      failure.value = `关系图加载失败：${error.message}`
+      failure.value = `Could not load graph. ${error.message}`
       renderer?.kill()
       renderer = null
     }

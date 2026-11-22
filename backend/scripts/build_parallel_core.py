@@ -13,10 +13,10 @@ ADAPTER = Path(__file__).resolve().parents[1] / "algorithms" / "core" / "paralle
 
 def build(source: Path, binary: Path) -> None:
     if not (source / "KCore" / "kcore.h").is_file():
-        raise FileNotFoundError(f"找不到 Parallel-KCore 作者源码: {source}")
+        raise FileNotFoundError(f"Could not find the Parallel-KCore source at {source}")
     parlay_include = Path("external/parlaylib/include")
     if not (source / parlay_include / "parlay" / "parallel.h").is_file():
-        raise FileNotFoundError(f"作者源码目录缺少 ParlayLib: {source / parlay_include}")
+        raise FileNotFoundError(f"ParlayLib is missing from {source / parlay_include}")
 
     binary.parent.mkdir(parents=True, exist_ok=True)
     with NamedTemporaryFile(dir=binary.parent, prefix="kcore-", suffix=".tmp", delete=False) as file:
@@ -52,8 +52,8 @@ def main() -> None:
     try:
         build(args.source_dir.resolve(), settings.parallel_core_binary)
     except (OSError, subprocess.CalledProcessError) as error:
-        parser.exit(1, f"编译失败，请检查 {DISTRO}、g++ 和作者源码目录：{error}\n")
-    print(f"并行核分解已构建: {settings.parallel_core_binary}")
+        parser.exit(1, f"Build failed. Check {DISTRO}, g++, and the source directory. {error}\n")
+    print(f"Built the parallel core solver at {settings.parallel_core_binary}")
 
 
 if __name__ == "__main__":

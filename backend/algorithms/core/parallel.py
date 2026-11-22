@@ -29,7 +29,7 @@ def decompose(
     graph: dict[str, set[str]], binary: Path, *, threads: int | None = None
 ) -> dict[str, int]:
     if not binary.is_file():
-        raise ParallelCoreError(f"并行核分解程序尚未构建。请在项目根目录执行：{BUILD_COMMAND}")
+        raise ParallelCoreError(f"Build the parallel core solver first. Run {BUILD_COMMAND} from the project root.")
     if threads is None:
         threads = min(8, os.cpu_count() or 1)
 
@@ -56,13 +56,13 @@ def decompose(
             command, input=data, capture_output=True, timeout=60, check=True
         )
     except subprocess.TimeoutExpired as error:
-        raise ParallelCoreError("并行核分解执行超时，请重试。") from error
+        raise ParallelCoreError("Parallel core decomposition timed out. Try again.") from error
     except subprocess.CalledProcessError as error:
         message = (error.stderr or error.stdout).decode("utf-8", errors="replace")[-1500:]
         _LOGGER.warning("Parallel k-core exited with status %s: %s", error.returncode, message)
-        raise ParallelCoreError("并行核分解执行失败，请检查 WSL 或重新构建后重试。") from error
+        raise ParallelCoreError("Parallel core decomposition failed. Check WSL or rebuild the solver and try again.") from error
     except OSError as error:
-        raise ParallelCoreError(f"无法启动 WSL，并行核分解需要 {DISTRO}。") from error
+        raise ParallelCoreError(f"Could not start WSL. Parallel core decomposition requires {DISTRO}.") from error
 
     try:
         line, = [
@@ -76,5 +76,5 @@ def decompose(
         ):
             raise ValueError("Invalid core numbers")
     except ValueError as error:
-        raise ParallelCoreError("并行核分解返回了无效结果，请重新构建后重试。") from error
+        raise ParallelCoreError("Parallel core decomposition returned an invalid result. Rebuild the solver and try again.") from error
     return dict(zip(nodes, numbers))
