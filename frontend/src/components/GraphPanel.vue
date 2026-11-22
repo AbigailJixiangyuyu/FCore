@@ -45,7 +45,10 @@ const { layout, loading, error, retry } = useGraphLayout(
 const future = computed(function () {
   return store.stage === 'future'
 })
-const overview = computed(() => !store.analysisRunId)
+const overview = computed(function () {
+  if (!store.analysisRunId) return true
+  return store.stage === 'history' && store.pattern === 'temporal_core' && !selected.value
+})
 const showPrediction = computed(() => future.value && !overview.value)
 const usesCurrentWindow = computed(function () {
   return store.stage === 'present' && store.currentAlgorithm === 'tccs'

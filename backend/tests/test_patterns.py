@@ -1,10 +1,13 @@
 from itertools import combinations
+from random import Random
 
+from algorithms.core.queries import core_numbers
 from algorithms.patterns.burst import mine_burst
 from algorithms.patterns.common import PatternResult, TemporalSnapshots
 from algorithms.patterns.durable import mine_durable
 from algorithms.patterns.frequency import mine_frequency
 from algorithms.patterns.periodic import mine_periodic
+from algorithms.patterns.temporal_core import mine_temporal_cores
 
 
 def snapshots_for(nodes, frames) -> TemporalSnapshots:
@@ -83,3 +86,62 @@ def test_frequency_paper_example_counts_both_window_endpoints():
         {"u": "a", "v": "b", "numerator": 3, "denominator": 8, "witness_start": 1, "witness_end": 8}
     ]
     assert mine_frequency(snapshots, k=1, t=3, f=0.375001) is None
+
+
+def test_temporal_cores_keep_time_edges_and_remove_equivalent_windows():
+    triangle = list(combinations("abc", 2))
+    snapshots = snapshots_for("abcde", [[], triangle, [("d", "e")], triangle, []])
+    results = mine_temporal_cores(snapshots, k=2)
+    assert results == [
+        PatternResult(tuple("abc"), {"witness_start": start, "witness_end": end})
+        for start, end in ((1, 1), (3, 3), (1, 3))
+    ]
+
+    # Two incomplete snapshot graphs form a core together. Repeated links and
+    # isolated nodes do not raise core degree.
+    two_triangles = snapshots_for("abcdefg", [
+        [("a", "b"), ("b", "c"), ("d", "e"), ("e", "f")],
+        [("a", "c"), ("a", "c"), ("d", "f")],
+    ])
+    assert mine_temporal_cores(two_triangles, k=2) == [
+        PatternResult(tuple("abcdef"), {"witness_start": 0, "witness_end": 1})
+    ]
+    assert mine_temporal_cores(two_triangles, k=3) == []
+
+
+def exhaustive_temporal_windows(snapshots, k):
+    results = {}
+    for start in range(len(snapshots)):
+        for end in range(start, len(snapshots)):
+            graph = {
+                node: set().union(*(frame[node] for frame in snapshots[start : end + 1]))
+                for node in snapshots[start]
+            }
+            members = tuple(sorted(node for node, number in core_numbers(graph).items() if number >= k))
+            if not members:
+                continue
+            member_set = set(members)
+            times = [
+                time for time in range(start, end + 1)
+                if any(snapshots[time][node] & member_set for node in members)
+            ]
+            results[times[0], times[-1]] = members
+    return results
+
+
+def test_temporal_core_pruning_matches_independent_window_enumeration():
+    rng = Random(20261122)
+    nodes = "abcdef"
+    pairs = list(combinations(nodes, 2))
+    for _ in range(60):
+        probabilities = [rng.choice((0.0, 0.15, 0.35, 0.6)) for _ in range(7)]
+        snapshots = snapshots_for(nodes, [
+            [pair for pair in pairs if rng.random() < probability]
+            for probability in probabilities
+        ])
+        for k in (1, 2, 3, 4):
+            results = mine_temporal_cores(snapshots, k)
+            assert {
+                (result.evidence["witness_start"], result.evidence["witness_end"]): result.members
+                for result in results
+            } == exhaustive_temporal_windows(snapshots, k)

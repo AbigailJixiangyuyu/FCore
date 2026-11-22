@@ -5,9 +5,10 @@ from copy import deepcopy
 from fastapi import HTTPException
 
 from algorithms.patterns.common import PatternResult, TemporalSnapshots
-from app.schemas.analysis import PatternQuery
+from algorithms.patterns.temporal_core import mine_temporal_cores
+from app.schemas.analysis import PatternQuery, SnapshotData
 from app.services.context import AnalysisScope
-from app.services.graphs import window_bounds
+from app.services.graphs import combine_snapshots, window_bounds
 from app.services.statistics import graph_of
 from app.services.structures import COLORS, make_structure
 
@@ -17,12 +18,11 @@ _PATTERN_DETAILS = {
     "durable": ("tdc-once-v1", "Durable Community", "D1", 1),
     "burst": ("mbc-exact-segments-v1", "Bursting Core", "B1", 2),
     "frequency": ("frequency-aware-kcore-online-v1", "Frequency-Aware Core", "F1", 3),
+    "temporal_core": ("tcq-snapshot-otcd-v1", "Temporal k-Core", "TCQ", 0),
 }
 
 
-def historical_snapshots(
-    scope: AnalysisScope, request: PatternQuery
-) -> tuple[list[str], TemporalSnapshots]:
+def historical_frames(scope: AnalysisScope, request: PatternQuery) -> list[SnapshotData]:
     metadata = sorted(
         (meta for meta in scope.manifest.snapshots if meta.kind == "history"),
         key=lambda meta: meta.index,
@@ -36,19 +36,21 @@ def historical_snapshots(
         metadata = [meta for meta in metadata if start.index <= meta.index <= end.index]
     if not metadata:
         raise HTTPException(404, "No historical snapshots are available to mine.")
-    frames = [
+    return [
         scope.repository.snapshot(scope.context.dataset_id, meta.snapshot_id)
         for meta in metadata
     ]
+
+
+def project_snapshots(frames: list[SnapshotData]) -> TemporalSnapshots:
     accounts = sorted(
         {account for frame in frames for account in frame.present_accounts}
     )
     graphs = [graph_of(frame) for frame in frames]
-    snapshots = tuple(
+    return tuple(
         {account: frozenset(graph.get(account, ())) for account in accounts}
         for graph in graphs
     )
-    return [meta.snapshot_id for meta in metadata], snapshots
 
 
 def mine_pattern(
@@ -97,6 +99,7 @@ def public_pattern_evidence(
         "durable": ("formation_start", "formation_end", "stable_end"),
         "burst": (),
         "frequency": (),
+        "temporal_core": ("witness_start", "witness_end"),
     }
     for field in positions[pattern]:
         result[f"{field}_snapshot_id"] = snapshot_ids[result[field]]
@@ -113,28 +116,82 @@ def public_pattern_evidence(
     return result
 
 
+def temporal_core_window_comparison(
+    result: PatternResult, snapshots: TemporalSnapshots, snapshot_ids: list[str], k: int
+) -> list[dict]:
+    first = result.evidence["witness_start"]
+    last = result.evidence["witness_end"]
+    members = set(result.members)
+    neighbors_by_snapshot = [
+        [frame[node] & members for node in result.members]
+        for frame in snapshots[first : last + 1]
+    ]
+    windows = [(first, last, 0)]
+    if first < last:
+        # Both ends count each undirected link once at the dropped timestamp.
+        first_edges = sum(map(len, neighbors_by_snapshot[0])) // 2
+        last_edges = sum(map(len, neighbors_by_snapshot[-1])) // 2
+        windows = [(first, last - 1, last_edges), (first + 1, last, first_edges), *windows]
+
+    comparison = []
+    for start, end, omitted_edges in windows:
+        window = neighbors_by_snapshot[start - first : end - first + 1]
+        # Each row keeps the same member order, including members absent from that snapshot.
+        degrees = [len(set().union(*neighbors)) for neighbors in zip(*window)]
+        comparison.append({
+            "start_snapshot_id": snapshot_ids[start],
+            "end_snapshot_id": snapshot_ids[end],
+            "min_internal_degree": min(degrees),
+            "below_k_members": sum(degree < k for degree in degrees),
+            "omitted_temporal_edges": omitted_edges,
+        })
+    return comparison
+
+
 def find_patterns(scope: AnalysisScope, request: PatternQuery) -> dict:
-    snapshot_ids, snapshots = historical_snapshots(scope, request)
-    result = mine_pattern(request, snapshots)
+    frames = historical_frames(scope, request)
+    snapshot_ids = [frame.snapshot_id for frame in frames]
+    snapshots = project_snapshots(frames)
+    temporal_core = request.pattern == "temporal_core"
+    if temporal_core:
+        results = mine_temporal_cores(snapshots, request.k)
+    else:
+        result = mine_pattern(request, snapshots)
+        results = [result] if result is not None else []
+
     method, label, identifier, color_index = _PATTERN_DETAILS[request.pattern]
     parameters = request.model_dump(
         exclude={"dataset_id", "dataset_version", "observed_until"}, exclude_none=True
     )
+    if temporal_core:
+        parameters.update(start_snapshot_id=snapshot_ids[0], end_snapshot_id=snapshot_ids[-1])
+
     structures = []
-    if result is not None:
+    for result in results:
+        evidence = public_pattern_evidence(request.pattern, result.evidence, snapshot_ids)
+        metrics_frame = frames[-1]
+        snapshot_id = metrics_frame.snapshot_id
+        structure_id = identifier
+        if temporal_core:
+            first, last = evidence["witness_start"], evidence["witness_end"]
+            evidence["window_comparison"] = temporal_core_window_comparison(
+                result, snapshots, snapshot_ids, request.k
+            )
+            metrics_frame = combine_snapshots(frames[first : last + 1])
+            snapshot_id = snapshot_ids[last]
+            structure_id = f"{identifier}:{snapshot_ids[first]}:{snapshot_id}"
         structure = make_structure(
             scope,
-            identifier,
+            structure_id,
             list(result.members),
             "pattern",
             parameters,
             "computed",
             method,
             COLORS[color_index],
-            snapshot_id=snapshot_ids[-1],
-            evidence=public_pattern_evidence(
-                request.pattern, result.evidence, snapshot_ids
-            ),
+            snapshot_id=snapshot_id,
+            evidence=evidence,
+            metrics_frame=metrics_frame,
         )
         structure.label = label
         structures.append(structure)

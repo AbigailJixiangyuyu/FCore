@@ -8,7 +8,8 @@ export function useEvidenceQuery(store, { context, ready }, selected) {
   })
   const structures = computed(function () {
     const structure = selected.value
-    return structure && structure.parameters.pattern !== 'frequency' ? [structure] : []
+    if (!structure || ['frequency', 'temporal_core'].includes(structure.parameters.pattern)) return []
+    return [structure]
   })
   const evidenceResult = useAnalysisQuery({
     name: 'evidence',

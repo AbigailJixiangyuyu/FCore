@@ -14,9 +14,11 @@ QUERY_DEFAULTS = json.loads(
 def query_defaults(dataset_id: str | None, method: str | None) -> dict:
     if not isinstance(method, str):
         return {}
-    profile = QUERY_DEFAULTS["synthetic-small"]
-    if isinstance(dataset_id, str):
-        profile = QUERY_DEFAULTS.get(dataset_id, profile)
+    profile = QUERY_DEFAULTS.get(dataset_id) if isinstance(dataset_id, str) else None
+    if profile is None:
+        if method == "temporal_core":
+            return {}  # Use the schema's k=1 for uploaded graphs.
+        profile = QUERY_DEFAULTS["synthetic-small"]
     return dict(profile.get(method, {}))
 
 
@@ -28,6 +30,10 @@ def apply_query_defaults(value: Any, method: str) -> Any:
     if method == "burst":
         # Omitted accounts continue to request the global bursting core.
         defaults.pop("account", None)
+    if method == "temporal_core" and ("start_snapshot_id" in value or "end_snapshot_id" in value):
+        # A submitted range replaces both configured bounds.
+        defaults.pop("start_snapshot_id", None)
+        defaults.pop("end_snapshot_id", None)
     parameters = {**defaults, **value}
     if method in ("periodic", "durable", "burst", "future_core"):
         account = parameters.get("account")

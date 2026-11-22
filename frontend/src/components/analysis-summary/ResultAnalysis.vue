@@ -12,6 +12,7 @@ import CorePatternTimeline from './CorePatternTimeline.vue'
 import FrequencyEvidence from './FrequencyEvidence.vue'
 import FutureCommunityAnalysis from './FutureCommunityAnalysis.vue'
 import MemberAnomalyScores from './MemberAnomalyScores.vue'
+import TemporalCoreResults from './TemporalCoreResults.vue'
 
 defineProps({
   track: { type: Object, default: null },
@@ -19,7 +20,8 @@ defineProps({
 })
 
 const {
-  store, selected, patternResult, patternResponse, queryResult, metric, evidenceResult, selectTime, selectHistoryRange,
+  store, selected, patternResult, patternResponse, queryResult, metric, evidenceResult,
+  historyResults, selectHistoryResult, selectTime, selectHistoryRange,
   snapshot, currentWindow, anomalyQuery, anomalyResponse,
   matchingPrediction, predictionRequest, predictionMessage,
 } = useWorkbench()
@@ -105,6 +107,13 @@ function locateMember(accountId) {
       <QueryState v-else-if="predictionRequest" :query="predictionRequest" />
       <p v-else class="summary-empty">{{ predictionMessage }}</p>
     </template>
+    <TemporalCoreResults
+      v-else-if="store.stage === 'history' && store.pattern === 'temporal_core' && historyResults.length"
+      :key="store.analysisRunId"
+      :results="historyResults"
+      :selected-id="store.historySelection"
+      @select="selectHistoryResult"
+    />
     <template v-else-if="!selected">
       <p v-if="!store.analysisRunId" class="summary-empty">
         Run a query to see the community.

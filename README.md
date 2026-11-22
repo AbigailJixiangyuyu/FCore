@@ -41,6 +41,12 @@ Dept3 使用 S01—S11 的 9,525 条交互训练 10 轮，冻结参数后处理 
 
 ## 开发启动
 
+05 的 **LLM-based Report** 汇总用户选定的历史、当前和未来结果。分别运行三个阶段的算法并点击 **Submit Evidence**。显示 **3/3 submitted** 后，点击 **Generate Report** 会发送一次联合分析请求。DeepSeek 写出的英文报告随生成进度显示，保留段落换行。重新提交某一阶段会替换对应证据。已提交的证据和完成的报告可在当前标签页刷新后恢复。
+
+报告完成后，在面板底部输入问题并点击 **Send**。每次追问使用同一组证据、首份报告和此前完成的问答。回复随生成进度追加，**Retry** 可重试中断的回复。本标签页刷新时恢复已完成的对话。
+
+在 `backend/.env` 填写 `LLM_API_KEY`，保存后重启后端。新检出项目可从 `backend/.env.example` 复制此文件。DeepSeek 使用 `LLM_BASE_URL=https://api.deepseek.com` 和 API 模型 ID `LLM_MODEL=deepseek-flash`。系统环境变量优先。实际 Key 由后端读取，`.env` 已加入 Git 忽略规则。
+
 首次使用并行核分解时，在 `demo/` 目录构建本地程序。
 
 ```powershell
@@ -152,7 +158,7 @@ demo/
 | POST | `/api/queries/local-core` | 在 S12 执行并行核分解，或用 TCCS 查询截至 S12 的回溯窗口。返回包含 `q` 的 k-core 连通分量 |
 | POST | `/api/queries/max-core` | 传入 `algorithm="pkmc"` 查询 S12 的完整最高阶核 |
 | POST | `/api/queries/density` | 原型候选范围内的密度筛选，`demo_heuristic` |
-| POST | `/api/patterns/mine` | 在提交区间内逐快照运行 TD＋FT/AC、ONCE、MBC-B、在线频率感知核 |
+| POST | `/api/patterns/mine` | 在提交区间内逐快照运行 TD＋FT/AC、ONCE、MBC-B、在线频率感知核及 OTCD |
 | POST | `/api/anomalies/discover` | 可指定 `snapshot_id`，默认 S12；S12 返回 SLADE 账户评分，默认 Top-10；历史直接请求返回 `not_evaluated` |
 | POST | `/api/evidence/series` | 固定成员的内部连接数或交易次数，`computed` |
 | GET | `/api/datasets/{id}/link-prediction/models` | 所选预测步长的 Zebra 模型状态 |
@@ -191,7 +197,7 @@ uv run --directory backend python -m scripts.generate_sample
 
 此命令只覆写该合成样例的 13 个 CSV 和 5 个配置 JSON，不用于导入真实交易。
 
-1. 在 02 进入历史挖掘，选择算法并设置「挖掘范围」，然后点击「开始挖掘」。四种方法都使用范围内的逐快照数据，默认使用 S01—S11。提交时 01 定位到所选范围，03 显示该区间的数据与挖掘结果，05 展示本次计算的证据。
+1. 在 02 进入 History，选择算法并设置 Range，然后点击 Run Query。五种方法都使用范围内的逐快照数据。时域核查询成功后，01 和 03 定位到首项结果的最紧区间，05 可以选择其他结果。
 2. 回到 S12，在 02 选择算法。并行核分解与 TCCS 接收 `q` 和 `k`，TCCS 还可设置起始快照。PKMC 选中即计算 S12 的完整最高阶核。03 高亮实际查到的成员和内部边。
 3. 在 04 检查独立加载的异常排名，点击账户以红橙色和尺寸在 03 定位；02 的查询结构与 05 时间轨迹保持原选择。历史视图同样显示当前 S12 的分析结果，点击异常先返回 S12 定位。
 4. 进入 Future，在 02 选择 Target snapshot，填写 q、k 后点击 Run Prediction。Zebra 使用截至 S12 的观测为 S01—S11 历史社区成员并集中的顶点对评分，再在预测图上求包含 q 的 k-core。01 的单个 Future 格显示已提交的编号。更改目标后再次提交才会切换预测。拖动阈值会即时更新已提交目标的预测社区。
@@ -207,6 +213,8 @@ PKMC 用 Python 同步执行邻居 h 指数更新。根据定理 1，当相邻�
 合成数据历史默认参数：周期 `q=a-001、k=4、ε=1`，持久 `q=a-001、k=4`，爆发 `l=3、δ=5`。`synthetic-small-v3` 中周期返回 5 个账户、周期 3／重复 3 次；持久返回同一组 5 个账户、持续 5 个时间步／稳定至 S06；爆发返回 6 个账户、见证区间 S07—S09／MSD 为 5。参数草稿不会影响已提交结果。算法契约、来源和周期复现限制见 [历史算法说明](backend/algorithms/patterns/README.md)。
 
 频率感知核在 Dept3 用 `k=6、t=4、f=0.8` 得到 7 个账户、21 条达标无向边；在合成样例用 `k=5、t=3、f=1` 得到 6 个账户、15 条。查询无需账户，对同一对账户在每个快照只计一次活跃。03 和 05 都从同一组达标边读取实际连线和交互次数。见 [频率感知核说明](backend/algorithms/patterns/FREQUENCY.md)。
+
+时域核以一个快照为时间单位，搜索所选范围内每个连续子区间产生的不同 `k`-core。Dept3 默认查询 S10—S11，得到 18 个节点的 7-core。合成样例默认查询 S10，得到 5 个节点的 4-core。点击 05 的结果可查看其最紧区间和结构。手动移动时间轴后，可浏览其他范围的完整聚合图并从列表返回核。[时域核算法说明](backend/algorithms/patterns/TEMPORAL_CORE.md)
 
 v3 精简记录字段并改为 CSV，保留 v2 全部逐笔端点、时间和次数，已训练匹配版本的 SLADE 模型。JSON 到 CSV 的物理格式转换不改变逻辑数据或模型指纹，继续使用已有 GPU 权重。其他过严条件仍可能返回正常的空结果。
 
@@ -241,7 +249,7 @@ npm --prefix frontend install <package>
 .\test.ps1 -Full  # 完整验证
 ```
 
-日常回归检查服务启动、数据导入与聚合、四种历史算法、S12 查询与时间证据、评分公式及预测时间隔离。它使用已安装的项目依赖，不训练模型、不执行 CUDA 运算，也不调用 WSL。两个入口都运行全部前端用例，无需启动服务。
+日常回归检查服务启动、数据导入与聚合、五种历史算法、S12 查询与时间证据、评分公式及预测时间隔离。它使用已安装的项目依赖，不训练模型、不执行 CUDA 运算，也不调用 WSL。两个入口都运行全部前端用例，无需启动服务。
 
 修改模型或原生适配器时运行完整验证。它额外用小样本在 GPU 上训练、保存并通过接口加载 SLADE 和 Zebra，并将 WSL 求出的 Dept3 核数与串行结果对照。WSL 对照需先[构建原生程序](backend/algorithms/core/README.md)。改动页面或准备演示时，另运行 `npm --prefix frontend run build`，并按上述四步在浏览器联调。主要演示尺寸为 1440×900，页面最小宽度为 1280px，图需要支持 WebGL 2 的浏览器。
 

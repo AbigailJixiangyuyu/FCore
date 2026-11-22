@@ -10,6 +10,7 @@ from app.schemas.analysis import (
     PatternQuery,
     Structure,
 )
+from app.schemas.reports import StructureReference
 from app.services.context import AnalysisScope
 from app.services.parallel_core import ParallelCoreCache
 from app.services.patterns import find_patterns
@@ -19,7 +20,7 @@ PATTERN_QUERY_ADAPTER = TypeAdapter(PatternQuery)
 
 
 def resolve_structure(
-    scope: AnalysisScope, structure: Structure, parallel_core: ParallelCoreCache
+    scope: AnalysisScope, structure: Structure | StructureReference, parallel_core: ParallelCoreCache
 ) -> Structure:
     if (
         structure.dataset_id != scope.context.dataset_id
@@ -30,6 +31,8 @@ def resolve_structure(
     base = scope.context.model_dump(
         include={"dataset_id", "dataset_version", "observed_until"}
     )
+    if base.keys() & structure.parameters.keys():
+        raise HTTPException(422, "Community parameters cannot override the dataset context.")
     try:
         if structure.origin == "pattern":
             result = find_patterns(
@@ -62,9 +65,14 @@ def resolve_structure(
     except (ValidationError, TypeError) as error:
         raise HTTPException(422, "The saved query parameters for this community are invalid.") from error
     for expected in result["structures"]:
+        # Compact report references carry the canonical membership hash instead of a node list.
+        matches_input = (
+            expected.members == structure.members if isinstance(structure, Structure)
+            else expected.method == structure.method and expected.parameters == structure.parameters
+        )
         if (
             expected.structure_id == structure.structure_id
-            and expected.members == structure.members
+            and matches_input
             and expected.membership_hash == structure.membership_hash
             and expected.snapshot_id == structure.snapshot_id
         ):

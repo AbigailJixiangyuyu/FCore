@@ -1,4 +1,9 @@
-from fastapi import APIRouter, Query, Request
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query, Request, Response
+from starlette.concurrency import run_in_threadpool
 
 from algorithms.link_prediction.data import MAX_FORECAST_HORIZON
 from app.repositories.datasets import DatasetRepository
@@ -25,6 +30,7 @@ from app.schemas.analysis import (
     SnapshotResponse,
     StructuresResponse,
 )
+from app.schemas.reports import ReportFollowUpRequest, ReportRequest
 from app.services.anomalies import score_accounts
 from app.services.context import AnalysisScope
 from app.services.evidence import evidence_series
@@ -35,6 +41,7 @@ from app.services.legacy_affinity import interaction_shares
 from app.services.link_prediction import model_catalog, predict_selected_links
 from app.services.patterns import find_patterns
 from app.services.queries import query_structures
+from app.services.reports.evidence import verify_evidence
 
 router = APIRouter(tags=["analysis"])
 
@@ -115,6 +122,53 @@ def discover(body: AnomalyQuery, request: Request) -> dict:
 @router.post("/evidence/series", response_model=EvidenceResponse)
 def evidence(body: EvidenceQuery, request: Request) -> dict:
     return evidence_series(analysis_scope(request, body), body, request.app.state.parallel_core)
+
+
+@asynccontextmanager
+async def _open_report_stream(
+    body: ReportRequest, request: Request, response: Response,
+) -> AsyncIterator[AsyncIterator[dict]]:
+    state = request.app.state
+    scope = await run_in_threadpool(analysis_scope, request, body)
+    state.report_client.check_ready()
+    facts = await run_in_threadpool(
+        verify_evidence, scope, body, state.parallel_core, state.settings.models_dir,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    response.headers["X-Accel-Buffering"] = "no"
+    follow_up = body if isinstance(body, ReportFollowUpRequest) else None
+    async with state.report_client.stream(facts, follow_up=follow_up) as events:
+        yield events
+
+
+async def _report_stream(
+    body: ReportRequest, request: Request, response: Response,
+) -> AsyncIterator[AsyncIterator[dict]]:
+    async with _open_report_stream(body, request, response) as events:
+        yield events
+
+
+async def _follow_up_stream(
+    body: ReportFollowUpRequest, request: Request, response: Response,
+) -> AsyncIterator[AsyncIterator[dict]]:
+    async with _open_report_stream(body, request, response) as events:
+        yield events
+
+
+@router.post("/reports/generate")
+async def generate_report(
+    events: Annotated[AsyncIterator[dict], Depends(_report_stream)],
+) -> AsyncIterator[dict]:
+    async for event in events:
+        yield event
+
+
+@router.post("/reports/follow-up")
+async def follow_up_report(
+    events: Annotated[AsyncIterator[dict], Depends(_follow_up_stream)],
+) -> AsyncIterator[dict]:
+    async for event in events:
+        yield event
 
 
 @router.get("/datasets/{dataset_id}/link-prediction/models", response_model=LinkPredictionModelsResponse)

@@ -105,7 +105,7 @@ Content-Type: application/json
 | --- | --- | --- |
 | `/api/queries/max-core` | 可选 `snapshot_id`、`algorithm="pkmc"` | PKMC 返回完整最高阶核。省略算法时按原协议返回最高阶核的各个连通分量，方法为 `maximum-core-v1` |
 | `/api/queries/density` | `snapshot_id`、`threshold ∈ [0,1]`（默认 1） | 保留兼容，Core 分量与闭一跳邻域候选筛选 |
-| `/api/patterns/mine` | 按 `pattern` 区分的参数、可选起止快照 | 在所选区间的逐快照数据上运行 TD＋FT/AC、ONCE、MBC-B 或在线频率感知核 |
+| `/api/patterns/mine` | 按 `pattern` 区分的参数、可选起止快照 | 在所选区间的逐快照数据上运行 TD＋FT/AC、ONCE、MBC-B、在线频率感知核或 OTCD |
 | `/api/anomalies/discover` | 可选 `snapshot_id`（默认 S12）、`top_r`（默认 10） | S12 返回 SLADE 实际账户评分；历史直接请求返回未评估状态 |
 
 `Structure` 包含来源 `origin`、已提交条件 `parameters`、`members`、`snapshot_id`、版本与截止、`membership_hash`、方法标识、统计与可选证据。时间证据和兼容成对预测接口使用服务端返回的完整对象。
@@ -116,22 +116,23 @@ S01—S11 直接请求为 `not_evaluated`、空 accounts；S12 返回 `ok`，空
 
 04 在历史、现在和未来均独立加载 S12 SLADE 账户评分，未来标为 S12 异常背景。点击账户先回 S12 并在 03 以红橙色和尺寸定位，不改变查询参数、查询成员、05 轨迹或未来范围。刷新不自动定位，保留仍有效的同模型账户选择；数据／模型版本改变时清除旧依据。提交查询或显式选择结果清除账户定位。
 
-服务端按照来源重新执行查询或历史算法，复核结构 ID、版本、快照、成员和哈希，并使用重新得到的统计。不要自行拼造结构或把参数草稿混入已提交结构。历史模式的结构参考快照为 S11，其成员时间轨迹独立逐快照计算。
+服务端按照来源重新执行查询或历史算法，复核结构 ID、版本、快照、成员和哈希，并使用重新得到的统计。请求使用已提交的结构。历史单结果方法以提交区间末尾作为结构参考快照，时域核按各结果的最紧区间计算结构统计。
 
 ### 历史挖掘参数与输出
 
-`POST /api/patterns/mine` 的请求以 `pattern` 为判别字段，OpenAPI 提供四个 `oneOf` 输入定义：
+`POST /api/patterns/mine` 以 `pattern` 区分五种请求。
 
 | pattern | Email Dept3 默认值 | 合成数据默认值 | 方法版本 |
 | --- | --- | --- | --- |
 | `periodic` | `account="49", k=4, epsilon=1` | `account="a-001", k=4, epsilon=1` | `lpc-td-ftac-v1` |
 | `durable` | `account="49", k=3` | `account="a-001", k=4` | `tdc-once-v1` |
-| `burst` | `l=3, delta=5.60`（界面提交 `account="49"`） | `l=3, delta=5`（界面提交 `account="a-014"`） | `mbc-exact-segments-v1` |
+| `burst` | `l=3, delta=5.60`（界面提交 `account="76"`） | `l=3, delta=5`（界面提交 `account="a-014"`） | `mbc-exact-segments-v1` |
 | `frequency` | `k=6, t=4, f=0.8` | `k=5, t=3, f=1` | `frequency-aware-kcore-online-v1` |
+| `temporal_core` | `S10—S11, k=7` | `S10—S10, k=4` | `tcq-snapshot-otcd-v1` |
 
 前后端共用 `demo/config/query-defaults.json`。查询账户和爆发阈值按数据集设置，爆发最小长度默认为 3 个快照。Dept3 默认持久社区有 76 人，在 S01—S06 形成，稳定至 S10，共持续 4 个快照。各方法的默认结果见 [默认配置说明](../config/README.md)。
 
-四种方法均可同时提交 `start_snapshot_id` 和 `end_snapshot_id`，首尾均包含。省略两端时使用 S01—S11。仅填一端、逆序或选择 S12／S13 均返回 422，未知快照返回 404。
+五种方法均可同时提交 `start_snapshot_id` 和 `end_snapshot_id`，首尾均包含。省略两端时，内置数据集的时域核查询使用上表的范围，其余查询使用 S01—S11。仅填一端、逆序或选择 S12／S13 均返回 422，未知快照返回 404。
 
 周期、持久与爆发查询中，提交的 `account` 须非空且存在于所选历史区间的账户并集。内置数据集去除账户首尾空白，导入数据集使用原始 ID。爆发查询仅在最大爆发核包含该节点时返回结果，省略 `account` 仍返回全局爆发核。k 为正整数，epsilon 在 `[0,1]`，l 为不超过区间快照数且不少于 2 的整数，delta 为正有限数。频率感知核不接受 account，t 为不超过区间快照数的正整数，f 为 `[0,1]` 内的有限数。其他方法的字段及未知字段均返回 422。仅发送 `{公共上下文, pattern}` 使用该方法的默认参数。无数据集为 404，版本冲突为 409，本地历史文件或帧缺失为 404。
 
@@ -143,6 +144,9 @@ S01—S11 直接请求为 `not_evaluated`、空 accounts；S12 返回 `ok`，空
 - 持久证据包含 `formation_start`、`formation_end`、`stable_end` 和 `duration`，各位置带有对应的 `_snapshot_id`。持续时间为结束稳定和形成时的位置差，保留零时长有效解。`member_count_series` 固定窗口起点为 `formation_start`，按终点顺序记录各次查询的社区成员数，对应 `analysis_snapshot_ids[formation_start:]`。没有社区的窗口记为 0。
 - 爆发：`nodes[]` 中的 `account`、`degree_sequence`、`numerator`、`denominator`、`witness_start`、`witness_end`，并补 `max_average_degree` 和见证位置对应的 `_snapshot_id`。不同成员可有不同见证区间。
 - 频率感知核：`qualified_edges[]` 中的 `u`、`v`、`numerator`（见证区间内活跃快照数）、`denominator`（区间快照数）、`frequency`、`witness_start`、`witness_end` 及相应的 `_snapshot_id`。只返回最终核内的达标无向边，各边见证可不同；多个连通分量仍属于同一个返回结构。
+- 时域核使用 `k` 和起止快照，导入数据默认 `k=1`。每个结果的 `witness_start_snapshot_id`、`witness_end_snapshot_id` 表示最紧区间，`snapshot_id` 取该区间的终点，`structure_id` 和哈希区分两端。`metrics` 基于区间聚合图，`internal_edges` 统计无向节点对，`transaction_count` 累计原始交互。[时域核算法说明](algorithms/patterns/TEMPORAL_CORE.md)
+
+时域核的 `evidence.window_comparison` 记录去掉末个快照、去掉首个快照和保留完整最紧区间的对比。单快照结果只包含完整窗口。每项给出 `start_snapshot_id`、`end_snapshot_id`、`min_internal_degree`、`below_k_members` 和 `omitted_temporal_edges`。度基于固定结果成员和去重后的无向邻居，缺席成员计零度。被裁掉的边按「节点对、快照」计数。
 
 内部位置以区间起点为零，两端均包含。逐快照证据复核输入的挖掘范围及完整参数，并使用该范围内的快照。原始度与平均度均按不同邻居计数。算法来源、TD 的复现约定和已知漏解限制见 [历史算法说明](algorithms/patterns/README.md)。v3 样例在完整历史中的默认结果包括周期社区 5 个成员、周期 3、重复 3 次，持久社区 5 个成员、持续 5 个时间步、稳定至 S06，以及爆发核 6 个成员、MSD 为 5、见证区间 S07—S09。数据构造见 [样例说明](../data/synthetic-small/README.md)。
 
@@ -244,7 +248,7 @@ Zebra 加载权重和 S11 预热状态，再处理真实 S12 事件。匹配模�
 
 | `result_kind` | 用途 |
 | --- | --- |
-| `computed` | 单快照／历史区间聚合、Core、历史三种算法、SLADE 账户评分、固定成员证据、揭晓后的观测 |
+| `computed` | 单快照／历史区间聚合、Core、历史查询、SLADE 账户评分、固定成员证据、揭晓后的观测 |
 | `demo_heuristic` | 原型密度候选筛选，不保证枚举所有合格子图 |
 | `demo_fixture` | 场景定义的预测份额 |
 
@@ -260,10 +264,27 @@ Zebra 加载权重和 S11 预热状态，再处理真实 S12 事件。匹配模�
 
 错误信息使用 FastAPI 的 `detail` 字段。前端错误时隐藏失配结果并提供重试。聚合缓存键包含版本和起止快照，拖动约 150ms 防抖、释放立即提交。历史挖掘缓存键包含版本、方法和已提交参数。当前查询缓存包含版本、快照、已提交条件，证据增加成员哈希。未来社区缓存按观察截止、数据版本、已提交的 q、k、阈值、模型和模型版本区分。
 
+### 全周期联合报告
+
+`POST /api/reports/generate` 接收公共数据上下文及三个对象 `history`、`current`、`future`。每个对象保存提交时的数据上下文。历史和当前引用结构的 `structure_id`、`membership_hash`、`snapshot_id`、`origin`、`method`、`parameters`，当前另附 `risk_model_version`（评分不可用时为 null）。未来引用预测参数、`target_snapshot`、`model_version` 及 `/api/link-prediction/community` 返回的 `result_fingerprint`。
+
+后端复核选中结果，在本地计算成员交集、S12 SLADE 统计以及预测变化。保留、增减人数使用相同 q、k 在 S12 的观测社区作基准。发送给 DeepSeek 的信息包含指标摘要和本次报告中的节点代号。
+
+DeepSeek 以 Thinking 模式分析证据，再流式生成英文正文。单次生成最多使用 4,096 个 token，包含思考和正文。接口成功时返回 `application/jsonl`，每行是一个事件。
+
+- `start` 提供模型名 `model` 和报告中的节点代号映射 `node_labels`。
+- `delta` 的 `content` 是一段模型原文，页面收到后即追加显示。
+- `done` 表示模型流已结束，页面保存拼接后的报告。
+- `error` 的 `detail` 描述流中的故障。页面保留已收到的正文。
+
+连接建立前的配置、限流或证据错误使用 HTTP 状态码和 `detail`。数据或模型版本失配需要重新提交对应证据。配置方法见 [工程 README](../README.md#开发启动)。
+
+`POST /api/reports/follow-up` 接收同一份报告的证据引用，另附 `report_content`（首份报告原文）、`turns`（按序排列的 `question` 和 `answer`）以及本轮 `question`。后端复核证据，用原报告及完成的问答构建 DeepSeek 上下文。追问沿用上述流式事件。界面会保留部分回复供阅读和重试，并在回复完成时保存本轮问答。
+
 ## 6. 替换正式方法的位置
 
 - `algorithms/core/queries.py`：Core、连通分量与密度候选。
-- `algorithms/patterns/periodic.py`、`durable.py`、`burst.py`：三种历史论文算法。
+- `algorithms/patterns/` 实现周期、持久、爆发、频率感知核和时域核查询。
 - `app/services/patterns.py`：历史逐快照投影、参数分发和结果证据映射。
 - `app/services/analysis.py` 的 `patterns()`：统一结构、参考统计和来源元数据。
 - `algorithms/anomaly/`：SLADE 原始模型、事件准备、CUDA 配置和版本权重；`app/services/anomalies.py` 负责数据与请求适配。

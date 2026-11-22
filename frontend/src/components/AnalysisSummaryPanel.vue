@@ -33,6 +33,6 @@ const risk = computed(function () {
   <section class="panel analysis-summary" aria-label="05 Analysis overview">
     <DatasetStatistics />
     <ResultAnalysis :track="track" :risk="risk" />
-    <AnalysisReport :track="track" :risk="risk" />
+    <AnalysisReport />
   </section>
 </template>

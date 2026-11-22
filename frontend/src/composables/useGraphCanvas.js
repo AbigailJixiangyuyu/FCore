@@ -195,7 +195,8 @@ export function useGraphCanvas(props, emit) {
 
   onMounted(function () {
     observer = new ResizeObserver(function () {
-      renderer?.resize()
+      // Sigma resizes and redraws the WebGL canvas in the same render.
+      renderer?.scheduleRender()
     })
     observer.observe(container.value)
     initialize()

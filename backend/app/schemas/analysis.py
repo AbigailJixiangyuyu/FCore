@@ -99,11 +99,17 @@ class FrequencyPatternQuery(PatternContext):
     f: float = Field(default=1, ge=0, le=1, strict=True, allow_inf_nan=False)
 
 
+class TemporalCorePatternQuery(PatternContext):
+    pattern: Literal["temporal_core"]
+    k: int = Field(default=1, ge=1, strict=True)
+
+
 PatternQuery = Annotated[
     PeriodicPatternQuery
     | DurablePatternQuery
     | BurstPatternQuery
-    | FrequencyPatternQuery,
+    | FrequencyPatternQuery
+    | TemporalCorePatternQuery,
     Field(discriminator="pattern"),
 ]
 
@@ -372,6 +378,7 @@ class FutureCommunityComparison(BaseModel):
 
 
 class FutureCommunityResponse(AnalysisResult):
+    result_fingerprint: str
     account: str
     k: int
     model: LinkModel

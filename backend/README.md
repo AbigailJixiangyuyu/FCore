@@ -15,7 +15,7 @@ uv run --directory backend fastapi dev --host 127.0.0.1 --port 8000
 
 日常回归在 `demo/` 下运行 `.\test.ps1`。只跑后端时用 `uv run --no-sync --directory backend pytest -q -m 'not hardware'`；去掉标记筛选即运行全部后端用例，包括小样本 GPU 训练与推理，以及已构建的 WSL 程序对照。
 
-HTTP 路由位于 `app/api`，业务编排位于 `app/services`，本地文件读取位于 `app/repositories`，算法位于 `algorithms`，离线脚本位于 `scripts`。当前 S12 查询使用 [并行核分解](algorithms/core/README.md)；首次启动前构建一次 WSL 程序即可。历史四种算法及统计实际计算；密度使用演示候选，未来链接预测使用 `algorithms/link_prediction` 中的 Zebra，旧 affinity 接口仅兼容保留。
+HTTP 路由位于 `app/api`，业务编排位于 `app/services`，本地文件读取位于 `app/repositories`，算法位于 `algorithms`，离线脚本位于 `scripts`。当前 S12 查询使用 [并行核分解](algorithms/core/README.md)；首次启动前构建一次 WSL 程序即可。历史五种算法及统计实际计算；密度使用演示候选，未来链接预测使用 `algorithms/link_prediction` 中的 Zebra，旧 affinity 接口仅兼容保留。
 
 每个分析请求先由 `services/context.py` 验证数据上下文。`graphs.py` 组装快照和区间图，`queries.py` 和 `patterns.py` 分别负责当前搜索与历史挖掘。`structures.py` 计算结构指纹及统计，`selection.py` 按原条件复核结构后才交给时间证据、预测或旧份额接口。SLADE 的模型、记忆状态和训练分别在 `slade.py`、`state.py`、`training.py`；Zebra 和 UnderGS 各自恢复模型状态，共用 `checkpoint.py` 的产物读写、校验和激活。上传入口与两套离线数据脚本复用 `repositories/dataset_writer.py` 写入快照。
 

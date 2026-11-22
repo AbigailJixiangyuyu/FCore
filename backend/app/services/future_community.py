@@ -6,6 +6,7 @@ from fastapi import HTTPException
 
 from algorithms.core.queries import adjacency, core_numbers, local_core
 from algorithms.link_prediction.adapters import ZEBRA
+from algorithms.link_prediction.data import fingerprint
 from app.schemas.analysis import FutureCommunityQuery
 from app.services.context import AnalysisScope
 from app.services.link_prediction import prediction_target, score_network
@@ -96,8 +97,7 @@ def forecast_community(
     comparison = _compare_communities(scope, request, predicted_cores) if scored_pairs else None
     target = prediction_target(manifest, request.horizon)
     n = len(candidates)
-    return {
-        **scope.metadata("computed", ZEBRA.method),
+    result = {
         "account": account,
         "k": k,
         "model": request.model,
@@ -119,4 +119,9 @@ def forecast_community(
         "comparison": comparison,
         "status": status,
         "message": message,
+    }
+    return {
+        **scope.metadata("computed", ZEBRA.method),
+        **result,
+        "result_fingerprint": fingerprint([dataset_id, manifest.dataset_version, result]),
     }

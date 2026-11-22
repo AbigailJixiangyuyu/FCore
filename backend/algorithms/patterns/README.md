@@ -1,6 +1,6 @@
 # 历史模式算法接入
 
-四种方法使用本次提交的历史区间，默认 S01—S11。服务层将每个快照的无向交互按节点对建立简单邻接。各快照共享所选区间的账户并集，缺席账户邻居为空，保留空快照。
+五种方法使用本次提交的历史区间，默认 S01—S11。服务层将每个快照的无向交互按节点对建立简单邻接。各快照共享所选区间的账户并集，缺席账户邻居为空，保留空快照。
 
 | 模块 | 论文方法 | Web/API 默认值（Dept3；合成） | 方法版本 | 详细说明 |
 | --- | --- | --- | --- | --- |
@@ -8,16 +8,17 @@
 | 持久 `durable.py` | ONCE | `q=49, k=3`；`q=a-001, k=4` | `tdc-once-v1` | [定义、边界与并列](DURABLE.md) |
 | 爆发 `burst.py` | MBC-B，剥离＋精确 MSD 区间枚举 | `l=3, δ=5.60`；`l=3, δ=5` | `mbc-exact-segments-v1` | [原始指标与见证区间](BURST.md) |
 | 频率感知核 `frequency.py` | 在线 (k,t,f)-core | `k=6, t=4, f=0.8`；`k=5, t=3, f=1` | `frequency-aware-kcore-online-v1` | [频率定义及快照适配](FREQUENCY.md) |
+| 时域核 `temporal_core.py` | OTCD | S10—S11，`k=7` / S10—S10，`k=4` | `tcq-snapshot-otcd-v1` | [最紧区间与结果去重](TEMPORAL_CORE.md) |
 
 Web/API 共用 [查询默认配置](../../../config/README.md)，明确提交的值优先。纯算法函数保留原始示例调用参数。Dept3 的周期、持久、爆发查询默认返回 35／76／45 人，持久社区形成后稳定 4 个快照。合成数据对应返回 5／5／6 人，持久社区形成后稳定 5 个快照。
 
 ## 公共契约与工程归属
 
-`common.py` 定义 `TemporalSnapshots = tuple[dict[str, frozenset[str]], ...]` 以及 `PatternResult(members, evidence)`。成员为排序后的字符串元组，证据为可 JSON 序列化的字典。所有内部时间位置均从零开始、包含两端，由服务适配层补充快照 ID。合法无解返回 `None`，输入无效抛 `ValueError`。函数不修改输入、不读取文件、不依赖 FastAPI，也不打印结果。
+`common.py` 定义 `TemporalSnapshots = tuple[dict[str, frozenset[str]], ...]` 以及 `PatternResult(members, evidence)`。成员为排序后的字符串元组，证据为可 JSON 序列化的字典。所有内部时间位置均从零开始、包含两端，由服务适配层补充快照 ID。时域核返回可为空的结果列表，其余纯算法入口在合法无解时返回 `None`。输入无效抛 `ValueError`。函数不修改输入、不读取文件、不依赖 FastAPI，也不打印结果。
 
 各算法模块有对应的单元测试及复现说明。公共契约、`app/services/patterns.py` 数据适配、HTTP schemas、前端和接口测试统一由集成层维护。
 
-HTTP 返回保留已提交参数和成员哈希，类型为 `computed`，`model_version=null`。结构统计以所选区间的终点为参考，时间证据以区间起点为位置零。合法无解时返回空结果。
+HTTP 返回保留已提交参数和成员哈希，类型为 `computed`，`model_version=null`。时域核的结构统计使用各结果的最紧区间，其余历史算法使用提交区间的终点作为参考。时间证据以提交区间起点为位置零。合法无解时返回空结果。
 
 ## 计算口径
 

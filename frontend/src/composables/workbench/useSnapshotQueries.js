@@ -4,6 +4,7 @@ import { computed, toValue, watch } from 'vue'
 import { getAggregate, getCatalog, getSnapshot, matchesContext } from '../../api/analysis.js'
 import { PRESENT_SNAPSHOT_ID } from '../../domain/timeline.js'
 import { HISTORY_LAYOUT_RANGE } from '../../graph/layoutReference.js'
+import { readReportSession } from '../../domain/reportEvidence.js'
 import { DEFAULT_DATASET_ID } from '../../stores/workbench.js'
 import { useSystemStatus } from '../useSystemStatus.js'
 
@@ -22,6 +23,7 @@ export function useSnapshotQuery({ context, snapshotId, enabled, staleTime }) {
 
 export function useSnapshotQueries(store) {
   const system = useSystemStatus()
+  let restoreDataset = readReportSession()?.context.dataset_id
   function selectDataset(item) {
     if (item.dataset_id !== store.datasetId) store.selectDataset(item.dataset_id, item.query_defaults)
   }
@@ -33,6 +35,11 @@ export function useSnapshotQueries(store) {
     system.datasets,
     function (datasets) {
       if (!datasets.length) return
+      if (restoreDataset) {
+        const previous = datasets.find(item => item.dataset_id === restoreDataset)
+        restoreDataset = null
+        if (previous) selectDataset(previous)
+      }
       if (
         !datasets.some(function (item) {
           return item.dataset_id === store.datasetId
@@ -44,7 +51,7 @@ export function useSnapshotQueries(store) {
         selectDataset(fallback)
       }
     },
-    { immediate: true },
+    { immediate: true, flush: 'sync' },
   )
   const dataset = computed(function () {
     return system.datasets.value.find(function (item) {

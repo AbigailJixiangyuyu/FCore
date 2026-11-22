@@ -42,6 +42,8 @@ def make_structure(
     ]
     if origin == "pattern":
         fingerprint.append(method)
+        if evidence and "witness_start_snapshot_id" in evidence:
+            fingerprint.append(evidence["witness_start_snapshot_id"])
     membership_hash = hashlib.sha256(
         json.dumps(fingerprint, sort_keys=True).encode()
     ).hexdigest()[:24]

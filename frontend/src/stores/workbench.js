@@ -11,8 +11,8 @@ let nextAnalysisRunId = 0
 function historyDefaults(defaults) {
   const window = { start_snapshot_id: snapshotId(0), end_snapshot_id: LAST_HISTORICAL_SNAPSHOT_ID }
   return Object.fromEntries(
-    ['periodic', 'durable', 'burst', 'frequency'].map(pattern => [
-      pattern, { ...defaults[pattern], ...window },
+    ['periodic', 'durable', 'burst', 'frequency', 'temporal_core'].map(pattern => [
+      pattern, { ...window, ...defaults[pattern] },
     ]),
   )
 }
@@ -30,7 +30,10 @@ function queryAccount(account, datasetId) {
 }
 
 function initialState(datasetId = DEFAULT_DATASET_ID, suggested) {
-  const defaults = queryDefaults[datasetId] || queryDefaults[DEFAULT_DATASET_ID]
+  const defaults = queryDefaults[datasetId] || {
+    ...queryDefaults[DEFAULT_DATASET_ID],
+    temporal_core: { k: 1 },
+  }
   const account = suggested?.current_account ?? defaults.local_core.account
   const historyAccount = suggested?.history_account ?? account
   const profile = suggested ? {
@@ -225,6 +228,9 @@ export const useWorkbenchStore = defineStore('workbench', {
       const historyEndIndex = Math.max(0, Math.min(PRESENT_INDEX - 1, Math.round(end)))
       const historyStartIndex = Math.max(0, Math.min(historyEndIndex, Math.round(start)))
       if (this.stage !== 'history') this.clearAnalysis()
+      if (this.pattern === 'temporal_core' && (
+        historyStartIndex !== this.historyStartIndex || historyEndIndex !== this.historyEndIndex
+      )) this.historySelection = ''
       this.$patch({ historyStartIndex, historyEndIndex, timeIndex: historyEndIndex })
     },
     commitQuery: function () {

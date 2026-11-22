@@ -1,6 +1,7 @@
 import { computed, watch } from 'vue'
 
 import { matchesContext } from '../../api/analysis.js'
+import { snapshotIndex } from '../../domain/timeline.js'
 import { currentAlgorithms } from '../workbenchContext.js'
 import { useAnalysisQuery } from './useAnalysisQuery.js'
 
@@ -62,9 +63,10 @@ export function useStructureQueries(store, { context, ready }) {
     if (!ready.value || !runId() || store.stage !== 'history' || !patternResult.isSuccess.value) return null
     const response = patternResult.data.value
     if (!matchesContext(response, context.value)) return null
-    const { start_snapshot_id: start, end_snapshot_id: end } = store.historyParameters
+    const { pattern, start_snapshot_id: start, end_snapshot_id: end } = store.historyParameters
     const snapshots = response.analysis_snapshot_ids
-    return snapshots?.[0] === start && snapshots.at(-1) === end ? response : null
+    if (snapshots?.[0] !== start || snapshots.at(-1) !== end) return null
+    return response.structures.every(item => item.parameters.pattern === pattern) ? response : null
   })
   const historyResults = computed(() => patternResponse.value?.structures || [])
   const selected = computed(function () {
@@ -81,12 +83,30 @@ export function useStructureQueries(store, { context, ready }) {
   }, { immediate: true })
   watch(historyResults, function (items) {
     if (byMembership(items, store.historySelection)) return
-    const match = containingAccount(items, store.historyAnchor) || items[0]
-    store.historySelection = match?.membership_hash || ''
+    if (!items.length) {
+      store.historySelection = ''
+      return
+    }
+    const match = store.pattern === 'temporal_core'
+      ? items[0]
+      : containingAccount(items, store.historyAnchor) || items[0]
+    selectHistoryResult(match.membership_hash)
   })
+
+  function selectHistoryResult(membershipHash) {
+    const structure = byMembership(historyResults.value, membershipHash)
+    if (!structure) return
+    if (structure.parameters.pattern === 'temporal_core') {
+      const { witness_start_snapshot_id: start, witness_end_snapshot_id: end } = structure.evidence
+      store.selectHistoryRange(snapshotIndex(start), snapshotIndex(end))
+    }
+    store.historySelection = membershipHash
+  }
+
   function matchHistoryAccount(account) {
+    if (store.pattern === 'temporal_core') return
     const match = containingAccount(historyResults.value, account)
-    if (match) store.historySelection = match.membership_hash
+    if (match) selectHistoryResult(match.membership_hash)
   }
 
   function runQuery() {
@@ -100,6 +120,6 @@ export function useStructureQueries(store, { context, ready }) {
 
   return {
     queryResult, queryResults, currentWindow, patternResult, patternResponse, historyResults,
-    selected, matchHistoryAccount, runQuery, runHistory,
+    selected, selectHistoryResult, matchHistoryAccount, runQuery, runHistory,
   }
 }

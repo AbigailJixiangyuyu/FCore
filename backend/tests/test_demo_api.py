@@ -165,6 +165,108 @@ def test_history_window_validation(dept3):
         assert response.status_code == status, response.text
 
 
+def test_temporal_core_results_use_their_tightest_windows(dept3, monkeypatch):
+    client, context = dept3
+    endpoint = "/api/patterns/mine"
+    query = {**context, "pattern": "temporal_core"}
+    snapshot = DatasetRepository.snapshot
+    reads = []
+
+    def historical_read(repository, dataset_id, snapshot_id):
+        assert snapshot_id in HISTORY
+        reads.append(snapshot_id)
+        return snapshot(repository, dataset_id, snapshot_id)
+
+    monkeypatch.setattr(DatasetRepository, "snapshot", historical_read)
+    default = client.post(endpoint, json=query)
+    assert default.status_code == 200, default.text
+    data = default.json()
+    assert data["method"] == "tcq-snapshot-otcd-v1"
+    assert data["analysis_snapshot_ids"] == ["S10", "S11"]
+    core, = data["structures"]
+    assert core["structure_id"] == "TCQ:S10:S11"
+    assert core["parameters"]["k"] == 7
+    assert core["evidence"]["window_comparison"] == [
+        {
+            "start_snapshot_id": start,
+            "end_snapshot_id": end,
+            "min_internal_degree": degree,
+            "below_k_members": below,
+            "omitted_temporal_edges": omitted,
+        }
+        for start, end, degree, below, omitted in (
+            ("S10", "S10", 5, 4, 46),
+            ("S11", "S11", 2, 14, 69),
+            ("S10", "S11", 7, 0, 0),
+        )
+    ]
+    assert reads == ["S10", "S11"]
+    assert client.post(endpoint, json={**query, "start_snapshot_id": "S09"}).status_code == 422
+
+    bounds = {"start_snapshot_id": "S07", "end_snapshot_id": "S11"}
+    reads.clear()
+    response = client.post(endpoint, json={**query, **bounds})
+    assert response.status_code == 200, response.text
+    structures = response.json()["structures"]
+    assert len(structures) == 10
+    assert reads == HISTORY[6:]
+    by_id = {structure["structure_id"]: structure for structure in structures}
+    assert structures[0]["structure_id"] == "TCQ:S10:S11"
+    for identifier, expected in [("TCQ:S07:S08", (27, 140, 682)), ("TCQ:S10:S11", (18, 79, 523))]:
+        structure = by_id[identifier]
+        _, start, end = identifier.split(":")
+        evidence = structure["evidence"]
+        metrics = structure["metrics"]
+        assert (evidence["witness_start_snapshot_id"], evidence["witness_end_snapshot_id"]) == (start, end)
+        assert structure["snapshot_id"] == end
+        assert (metrics["node_count"], metrics["internal_edges"], metrics["transaction_count"]) == expected
+        assert metrics["min_degree"] >= 7
+
+    selection = {**context, "structures": [by_id["TCQ:S07:S08"]]}
+    evidence = client.post("/api/evidence/series", json=selection)
+    assert evidence.status_code == 200, evidence.text
+    series, = evidence.json()["series"]
+    assert series["membership_hash"] == selection["structures"][0]["membership_hash"]
+
+    empty = client.post(endpoint, json={**query, **bounds, "k": 100})
+    assert empty.status_code == 200 and empty.json()["structures"] == []
+    assert client.post(endpoint, json={**query, **bounds, "k": 0}).status_code == 422
+
+
+def test_temporal_cores_with_same_members_and_end_keep_distinct_ids(dept3):
+    client, _ = dept3
+    entry = next(item for item in client.get("/api/datasets").json()["datasets"]
+                 if item["dataset_id"] == "synthetic-small")
+    response = client.post("/api/patterns/mine", json={
+        "dataset_id": entry["dataset_id"],
+        "dataset_version": entry["dataset_version"],
+        "pattern": "temporal_core",
+        "start_snapshot_id": "S01",
+        "end_snapshot_id": "S11",
+    })
+    assert response.status_code == 200, response.text
+    structures = response.json()["structures"]
+    assert len(structures) == len({item["membership_hash"] for item in structures}) == 59
+    identities_without_start = {(tuple(item["members"]), item["snapshot_id"]) for item in structures}
+    assert len(identities_without_start) < len(structures)
+    assert all(item["parameters"]["k"] == 4 for item in structures)
+    by_id = {item["structure_id"]: item for item in structures}
+    single = by_id["TCQ:S10:S10"]
+    extended = by_id["TCQ:S10:S11"]
+    assert single["members"] == extended["members"]
+    assert single["evidence"]["window_comparison"] == [{
+        "start_snapshot_id": "S10",
+        "end_snapshot_id": "S10",
+        "min_internal_degree": 4,
+        "below_k_members": 0,
+        "omitted_temporal_edges": 0,
+    }]
+    trimmed = extended["evidence"]["window_comparison"][0]
+    assert trimmed["min_internal_degree"] == 4
+    assert trimmed["below_k_members"] == 0
+    assert trimmed["omitted_temporal_edges"] > 0
+
+
 def test_current_default_query_and_fixed_member_evidence(dept3, monkeypatch):
     client, context = dept3
     snapshot = DatasetRepository.snapshot

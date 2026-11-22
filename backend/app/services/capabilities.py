@@ -12,7 +12,7 @@ def list_capabilities(
         Capability(
             id="patterns",
             name="Historical Community Mining",
-            description="Find periodic communities, durable communities, bursting cores, and frequency-aware cores.",
+            description="Find periodic and durable communities, bursting and frequency-aware cores, and time-range k-cores.",
         ),
         Capability(
             id="local_core",

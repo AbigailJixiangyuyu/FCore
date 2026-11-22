@@ -19,6 +19,7 @@ const paperTitles = {
   durable: 'Effective Durable Community Search in Large Temporal Graph',
   burst: 'Mining Bursting Core in Large Temporal Graphs',
   frequency: 'Efficient Frequency-Aware k-Core Query on Temporal Graphs',
+  temporal_core: 'Scalable Time-Range k-Core Query on Temporal Graphs',
 }
 </script>
 

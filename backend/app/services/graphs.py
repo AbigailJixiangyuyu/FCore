@@ -41,6 +41,18 @@ def window_bounds(
     return by_id[start_snapshot_id], by_id[end_snapshot_id]
 
 
+def combine_snapshots(frames: list[SnapshotData]) -> SnapshotData:
+    if len(frames) == 1:
+        return frames[0]
+    return SnapshotData(
+        snapshot_id=f"{frames[0].snapshot_id}:{frames[-1].snapshot_id}",
+        present_accounts=sorted(
+            {account for frame in frames for account in frame.present_accounts}
+        ),
+        transactions=[t for frame in frames for t in frame.transactions],
+    )
+
+
 def observed_window(
     scope: AnalysisScope, start: SnapshotMeta, end: SnapshotMeta
 ) -> tuple[SnapshotData, list[str]]:
@@ -61,16 +73,7 @@ def observed_window(
         scope.repository.snapshot(scope.context.dataset_id, snapshot_id)
         for snapshot_id in snapshot_ids
     ]
-    if len(frames) == 1:
-        return frames[0], snapshot_ids
-    combined = SnapshotData(
-        snapshot_id=f"{start.snapshot_id}:{end.snapshot_id}",
-        present_accounts=sorted(
-            {account for frame in frames for account in frame.present_accounts}
-        ),
-        transactions=[t for frame in frames for t in frame.transactions],
-    )
-    return combined, snapshot_ids
+    return combine_snapshots(frames), snapshot_ids
 
 
 def aggregate(scope: AnalysisScope, start_snapshot_id: str, end_snapshot_id: str) -> dict:
