@@ -1,0 +1,193 @@
+.graph-panel {
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.panel-heading {
+  min-height: 40px;
+  flex-shrink: 0;
+  padding: 7px 14px;
+  border-bottom: 1px solid #edf1f7;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.panel-heading h2 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  line-height: 1.5;
+}
+.graph-stage {
+  flex: 1;
+  position: relative;
+  min-height: 230px;
+  background: #fdfefe;
+  overflow: hidden;
+}
+.graph-stage > .request-state,
+.graph-stage > .request-error {
+  padding: 85px 20px;
+  text-align: center;
+}
+.graph-stamp {
+  position: absolute;
+  top: 12px;
+  left: 14px;
+  color: #91a1b8;
+  z-index: 3;
+  pointer-events: none;
+}
+.graph-stamp.periodic-stamp {
+  padding: 3px 6px;
+  border-radius: 3px;
+  background: #f0f3f8;
+  color: #506681;
+  font-weight: 700;
+  line-height: 18px;
+}
+.graph-stamp.periodic-stamp.is-formed {
+  background: #eaf0ff;
+  color: #315eb9;
+}
+.graph-toolbar {
+  position: absolute;
+  z-index: 4;
+  top: 8px;
+  right: 11px;
+  height: 30px;
+  display: flex;
+  gap: 0;
+  align-items: center;
+  border: 1px solid #e3eaf4;
+  border-radius: 4px;
+  background: #ffffffed;
+  padding: 0 3px;
+}
+.graph-toolbar .el-button {
+  padding: 5px;
+  margin-left: 0;
+  height: 26px;
+}
+.graph-toolbar output {
+  color: #7187a4;
+  min-width: 38px;
+  text-align: center;
+}
+.tool-divider {
+  width: 1px;
+  height: 12px;
+  background: #e5ebf4;
+  margin: 0 3px;
+}
+.graph-renderer,
+.sigma-container {
+  position: absolute;
+  inset: 0;
+}
+
+.graph-renderer {
+  --graph-label-inline-padding: 4px;
+  line-height: 1.4;
+}
+
+.graph-renderer.scene-hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.graph-overlays {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+}
+.account-hit {
+  pointer-events: none;
+  position: absolute;
+  width: 0;
+  height: 0;
+}
+.account-hit.focused,
+.account-hit.hovered,
+.community-hover .account-hit[data-matched="true"] {
+  font-weight: 700;
+}
+.community-hover .account-hit[data-matched="false"] {
+  opacity: 0.25;
+}
+.account-label {
+  position: absolute;
+  padding-inline: var(--graph-label-inline-padding);
+  color: #60738b;
+  white-space: nowrap;
+  background: #ffffffd9;
+  border-radius: 2px;
+}
+.account-hit.focused .account-label,
+.account-hit.hovered .account-label,
+.community-hover .account-hit[data-matched="true"] .account-label {
+  color: #20334b;
+}
+.graph-renderer:focus-visible {
+  outline: 2px solid #b6c8f6;
+  outline-offset: -2px;
+}
+.graph-tooltip {
+  pointer-events: none;
+  position: absolute;
+  z-index: 5;
+  max-width: 260px;
+  background: #243853ed;
+  color: white;
+  padding: 8px 10px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  border-radius: 4px;
+}
+.graph-failure {
+  position: absolute;
+  inset: 45px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  color: #ad4a55;
+  background: #ffffffed;
+  z-index: 3;
+}
+.graph-bottom {
+  min-height: 28px;
+  flex-shrink: 0;
+  border-top: 1px solid #edf1f7;
+  padding: 6px 14px;
+}
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  color: #6f84a0;
+}
+.graph-legend > span {
+  display: inline-flex;
+  gap: 5px;
+  align-items: center;
+}
+.legend-line {
+  width: 17px;
+  border-top: 1px solid #a6b8d0;
+  display: inline-block;
+}
+.legend-line.predicted {
+  border-top: 2px dashed #a087d4;
+}
+.prediction-empty {
+  height: 100%;
+  min-height: 230px;
+  display: grid;
+  place-items: center;
+}
+

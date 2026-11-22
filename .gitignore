@@ -1,0 +1,59 @@
+# Local dependencies and build outputs
+**/node_modules/
+**/dist/
+**/.vite/
+**/.venv/
+**/.venv-*/
+/backend/.native/
+/backend/build/
+**/*.egg-info/
+**/__pycache__/
+**/*.py[cod]
+**/.pytest_cache/
+**/.ruff_cache/
+**/.mypy_cache/
+**/coverage/
+**/htmlcov/
+.coverage
+.coverage.*
+
+# Local editor settings and temporary files
+.idea/
+**/.vscode/*
+!**/.vscode/extensions.json
+.DS_Store
+Thumbs.db
+*.log
+*.sw?
+/tmp/
+
+# Local configuration and credentials
+.env
+.env.*
+!.env.example
+*.local
+*.key
+*.pem
+
+# Keep the synthetic sample and the explicitly imported small public SNAP dataset.
+# Other real datasets, model weights and exports stay local.
+/data/*
+!/data/README.md
+!/data/synthetic-small/
+/data/synthetic-small/*
+!/data/synthetic-small/*.json
+!/data/synthetic-small/*.csv
+!/data/synthetic-small/README.md
+!/data/email-eu-core-dept3/
+/data/email-eu-core-dept3/*
+!/data/email-eu-core-dept3/*.json
+!/data/email-eu-core-dept3/*.csv
+!/data/email-eu-core-dept3/README.md
+!/data/raw/
+/data/raw/*
+!/data/raw/email-Eu-core-temporal-Dept3.txt.gz
+!/data/raw/README.md
+/models/*
+!/models/README.md
+/exports/*
+!/exports/README.md

@@ -1,0 +1,208 @@
+.time-navigation {
+  display: grid;
+  grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
+  align-items: center;
+  gap: 18px;
+  margin-top: 7px;
+  min-height: 73px;
+  padding: 7px 15px 5px;
+}
+.time-navigation-settings {
+  display: grid;
+  grid-template-columns: auto repeat(3, minmax(0, 1fr));
+  align-items: center;
+  gap: 10px;
+}
+.time-navigation-settings .time-setting-button {
+  width: 100%;
+  height: 36px;
+  margin: 0;
+  border: 1px dashed #9dacc0;
+  font-weight: 700;
+}
+.time-navigation-settings .time-setting-button:hover,
+.time-navigation-settings .time-setting-button:focus-visible {
+  border-color: #6f8edf;
+}
+.time-setting-caret {
+  width: 10px;
+  height: 10px;
+  margin-left: 5px;
+  vertical-align: middle;
+}
+.dataset-current {
+  margin-left: 10px;
+  color: #315ed1;
+}
+.snapshot-granularity {
+  display: grid;
+  gap: 4px;
+}
+.snapshot-granularity span {
+  color: var(--muted);
+}
+.time-axis {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) repeat(2, 60px);
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  padding-right: 4px;
+}
+.historical-timeline {
+  min-width: 0;
+  padding-inline: 12px;
+}
+.history-caption {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  height: 15px;
+  color: #506681;
+  line-height: 15px;
+  white-space: nowrap;
+}
+.history-preview {
+  padding-inline: 5px;
+  border-radius: 3px;
+  background: #edf2ff;
+  color: #315ed1;
+}
+.history-track {
+  position: relative;
+  height: 24px;
+  cursor: crosshair;
+  touch-action: none;
+  user-select: none;
+}
+.history-track-cells,
+.history-ticks {
+  display: grid;
+  grid-template-columns: repeat(var(--history-length), minmax(0, 1fr));
+}
+.history-track-cells {
+  position: absolute;
+  inset: 5px 0;
+  background: #eaf0f7;
+  border-radius: 3px;
+  overflow: hidden;
+}
+.history-track-cells span + span {
+  border-left: 1px solid #fff;
+}
+.history-selection {
+  position: absolute;
+  inset-block: 0;
+  cursor: grab;
+}
+.history-selection::before {
+  content: '';
+  position: absolute;
+  inset: 4px 0;
+  background: #cfdefa;
+  border: 1px solid #98b3e8;
+  border-radius: 4px;
+  pointer-events: none;
+}
+.history-track.is-previewing .history-selection {
+  cursor: grabbing;
+}
+.history-track.is-previewing .history-selection::before {
+  background: #dee9ff;
+  border-color: #7596dd;
+}
+.history-handle {
+  position: absolute;
+  top: 0;
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  transform: translateX(-50%);
+  border-radius: 3px;
+  color: #315ed1;
+  cursor: ew-resize;
+}
+.history-handle--start {
+  left: 0;
+}
+.history-handle--end {
+  left: 100%;
+}
+.history-handle::before {
+  content: '';
+  width: 9px;
+  height: 12px;
+  background: currentColor;
+  pointer-events: none;
+}
+.history-handle--start::before {
+  clip-path: polygon(0 50%, 100% 0, 100% 100%);
+}
+.history-handle--end::before {
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+.history-handle:hover,
+.history-handle:focus-visible {
+  background: #315ed11a;
+  color: #153c9f;
+}
+.history-handle:focus-visible {
+  outline: 2px solid #668cdd;
+  outline-offset: -2px;
+}
+.history-ticks button {
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 3px;
+  background: transparent;
+  color: #5c728f;
+  line-height: 20px;
+  text-align: center;
+}
+.history-ticks button:hover,
+.history-ticks button[aria-pressed='true'] {
+  background: #eaf0ff;
+}
+.history-ticks button.in-range {
+  color: #315ed1;
+  font-weight: 700;
+}
+.history-ticks button:focus-visible {
+  outline-offset: -2px;
+}
+.time-stage {
+  height: 42px;
+  display: grid;
+  align-content: center;
+  justify-items: center;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--stage-line);
+  border-radius: 5px;
+  background: var(--stage-background);
+  color: var(--stage-text);
+  line-height: 16px;
+}
+.time-stage--present {
+  --stage-line: #d9e8e5;
+  --stage-background: #f4f9f8;
+  --stage-accent: #81b2aa;
+  --stage-active: #e0f1ed;
+  --stage-text: #316f68;
+}
+.time-stage--future {
+  --stage-line: #e6dcf4;
+  --stage-background: #f9f6fc;
+  --stage-accent: #b298d6;
+  --stage-active: #f0e7fa;
+  --stage-text: #77549d;
+}
+.time-stage:hover,
+.time-stage[aria-pressed='true'] {
+  border-color: var(--stage-accent);
+}
+.time-stage[aria-pressed='true'] {
+  background: var(--stage-active);
+}

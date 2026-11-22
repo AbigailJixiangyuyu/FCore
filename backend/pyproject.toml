@@ -1,0 +1,32 @@
+[project]
+name = "temporal-graph-demo-backend"
+version = "0.1.0"
+description = "时序交易图分析 Demo 的接口与算法服务"
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "fastapi[standard]==0.162.5",
+    "numpy>=1.26,<3",
+    "pydantic>=2,<3",
+    "torch==2.8.0+cu128",
+]
+
+[tool.uv]
+package = false
+# Supplied by the existing Python 3.10 via --system-site-packages.
+# Keep uv sync / uv run from downloading a second CUDA distribution.
+exclude-dependencies = ["torch"]
+
+[tool.fastapi]
+entrypoint = "app.main:app"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+markers = ["hardware: exercise CUDA training and inference or the WSL adapter"]
+
+[dependency-groups]
+dev = [
+    "httpx>=0.28.1",
+    "pytest>=9.2.0",
+]

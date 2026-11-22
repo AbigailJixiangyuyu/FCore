@@ -1,0 +1,96 @@
+{
+  "source_url": "https://snap.stanford.edu/data/email-Eu-core-temporal-Dept3.txt.gz",
+  "source_page": "https://snap.stanford.edu/data/email-Eu-core-temporal.html",
+  "source_filename": "email-Eu-core-temporal-Dept3.txt.gz",
+  "archive_sha256": "b1f92288e855044bbc74bacac39d42b12e59ec2a0130ad8df419786eb46a7bff",
+  "uncompressed_sha256": "87f766b9e9547cb315c2fc1e49ed6eff2c60c121579b22d095079a401bbb3eb9",
+  "citation": {
+    "title": "Motifs in Temporal Networks",
+    "authors": [
+      "Ashwin Paranjape",
+      "Austin R. Benson",
+      "Jure Leskovec"
+    ],
+    "venue": "WSDM",
+    "year": 2017
+  },
+  "converter_version": "email-dept3-active-prefix-v2",
+  "source_time_origin": null,
+  "iso_transport_epoch": "1970-01-01T00:00:00+00:00",
+  "time_mapping": "t_output = t_source; no rescaling or fabricated calendar origin",
+  "snapshot_policy": "13 equal-duration bins over the retained active prefix, rounded up to whole minutes; no internal windows removed",
+  "truncation": {
+    "start_inclusive": 0,
+    "end_exclusive": 45310384,
+    "reason": "Fixed prefix cutoff verified against the long inactive gap in SNAP Dept3; no adaptive removal of internal gaps",
+    "source_first_event_t": 0,
+    "source_last_event_t": 69317577,
+    "retained_first_event_t": 0,
+    "retained_last_event_t": 45310383,
+    "retained_event_fraction": 0.9904223968565815,
+    "largest_source_time_gaps": [
+      {
+        "start_event_t": 45310383,
+        "end_event_t": 68905594,
+        "duration_seconds": 23595211
+      },
+      {
+        "start_event_t": 5645054,
+        "end_event_t": 6241308,
+        "duration_seconds": 596254
+      }
+    ]
+  },
+  "empty_snapshots_preserved": true,
+  "empty_snapshot_ids": [],
+  "presence_policy": "All identified department members remain in every snapshot; no attendance or departure information is available.",
+  "layout_method": "numeric-id-circle-v1; no temporal edges used",
+  "anomaly_labels": null,
+  "recommended_parameters": {
+    "local_core": {
+      "account": "49",
+      "k": 7
+    },
+    "density": {
+      "threshold": 1
+    },
+    "periodic": {
+      "account": "49",
+      "k": 4,
+      "epsilon": 1
+    },
+    "durable": {
+      "account": "49",
+      "k": 15
+    },
+    "burst": {
+      "l": 3,
+      "delta": 6.666
+    }
+  },
+  "counts": {
+    "nodes": 89,
+    "input_events": 12216,
+    "output_events": 12099,
+    "excluded_events": 117,
+    "directed_pairs": 1504,
+    "repeated_pair_events": 10595,
+    "exact_duplicate_events": 165,
+    "self_loops": 0,
+    "by_snapshot": {
+      "S01": 809,
+      "S02": 816,
+      "S03": 799,
+      "S04": 609,
+      "S05": 1025,
+      "S06": 1520,
+      "S07": 790,
+      "S08": 601,
+      "S09": 1075,
+      "S10": 995,
+      "S11": 486,
+      "S12": 1208,
+      "S13": 1366
+    }
+  }
+}

@@ -1,0 +1,127 @@
+.anomaly-panel > .sidebar-content {
+  flex: 1;
+  min-height: 0;
+}
+.prediction-actions {
+  flex-shrink: 0;
+  border-top: 1px solid var(--line);
+  padding: 10px 13px;
+}
+
+.result-list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.result-item {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  text-align: left;
+  gap: 7px;
+  padding: 10px 8px;
+  border: 1px solid #e5ebf3;
+  border-radius: 4px;
+  background: white;
+  color: #20334b;
+}
+.result-item.active {
+  border-color: #8da8ec;
+  background: #f4f7fe;
+  box-shadow: inset 2px 0 #315ed1;
+}
+
+.result-body {
+  min-width: 0;
+  flex: 1;
+}
+.result-body strong {
+  display: block;
+}
+
+.result-score {
+  font-weight: 700;
+  color: #bc6d49;
+}
+
+.result-rank {
+  color: #8b9db5;
+  font-variant-numeric: tabular-nums;
+}
+.compact-results {
+  gap: 5px;
+}
+.compact-results .result-item {
+  padding: 6px 8px;
+}
+.compact-results .result-body {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 2px 6px;
+}
+.anomaly-evidence {
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid #edf1f6;
+}
+.anomaly-evidence .score-card {
+  margin-top: 8px;
+}
+.account-anomaly-list {
+  gap: 1px;
+}
+.anomaly-list-header,
+.account-anomaly-list .result-item {
+  display: grid;
+  grid-template-columns: 28px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 7px;
+}
+.anomaly-list-header {
+  padding: 0 9px;
+  color: var(--muted);
+}
+.anomaly-list-header > :last-child {
+  cursor: help;
+}
+.account-anomaly-list .result-item {
+  min-height: 23px;
+  padding-block: 1px;
+}
+.slade-score-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 10px;
+}
+.slade-score-row small {
+  color: var(--muted);
+  font-weight: 400;
+}
+
+.score-card {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  background: #faf6f3;
+  padding: 9px;
+  border: 1px solid #efe2d9;
+  border-radius: 4px;
+  margin-top: 12px;
+}
+.score-card > small {
+  display: block;
+  color: #a07b65;
+}
+.score-card > strong {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  display: block;
+  color: #b8724a;
+  line-height: 1.5;
+}
+.score-card strong span {
+  font-weight: 400;
+  color: #ac998b;
+}

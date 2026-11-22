@@ -1,0 +1,20 @@
+{
+  "email-eu-core-dept3": {
+    "local_core": { "account": "49", "k": 7 },
+    "future_core": { "account": "49", "k": 4 },
+    "density": { "threshold": 1 },
+    "periodic": { "account": "49", "k": 4, "epsilon": 1 },
+    "durable": { "account": "49", "k": 3 },
+    "burst": { "account": "49", "l": 3, "delta": 5.60 },
+    "frequency": { "k": 6, "t": 4, "f": 0.8 }
+  },
+  "synthetic-small": {
+    "local_core": { "account": "a-001", "k": 4 },
+    "future_core": { "account": "a-001", "k": 4 },
+    "density": { "threshold": 1 },
+    "periodic": { "account": "a-001", "k": 4, "epsilon": 1 },
+    "durable": { "account": "a-001", "k": 4 },
+    "burst": { "account": "a-014", "l": 3, "delta": 5 },
+    "frequency": { "k": 5, "t": 3, "f": 1 }
+  }
+}
