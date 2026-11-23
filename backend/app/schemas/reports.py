@@ -31,13 +31,14 @@ class FutureEvidence(FutureCommunityQuery):
     result_fingerprint: str = Field(min_length=1)
 
 
+Question = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+
+
 class ReportRequest(AnalysisContext):
     history: HistoricalEvidence
     current: CurrentEvidence
     future: FutureEvidence
-
-
-Question = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)]
+    initial_prompt: Question | None = None
 
 
 class ReportTurn(BaseModel):

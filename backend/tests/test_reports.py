@@ -115,12 +115,15 @@ def test_follow_ups_send_the_original_report_and_prior_turns(submitted_report):
     client = TestClient(application)
     calls = []
     answers = ["13 人属于同一组。", "其中 1 人预计仍在 S13。"]
+    initial_prompt = f"Compare vertex {forecast['account']} across the three stages."
 
     def completion(request):
         payload = json.loads(request.content)
         assert payload["stream"] and payload["thinking"] == {"type": "enabled"}
         messages = payload["messages"]
-        assert json.loads(messages[1]["content"])["all_three_overlap"] == 1
+        supplied = json.loads(messages[1]["content"])
+        assert supplied["all_three_overlap"] == 1
+        assert supplied["initial_prompt"] == "Compare vertex N001 across the three stages."
         answer = answers[len(calls)]
         calls.append(messages)
         return httpx.Response(
@@ -133,7 +136,7 @@ def test_follow_ups_send_the_original_report_and_prior_turns(submitted_report):
     )
     report_content = "\nThe two selections share 13 members, including N001.\n"
     question = f"节点{forecast['account']}所在的这一组有 13 人吗？"
-    follow_up = dict(body, report_content=report_content, turns=[], question=question)
+    follow_up = dict(body, initial_prompt=initial_prompt, report_content=report_content, turns=[], question=question)
     path = "/api/reports/follow-up"
 
     stale = deepcopy(follow_up)
@@ -160,6 +163,29 @@ def test_follow_ups_send_the_original_report_and_prior_turns(submitted_report):
         {"role": "user", "content": next_question},
     ]
     assert calls[0] == calls[1][:4]
+
+
+def test_first_message_supplies_the_analysts_request_with_verified_evidence(submitted_report):
+    application, body, _, _, forecast = submitted_report
+    client = TestClient(application)
+    supplied = []
+
+    def completion(request):
+        supplied.append(json.loads(json.loads(request.content)["messages"][1]["content"]))
+        return httpx.Response(
+            200, headers={"Content-Type": "text/event-stream"},
+            text=provider_delta(content="Report for the submitted community.") + "data: [DONE]\n\n",
+        )
+
+    application.state.report_client = ReportClient("https://provider.invalid", "test", "test", httpx.MockTransport(completion))
+    prompt = f"History · OTCD · S10–S11\nCompare vertex {forecast['account']} in S12 and S13."
+    path = "/api/reports/generate"
+    assert client.post(path, json={**body, "initial_prompt": "  "}).status_code == 422
+    response = client.post(path, json={**body, "initial_prompt": prompt})
+    assert response.status_code == 200 and len(supplied) == 1
+    assert supplied[0]["initial_prompt"] == "History · OTCD · S10–S11\nCompare vertex N001 in S12 and S13."
+    assert supplied[0]["history_current_overlap"] == 13
+    assert [json.loads(line)["type"] for line in response.iter_lines()] == ["start", "delta", "done"]
 
 
 def test_provider_errors_never_return_upstream_diagnostics(tmp_path, monkeypatch):

@@ -41,9 +41,9 @@ Dept3 使用 S01—S11 的 9,525 条交互训练 10 轮，冻结参数后处理 
 
 ## 开发启动
 
-05 的 **LLM-based Report** 汇总用户选定的历史、当前和未来结果。分别运行三个阶段的算法并点击 **Submit Evidence**。显示 **3/3 submitted** 后，点击 **Generate Report** 会发送一次联合分析请求。DeepSeek 写出的英文报告随生成进度显示，保留段落换行。重新提交某一阶段会替换对应证据。已提交的证据和完成的报告可在当前标签页刷新后恢复。
+05 的 **LLM-Assisted Interpretation** 输入框显示 **History**、**Current**、**Future** 三项证据提示。分别运行三个阶段的算法并点击 **Submit**，对应位置会填入已提交结果的算法和时间范围。三项齐全后，按钮变为 **Send**，可直接生成报告或先补充问题。三项齐全时，如果当前阶段有新结果，可点击 **Update Evidence** 更新该项。刷新页面会清空会话并恢复三项提示。
 
-报告完成后，在面板底部输入问题并点击 **Send**。每次追问使用同一组证据、首份报告和此前完成的问答。回复随生成进度追加，**Retry** 可重试中断的回复。本标签页刷新时恢复已完成的对话。
+报告完成后，在面板底部输入问题并点击 **Send**。每次追问使用同一组证据、首份报告和此前完成的问答。回复随生成进度追加，**Retry** 可重试中断的回复。
 
 在 `backend/.env` 填写 `LLM_API_KEY`，保存后重启后端。新检出项目可从 `backend/.env.example` 复制此文件。DeepSeek 使用 `LLM_BASE_URL=https://api.deepseek.com` 和 API 模型 ID `LLM_MODEL=deepseek-flash`。系统环境变量优先。实际 Key 由后端读取，`.env` 已加入 Git 忽略规则。
 

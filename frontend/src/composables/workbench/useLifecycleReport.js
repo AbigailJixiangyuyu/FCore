@@ -2,7 +2,7 @@ import { computed, onScopeDispose, ref, watch } from 'vue'
 
 import { matchesContext } from '../../api/analysis.js'
 import { postJsonLines } from '../../api/client.js'
-import { forecastEvidence, readReportSession, reportStages, saveReportSession, structureEvidence } from '../../domain/reportEvidence.js'
+import { forecastEvidence, reportEvidenceDraft, reportStages, structureEvidence } from '../../domain/reportEvidence.js'
 
 export function useLifecycleReport(workbench) {
   const { context, store, selected, patternResult, queryResult, anomalyQuery, anomalyResponse, prediction, matchingPrediction } = workbench
@@ -46,16 +46,8 @@ export function useLifecycleReport(workbench) {
   watch(context, (next) => {
     if (!next || matchesContext(next, activeContext)) return
     cancel()
-    const saved = readReportSession()
-    const restore = matchesContext(saved?.context, next)
+    slots.value = {}
     resetReport()
-    slots.value = restore ? saved.slots : {}
-    if (restore) {
-      completedReport.value = saved.report
-      turns.value = saved.turns
-    } else {
-      saveReportSession(null)
-    }
     activeContext = next
   }, { immediate: true, flush: 'sync' })
 
@@ -70,65 +62,62 @@ export function useLifecycleReport(workbench) {
     if (stage.value === 'current' && !anomalyResponse.value && !anomalyQuery.isError.value) return null
     return structureEvidence(context.value, selected.value, anomalyResponse.value?.model_version)
   })
-  const count = computed(() => Object.keys(slots.value).length)
   const canSubmit = computed(() => !!candidate.value &&
     JSON.stringify(slots.value[stage.value]?.reference) !== JSON.stringify(candidate.value.reference))
-  const canAsk = computed(() => count.value === 3 && matchesContext(context.value, activeContext) &&
-    !!completedReport.value?.content?.trim() && !completedReport.value.legacy)
+  const ready = computed(() => Object.keys(reportStages).every(key => slots.value[key]) &&
+    matchesContext(context.value, activeContext))
+  const canAsk = computed(() => ready.value && !!completedReport.value?.content?.trim())
+  const canSend = computed(() => ready.value && !busy.value && (!canAsk.value || !!question.value.trim()))
 
-  function persist() {
-    saveReportSession({
-      context: activeContext, slots: slots.value, report: completedReport.value, turns: turns.value,
-    })
-  }
   function submit() {
     if (!canSubmit.value) return
     cancel()
     slots.value = { ...slots.value, [stage.value]: candidate.value }
     resetReport()
-    persist()
-  }
-
-  function generate() {
-    return requestReply()
   }
 
   function ask() {
-    const text = question.value.trim()
-    if (!text || !canAsk.value || busy.value) return
-    question.value = ''
-    return requestReply(text)
+    if (!canSend.value) return
+    const followUp = canAsk.value
+    const message = question.value.trim()
+    const text = followUp ? message : [reportEvidenceDraft(slots.value), message].filter(Boolean).join('\n\n')
+    if (followUp) question.value = ''
+    return requestReply({ text, followUp })
   }
 
   function retry() {
     if (!pendingTurn.value || !replyError.value || !canAsk.value || busy.value) return
-    return requestReply(pendingTurn.value.question)
+    return requestReply({ text: pendingTurn.value.question, followUp: true })
   }
 
-  async function requestReply(followUpQuestion = null) {
-    if (count.value !== 3 || busy.value || !matchesContext(activeContext, context.value)) return
-    const followUp = followUpQuestion !== null
+  async function requestReply({ text, followUp }) {
     const controller = new AbortController()
     const body = { ...activeContext }
     for (const key of Object.keys(reportStages)) body[key] = slots.value[key].reference
     activeRequest = controller
     requestKind.value = followUp ? 'follow-up' : 'report'
     if (followUp) {
-      body.report_content = completedReport.value.content
+      const { content, initial_prompt } = completedReport.value
+      body.report_content = content
+      if (initial_prompt) body.initial_prompt = initial_prompt
       body.turns = turns.value
-      body.question = followUpQuestion
-      pendingTurn.value = { question: followUpQuestion, answer: '' }
+      body.question = text
+      pendingTurn.value = { question: text, answer: '' }
       replyError.value = ''
     } else {
+      body.initial_prompt = text
       error.value = ''
-      draftReport.value = null
+      draftReport.value = { content: '', initial_prompt: text }
     }
     try {
       const path = followUp ? '/reports/follow-up' : '/reports/generate'
       for await (const event of postJsonLines(path, body, { signal: controller.signal })) {
         if (activeRequest !== controller) return
         if (event.type === 'start') {
-          if (!followUp) draftReport.value = { model: event.model, node_labels: event.node_labels, content: '' }
+          if (!followUp) {
+            draftReport.value.model = event.model
+            draftReport.value.node_labels = event.node_labels
+          }
         } else if (event.type === 'delta') {
           if (followUp) pendingTurn.value.answer += event.content
           else draftReport.value.content += event.content
@@ -143,7 +132,6 @@ export function useLifecycleReport(workbench) {
             draftReport.value = null
             resetDiscussion()
           }
-          persist()
           return
         }
       }
@@ -165,7 +153,7 @@ export function useLifecycleReport(workbench) {
     }
   }
   return {
-    stage, slots, count, canSubmit, submit, generating, generate, report, error,
-    busy, canAsk, answering, question, ask, retry, turns, pendingTurn, replyError,
+    stage, slots, ready, canSubmit, submit, generating, report, error,
+    busy, canAsk, canSend, answering, question, ask, retry, turns, pendingTurn, replyError,
   }
 }

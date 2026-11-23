@@ -34,7 +34,7 @@ const option = computed(function () {
       trigger: 'item',
       formatter(point) {
         if (point.seriesIndex === 1) {
-          return `Box plot outlier\nNode ${point.name} · Anomaly score ${point.value[0].toFixed(4)}`
+          return `Box plot outlier\nVertex ${point.name} · Anomaly score ${point.value[0].toFixed(4)}`
         }
         return [
           `Median ${median.toFixed(4)}`,

@@ -1,5 +1,6 @@
 <script setup>
 import { useWorkbench } from '../composables/workbenchContext.js'
+import { predictionAlgorithms } from '../domain/algorithms.js'
 import { FORECAST_HORIZONS, forecastSnapshotId } from '../domain/timeline.js'
 import QueryAccountField from './QueryAccountField.vue'
 import QueryCoreField from './QueryCoreField.vue'
@@ -8,12 +9,15 @@ import QueryState from './QueryState.vue'
 const {
   store, predictionModels, prediction, canRunPrediction, needsModelCheck, runPrediction, recheckPredictionModel,
 } = useWorkbench()
+const { zebra } = predictionAlgorithms
 </script>
 
 <template>
   <section class="algorithm-picker">
     <h3>Algorithm</h3>
-    <p>Zebra: When Temporal Graph Neural Networks Meet Temporal Personalized PageRank</p>
+    <p :title="zebra.paperTitle">
+      {{ zebra.name }}<span class="visually-hidden">. {{ zebra.paperTitle }}</span>
+    </p>
     <QueryState :query="predictionModels" />
   </section>
   <QueryForm v-slot="{ clearError }" @submit="runPrediction">
@@ -41,10 +45,10 @@ const {
       :account="store.futureDraftParameters.account"
     />
     <div class="compact-field forecast-threshold">
-      <span>Edge threshold</span>
+      <span>Probability threshold</span>
       <el-slider
         v-model="store.futureDraft.threshold"
-        aria-label="Link probability threshold"
+        aria-label="Edge probability threshold"
         size="small"
         :min="0"
         :max="1"

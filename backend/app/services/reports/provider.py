@@ -47,12 +47,13 @@ class ReportClient:
 
     @asynccontextmanager
     async def stream(
-        self, facts: ReportFacts, *, follow_up: ReportFollowUpRequest | None = None,
+        self, facts: ReportFacts, *, initial_prompt: str | None = None,
+        follow_up: ReportFollowUpRequest | None = None,
     ) -> AsyncIterator[AsyncIterator[dict]]:
         body = {
             "model": self.model, "stream": True, "thinking": {"type": "enabled"},
             "max_tokens": 4096,
-            "messages": report_messages(facts, follow_up),
+            "messages": report_messages(facts, follow_up, initial_prompt=initial_prompt),
         }
         try:
             async with httpx.AsyncClient(transport=self.transport, timeout=httpx.Timeout(60, connect=8)) as client:

@@ -22,13 +22,13 @@ const counts = computed(function () {
   if (!stats.value) return []
   const { nodeCount, transactionCount, edgeCount, density } = stats.value
   return [
-    { label: 'Nodes', value: formatNumber(nodeCount) },
+    { label: 'Vertices', value: formatNumber(nodeCount) },
     { label: 'Interactions', value: formatNumber(transactionCount) },
-    { label: 'Edges', value: formatNumber(edgeCount), title: 'Unique undirected node pairs in this range' },
+    { label: 'Edges', value: formatNumber(edgeCount), title: 'Unique undirected vertex pairs in this range' },
     {
       label: 'Density',
       value: density == null ? '—' : `${formatNumber(density * 100, 2)}%`,
-      title: 'Share of all possible node pairs that are connected',
+      title: 'Share of all possible vertex pairs that are connected',
     },
   ]
 })
@@ -48,7 +48,6 @@ const largestComponent = computed(function () {
 <template>
   <section class="summary-column dataset-summary" aria-labelledby="dataset-summary-title">
     <div class="summary-heading">
-      <span class="panel-number">05</span>
       <h2 id="dataset-summary-title">Dataset Statistics</h2>
       <span class="summary-context">{{ scope }}</span>
     </div>
@@ -60,20 +59,20 @@ const largestComponent = computed(function () {
         </div>
       </dl>
       <dl class="summary-facts">
-        <div title="Node degree in the undirected graph, including isolated nodes">
+        <div title="Vertex degree in the undirected graph, including isolated vertices">
           <dt>Mean / Median Degree</dt>
           <dd>{{ formatNumber(stats.averageDegree, 2) }} / {{ formatNumber(stats.medianDegree, 2) }}</dd>
         </div>
         <div>
-          <dt>Highest-Degree Nodes</dt>
+          <dt>Highest-Degree Vertices</dt>
           <dd :title="stats.maxDegreeAccounts.join(', ')">
             <template v-if="highest">{{ highest }} <small>(degree {{ formatNumber(stats.maxDegree) }})</small></template>
             <template v-else>—</template>
           </dd>
         </div>
-        <div title="Highest coreness and number of nodes in the maximum core">
-          <dt>Maximum Core</dt>
-          <dd v-if="stats.maxCore !== null">{{ stats.maxCore }}-core · {{ formatCount(stats.maxCoreSize, 'node') }}</dd>
+        <div title="Highest coreness and number of vertices in the maximum k-core">
+          <dt>Maximum k-Core</dt>
+          <dd v-if="stats.maxCore !== null">{{ stats.maxCore }}-core · {{ formatCount(stats.maxCoreSize, 'vertex', 'vertices') }}</dd>
           <dd v-else>—</dd>
         </div>
         <div title="Size of the largest connected component relative to the full graph">

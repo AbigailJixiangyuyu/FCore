@@ -137,7 +137,7 @@ async def _open_report_stream(
     response.headers["Cache-Control"] = "no-store"
     response.headers["X-Accel-Buffering"] = "no"
     follow_up = body if isinstance(body, ReportFollowUpRequest) else None
-    async with state.report_client.stream(facts, follow_up=follow_up) as events:
+    async with state.report_client.stream(facts, initial_prompt=body.initial_prompt, follow_up=follow_up) as events:
         yield events
 
 

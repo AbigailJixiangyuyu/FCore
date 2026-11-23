@@ -141,7 +141,7 @@ export function useGraphCanvas(props, emit) {
       setHover(node)
       const attributes = renderer.getGraph().getNodeAttributes(node)
       showTooltip(
-        `${node}${attributes.core_number !== undefined ? ` · Coreness ${attributes.core_number}` : ''}${attributes.query ? ' · Query node q' : ''}`,
+        `${node}${attributes.core_number !== undefined ? ` · Coreness ${attributes.core_number}` : ''}${attributes.query ? ' · Query Vertex q' : ''}`,
         event,
       )
     })
@@ -154,7 +154,7 @@ export function useGraphCanvas(props, emit) {
       const attributes = renderer.getGraph().getEdgeAttributes(edge)
       let text = `${attributes.u} — ${attributes.v}`
       if (attributes.predicted)
-        text += ` · ${attributes.target_snapshot} link probability ${probabilityLabel(attributes.probability)} · ${attributes.currently_connected ? 'Connected' : 'Not connected'} in S12`
+        text += ` · ${attributes.target_snapshot} edge probability ${probabilityLabel(attributes.probability)} · ${attributes.currently_connected ? 'Connected' : 'Not connected'} in S12`
       else {
         const scope = attributes.aggregated
           ? `${attributes.observation_scope} total`
@@ -162,7 +162,7 @@ export function useGraphCanvas(props, emit) {
         text += ` · ${scope} · ${formatCount(attributes.transaction_count, 'interaction')}`
         const witness = attributes.frequencyEvidence
         if (witness)
-          text += ` · Historical frequency ${witness.frequency.toFixed(3)} · ${witness.witness_start_snapshot_id}–${witness.witness_end_snapshot_id}`
+          text += ` · t-frequency ${witness.frequency.toFixed(3)} · ${witness.witness_start_snapshot_id}–${witness.witness_end_snapshot_id}`
       }
       showTooltip(text, event)
     })

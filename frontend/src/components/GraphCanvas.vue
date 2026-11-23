@@ -20,9 +20,9 @@ const {
 defineExpose({ zoom, fit })
 
 const accessibleSummary = computed(function () {
-  const nodes = formatCount(props.scene.nodes.length, 'node')
+  const vertices = formatCount(props.scene.nodes.length, 'vertex', 'vertices')
   const edges = formatCount(props.scene.edges.length, props.future ? 'predicted edge' : 'undirected edge')
-  return `${nodes}, ${edges}. Use the arrow keys to move focus and Enter to select a node.`
+  return `${vertices}, ${edges}. Use the arrow keys to move focus and Enter to select a vertex.`
 })
 </script>
 

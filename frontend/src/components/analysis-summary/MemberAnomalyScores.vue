@@ -20,7 +20,7 @@ function locateMember(id, hide) {
         <table>
           <thead>
             <tr>
-              <th scope="col">Node ID</th>
+              <th scope="col">Vertex ID</th>
               <th scope="col" title="Combined SLADE anomaly score (0–1)">SLADE Score</th>
             </tr>
           </thead>
@@ -35,8 +35,8 @@ function locateMember(id, hide) {
                 <button
                   type="button"
                   class="member-locate-button"
-                  :aria-label="`Locate node ${member.account_id} on the graph`"
-                  :title="`Locate node ${member.account_id} on the graph`"
+                  :aria-label="`Locate vertex ${member.account_id} on the graph`"
+                  :title="`Locate vertex ${member.account_id} on the graph`"
                 >{{ member.account_id }}</button>
               </td>
               <td>{{ member.score == null ? 'Unscored' : member.score.toFixed(4) }}</td>

@@ -1,5 +1,5 @@
 <script setup>
-import { computed, provide } from 'vue'
+import { provide } from 'vue'
 
 import AnalysisSummaryPanel from '../components/AnalysisSummaryPanel.vue'
 import AnomalyInformation from '../components/AnomalyInformation.vue'
@@ -12,48 +12,33 @@ import QueryState from '../components/QueryState.vue'
 import SnapshotNavigation from '../components/SnapshotNavigation.vue'
 import { useWorkbenchData } from '../composables/useWorkbenchData.js'
 import { workbenchKey } from '../composables/workbenchContext.js'
-import { FUTURE_INDEX, PRESENT_INDEX, PRESENT_SNAPSHOT_ID } from '../domain/timeline.js'
+import { FUTURE_INDEX, PRESENT_INDEX } from '../domain/timeline.js'
 
 const workbench = useWorkbenchData()
 provide(workbenchKey, workbench)
-const { store, system, connected, catalog, currentWindow, selectTime } = workbench
+const { store, system, connected, catalog, selectTime } = workbench
 const datasets = system.datasets
 const stages = [
-  { id: 'history', label: 'History' },
-  { id: 'present', label: 'Current' },
-  { id: 'future', label: 'Future' },
+  { id: 'history', label: 'History', title: 'Historical Community Mining' },
+  { id: 'present', label: 'Current', title: 'Current Community Search' },
+  { id: 'future', label: 'Future', title: 'Future Community Prediction' },
 ]
 
 function selectStage(stage) {
   if (stage === 'history') selectTime(store.historyEndIndex)
   else selectTime(stage === 'present' ? PRESENT_INDEX : FUTURE_INDEX)
 }
-const title = computed(function () {
-  if (store.stage === 'history') return 'Mine Communities in Historical Snapshots'
-  if (store.stage === 'future') return 'Predict a Future Community'
-  return 'Explore Current Communities and Anomaly Scores'
-})
-const timeContext = computed(function () {
-  if (store.stage === 'history') return store.historyRangeLabel
-  if (store.stage === 'future') return `${PRESENT_SNAPSHOT_ID} → ${store.futureSnapshotId}`
-  return currentWindow.value ? store.currentWindowLabel : 'S12'
-})
 </script>
 
 <template>
   <main class="workbench">
     <template v-if="connected && datasets.length">
       <SnapshotNavigation />
-      <div class="page-intro">
-        <h1>{{ title }}</h1>
-        <span class="count-chip">{{ timeContext }}</span>
-      </div>
       <QueryState v-if="catalog.isError.value" :query="catalog" />
       <div class="workspace">
-        <aside class="panel control-panel" aria-label="Methods &amp; Parameters">
+        <aside class="panel control-panel" aria-labelledby="query-setup-title">
           <div class="sidebar-heading">
-            <span class="panel-number">02</span>
-            <h2>Methods &amp; Parameters</h2>
+            <h2 id="query-setup-title">Query Setup</h2>
           </div>
           <div class="control-stages">
             <el-radio-group
@@ -62,7 +47,7 @@ const timeContext = computed(function () {
               aria-label="Analysis stage"
               @update:model-value="selectStage"
             >
-              <el-radio-button v-for="stage in stages" :key="stage.id" :value="stage.id">
+              <el-radio-button v-for="stage in stages" :key="stage.id" :value="stage.id" :title="stage.title">
                 {{ stage.label }}
               </el-radio-button>
             </el-radio-group>
@@ -74,10 +59,9 @@ const timeContext = computed(function () {
           </div>
         </aside>
         <GraphPanel />
-        <aside class="panel anomaly-panel" aria-label="Anomaly Scores">
+        <aside class="panel anomaly-panel" aria-labelledby="risk-assessment-title">
           <div class="sidebar-heading">
-            <span class="panel-number">04</span>
-            <h2>Anomaly Scores</h2>
+            <h2 id="risk-assessment-title">Risk Assessment</h2>
           </div>
           <div class="sidebar-content">
             <AnomalyInformation />

@@ -19,7 +19,7 @@ const witnessRange = computed(function () {
   const { witness_start_snapshot_id: first, witness_end_snapshot_id: last } = witness.value
   return `${first}—${last}`
 })
-const mean = computed(() => witness.value.max_average_degree.toFixed(2))
+const msd = computed(() => witness.value.max_average_degree.toFixed(2))
 const threshold = computed(() => props.structure.parameters.delta.toFixed(2))
 
 function selectSnapshot(index) {
@@ -47,7 +47,7 @@ const option = computed(function () {
         if (!point) return ''
         const degree = `${point.axisValueLabel} · Internal degree ${node.degree_sequence[point.dataIndex]}`
         if (!inWitness(point.dataIndex)) return degree
-        return `${degree}\n${witnessRange.value} mean internal degree ${mean.value}\nMin. span ${l} snapshots · Threshold ${threshold.value}`
+        return `${degree}\n${witnessRange.value} · MSD ${msd.value}\nMin. length ℓ = ${l} snapshots · δ = ${threshold.value}`
       },
     },
     xAxis: {
@@ -85,7 +85,7 @@ const option = computed(function () {
         data: view.length ? [[{ xAxis: view[0] }, { xAxis: view.at(-1) }]] : [],
       },
     }, {
-      name: 'Window mean internal degree',
+      name: 'Maximum ℓ-Segment Density',
       type: 'line',
       silent: true,
       symbol: 'none',
@@ -100,14 +100,14 @@ const option = computed(function () {
 <template>
   <div v-if="witness" class="pattern-evidence">
     <div class="pattern-facts">
-      <span title="Maximum l-segment density (MSD)">
-        Max. mean internal degree <strong>{{ mean }}</strong> · Threshold {{ threshold }}
+      <span title="Highest average internal degree over segments of at least ℓ snapshots">
+        Maximum ℓ-Segment Density (MSD) <strong>{{ msd }}</strong> · δ = {{ threshold }}
       </span>
     </div>
     <ChartCanvas
       :option="option"
       :height="104"
-      :label="`Internal degree over time for node ${witness.account}. Best window ${witnessRange}`"
+      :label="`Internal degree by snapshot for vertex ${witness.account}. MSD ${msd} on ${witnessRange}`"
       interactive
       @select-index="selectSnapshot"
     />

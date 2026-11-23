@@ -13,12 +13,7 @@
   align-items: center;
   gap: 12px;
 }
-.panel-heading h2 {
-  display: flex;
-  gap: 8px;
-  align-items: center;
-  line-height: 1.5;
-}
+.panel-heading h2 { line-height: 1.5; }
 .graph-stage {
   flex: 1;
   position: relative;

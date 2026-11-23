@@ -64,19 +64,19 @@ function selectWindow(edge) {
   >
     <div class="pattern-facts frequency-facts">
       <span>Min. qualified degree <strong>{{ minDegree }}</strong> (k = {{ structure.parameters.k }})</span>
-      <span><strong>{{ structure.parameters.t }}</strong> min. active · Freq. ≥ <strong>{{ percent(structure.parameters.f) }}</strong></span>
+      <span><strong>{{ structure.parameters.t }}</strong> min. active · t-Frequency ≥ <strong>{{ percent(structure.parameters.f) }}</strong></span>
     </div>
-    <table class="frequency-table" aria-label="Best windows and frequencies for qualifying edges">
+    <table class="frequency-table" aria-label="Best windows and t-frequencies for qualifying edges">
       <colgroup><col class="edge-column" /><col /><col class="score-column" /></colgroup>
       <thead>
         <tr>
-          <th scope="col">Node Pair</th>
+          <th scope="col" title="Unordered vertex pair">Edge</th>
           <th scope="col" aria-label="Best interaction window">
             <div class="frequency-axis">
               <span v-for="id in snapshots" :key="id">{{ id }}</span>
             </div>
           </th>
-          <th scope="col" title="Active snapshots / total snapshots in the window and interaction frequency">Active / Total</th>
+          <th scope="col" title="Active snapshots / total snapshots in the window, with the resulting t-frequency">t-Frequency</th>
         </tr>
       </thead>
       <tbody>
@@ -89,7 +89,7 @@ function selectWindow(edge) {
                 :class="{ 'is-viewed': showsWindow(edge) }"
                 :style="{ gridColumn: `${edge.witness_start + 1} / ${edge.witness_end + 2}` }"
                 :title="`${rangeLabel(edge)} · ${edge.numerator} of ${edge.denominator} snapshots active`"
-                :aria-label="`View window ${rangeLabel(edge)} for node pair ${edge.u}–${edge.v}`"
+                :aria-label="`View window ${rangeLabel(edge)} for edge ${edge.u}–${edge.v}`"
                 type="button"
                 @click="selectWindow(edge)"
               >{{ rangeLabel(edge) }}</button>

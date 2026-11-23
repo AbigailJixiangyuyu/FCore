@@ -3,7 +3,8 @@ import { computed, ref, shallowRef, watch } from 'vue'
 import { DEFAULT_GRAPH_ZOOM } from '../composables/useGraphCanvas.js'
 import { useGraphLayout } from '../composables/useGraphLayout.js'
 import { usePeriodicCommunity } from '../composables/workbench/usePeriodicCommunity.js'
-import { currentAlgorithms, useWorkbench } from '../composables/workbenchContext.js'
+import { useWorkbench } from '../composables/workbenchContext.js'
+import { algorithmLabel, currentAlgorithms, structureAlgorithm } from '../domain/algorithms.js'
 import { formatCount } from '../domain/format.js'
 import {
   forecastNodeColors, futureScene, graphEdgeColor, locatedAccountColor, observedScene,
@@ -60,7 +61,7 @@ const rangeLabel = computed(function () {
 const periodicStamp = computed(function () {
   const view = periodic.value
   if (!view || view.state === null) return ''
-  const status = view.state === 1 ? 'formed' : 'absent'
+  const status = view.state === 1 ? 'present' : 'absent'
   return `${view.end} · ${view.k}-core ${status}`
 })
 const location = computed(function () {
@@ -155,41 +156,43 @@ const legend = computed(function () {
   if (!scene.value?.nodes.length) return []
   if (showPrediction.value) {
     return [
-      { label: 'Added nodes', color: forecastNodeColors.added },
-      { label: 'Retained nodes', color: forecastNodeColors.retained },
-      { label: 'Query node q', color: forecastNodeColors.query },
+      { label: 'Joining Vertices', color: forecastNodeColors.added },
+      { label: 'Remaining Vertices', color: forecastNodeColors.retained },
+      { label: 'Query Vertex q', color: forecastNodeColors.query },
     ]
   }
   const items = []
   if (!overview.value && !standaloneLocation.value) {
     const structure = selected.value
-    const label = structure.method === currentAlgorithms.pkmc.method
-      ? `Global ${structure.parameters.max_core}-core`
-      : structure.label
+    const algorithm = structureAlgorithm(structure)
+    let label = algorithm ? algorithmLabel(algorithm) : structure.label
+    if (algorithm === currentAlgorithms.pkmc) {
+      label = `${algorithm.name} · Maximum ${structure.parameters.max_core}-core`
+    }
     items.push({ label, color: structure.color })
   }
   const request = location.value
-  if (request) items.push({ label: `Node ${request.accountId}`, color: locatedAccountColor })
+  if (request) items.push({ label: `Vertex ${request.accountId}`, color: locatedAccountColor })
   return items
 })
 const emptyText = computed(function () {
-  if (overview.value) return 'No nodes in this range'
-  if (standaloneLocation.value) return 'This node is absent from the current snapshot'
+  if (overview.value) return 'No vertices in this range'
+  if (standaloneLocation.value) return 'This vertex is absent from the current snapshot'
   if (!selected.value) return patternResponse.value?.message || 'No matching community'
   if (periodic.value?.outsideSearch) return 'This snapshot is outside the mining range'
-  if (periodic.value?.state === 0) return `No ${periodic.value.k}-core formed in this snapshot`
+  if (periodic.value?.state === 0) return `The periodic ${periodic.value.k}-core is absent in this snapshot`
   if (periodic.value?.state === null) return 'No periodic community status for this snapshot'
   return 'No community members in this range'
 })
 </script>
 
 <template>
-  <section class="panel graph-panel" aria-label="Graph exploration">
+  <section class="panel graph-panel" aria-labelledby="community-visualization-title">
     <div class="panel-heading">
-      <h2><span class="panel-number">03</span>Graph</h2>
+      <h2 id="community-visualization-title">Community Visualization</h2>
       <span class="count-chip">{{
         scene
-          ? `${formatCount(scene.nodes.length, 'node')} · ${formatCount(scene.edges.length, showPrediction ? 'predicted edge' : 'edge')}`
+          ? `${formatCount(scene.nodes.length, 'vertex', 'vertices')} · ${formatCount(scene.edges.length, showPrediction ? 'predicted edge' : 'edge')}`
           : 'No graph data'
       }}</span>
     </div>
@@ -266,7 +269,7 @@ const emptyText = computed(function () {
             :class="{ predicted: showPrediction }"
             :style="{ color: graphEdgeColor }"
           ></i>
-          {{ showPrediction ? 'Link probability' : 'Observed edges' }}
+          {{ showPrediction ? 'Edge Probability' : 'Observed Edges' }}
         </span>
       </div>
     </div>

@@ -1,7 +1,9 @@
 <script setup>
 import { computed } from 'vue'
-import { currentAlgorithms, useWorkbench } from '../composables/workbenchContext.js'
+import { useWorkbench } from '../composables/workbenchContext.js'
+import { currentAlgorithms } from '../domain/algorithms.js'
 import { PRESENT_INDEX, PRESENT_SNAPSHOT_ID, snapshotId } from '../domain/timeline.js'
+import AlgorithmPicker from './AlgorithmPicker.vue'
 import QueryAccountField from './QueryAccountField.vue'
 import QueryCoreField from './QueryCoreField.vue'
 import QueryForm from './QueryForm.vue'
@@ -20,19 +22,12 @@ const validParameters = computed(function () {
 </script>
 
 <template>
-  <section class="algorithm-picker">
-    <h3>Algorithm</h3>
-    <el-radio-group
-      :model-value="store.currentAlgorithm"
-      class="paper-options"
-      aria-label="Current search algorithm"
-      @update:model-value="store.selectAlgorithm('currentAlgorithm', $event)"
-    >
-      <el-radio v-for="(algorithm, id) in currentAlgorithms" :key="id" :value="id">
-        {{ algorithm.paperTitle }}
-      </el-radio>
-    </el-radio-group>
-  </section>
+  <AlgorithmPicker
+    :model-value="store.currentAlgorithm"
+    :algorithms="currentAlgorithms"
+    label="Current community search algorithm"
+    @update:model-value="store.selectAlgorithm('currentAlgorithm', $event)"
+  />
   <QueryForm :key="store.currentAlgorithm" v-slot="{ clearError }" @submit="validParameters && runQuery()">
     <template v-if="usesParameters">
       <h3>Parameters</h3>

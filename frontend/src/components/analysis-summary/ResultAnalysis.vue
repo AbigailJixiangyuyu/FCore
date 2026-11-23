@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 
 import { metricLabels, useWorkbench } from '../../composables/workbenchContext.js'
+import { algorithmLabel, structureAlgorithm } from '../../domain/algorithms.js'
 import { formatCount, formatNumber } from '../../domain/format.js'
 import { PRESENT_INDEX } from '../../domain/timeline.js'
 import EvidenceChart from '../EvidenceChart.vue'
@@ -26,6 +27,11 @@ const {
   matchingPrediction, predictionRequest, predictionMessage,
 } = useWorkbench()
 const members = computed(() => selected.value?.members || [])
+const selectedAlgorithmLabel = computed(function () {
+  if (!selected.value) return ''
+  const algorithm = structureAlgorithm(selected.value)
+  return algorithm ? algorithmLabel(algorithm) : selected.value.label
+})
 const memberCoreNumbers = computed(() => {
   const frame = store.currentAlgorithm === 'tccs' ? currentWindow.value : snapshot.value
   return frame?.core_numbers
@@ -57,7 +63,7 @@ function locateMember(accountId) {
 <template>
   <section class="summary-column result-summary" aria-labelledby="result-summary-title">
     <div class="summary-heading">
-      <h2 id="result-summary-title">Query Analysis</h2>
+      <h2 id="result-summary-title">Result Analysis</h2>
       <span v-if="analysisRange" class="summary-context">
         Range {{ analysisRange }}
       </span>
@@ -73,8 +79,8 @@ function locateMember(accountId) {
             <table>
               <thead>
                 <tr>
-                  <th scope="col">Node ID</th>
-                  <th scope="col" title="Highest k-core containing the node in the query graph">
+                  <th scope="col">Vertex ID</th>
+                  <th scope="col" title="Highest k for which the vertex belongs to the k-core of the query graph">
                     Coreness · {{ store.currentWindowLabel || selected.snapshot_id }}
                   </th>
                 </tr>
@@ -127,7 +133,7 @@ function locateMember(accountId) {
     <template v-else-if="store.stage === 'history'">
       <div class="summary-line">
         <span><i class="group-dot" :style="{ '--group': selected.color }"></i>
-          {{ selected.label }} · {{ formatCount(members.length, 'member') }}
+          {{ selectedAlgorithmLabel }} · {{ formatCount(members.length, 'member') }}
         </span>
         <el-select
           v-if="!patternView"
@@ -165,7 +171,7 @@ function locateMember(accountId) {
     <template v-else-if="store.stage === 'present'">
       <dl class="summary-metrics community-metrics" aria-label="Community structure">
         <div>
-          <dt>Nodes</dt>
+          <dt>Vertices</dt>
           <dd>{{ formatNumber(selected.metrics.node_count) }}</dd>
         </div>
         <div title="Number of undirected edges within the community">

@@ -3,15 +3,18 @@ import { computed, nextTick, ref, watch } from 'vue'
 
 import { useWorkbench } from '../../composables/workbenchContext.js'
 import { useLifecycleReport } from '../../composables/workbench/useLifecycleReport.js'
-import { reportStages } from '../../domain/reportEvidence.js'
+import { evidenceMethodName, reportStages } from '../../domain/reportEvidence.js'
 
 const {
-  stage, slots, count, canSubmit, submit, generating, generate, report, error,
-  busy, canAsk, answering, question, ask, retry, turns, pendingTurn, replyError,
+  stage, slots, ready, canSubmit, submit, generating, report, error,
+  busy, canAsk, canSend, answering, question, ask, retry, turns, pendingTurn, replyError,
 } = useLifecycleReport(useWorkbench())
+const questionPlaceholder = computed(() => {
+  if (!ready.value) return 'Submit one result from each stage.'
+  return canAsk.value ? 'Ask about this report…' : 'Ask FCore'
+})
 const reportArea = ref(null)
 const reportText = computed(() => displayText(report.value?.content ?? ''))
-const canSend = computed(() => canAsk.value && !busy.value && !!question.value.trim())
 
 function displayText(content) {
   const labels = report.value?.node_labels
@@ -31,43 +34,35 @@ watch([reportText, () => pendingTurn.value?.answer, replyError], () => {
     scrollToLatest()
   }
 })
-watch(answering, (active) => {
+watch(busy, (active) => {
   if (active) scrollToLatest()
 })
+
+function submitComposer() {
+  if (ready.value) return ask()
+  submit()
+}
 
 function onQuestionKeydown(event) {
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing || event.keyCode === 229) return
   event.preventDefault()
-  ask()
+  submitComposer()
 }
 </script>
 
 <template>
   <section class="summary-column report-summary" aria-labelledby="report-summary-title">
     <div class="summary-heading">
-      <h2 id="report-summary-title">LLM-based Report</h2>
-      <span class="summary-context" aria-live="polite">{{ count }}/3 submitted</span>
-    </div>
-    <dl class="report-slots" aria-label="Submitted evidence">
-      <div v-for="(label, key) in reportStages" :key="key"
-        :class="{ 'is-active': key === stage, 'is-submitted': !!slots[key] }">
-        <dt>{{ label }}</dt>
-        <dd v-if="slots[key]">{{ slots[key].method }} · {{ slots[key].window }}</dd>
-        <dd v-else>Not submitted</dd>
-      </div>
-    </dl>
-    <div class="report-actions">
-      <el-button size="small" :disabled="!canSubmit" @click="submit">Submit Evidence</el-button>
-      <el-button size="small" type="primary" :loading="generating" :disabled="count !== 3 || busy" @click="generate">
-        Generate Report
-      </el-button>
+      <h2 id="report-summary-title">LLM-Assisted Interpretation</h2>
+      <el-button v-if="ready && canSubmit" class="report-update" size="small" @click="submit">Update Evidence</el-button>
     </div>
     <div ref="reportArea" class="report-content" role="log" aria-label="Report and discussion" :aria-busy="busy">
+      <p v-if="report?.initial_prompt" class="report-text report-question report-opening">{{ report.initial_prompt }}</p>
       <p v-if="error" class="report-error" role="alert">{{ error }}</p>
-      <p v-if="reportText" class="report-text">{{ reportText }}</p>
-      <p v-else-if="generating" class="report-status">Generating the joint report…</p>
-      <p v-else-if="!error && count < 3" class="report-status">Run an analysis and submit evidence from each stage.</p>
-      <p v-else-if="!error" class="report-status">All three stages are ready to analyze.</p>
+      <p v-if="reportText" class="report-text report-answer">{{ reportText }}</p>
+      <p v-else-if="generating" class="report-status">
+        Generating the full-cycle report<span class="report-status-dots" aria-hidden="true">...</span>
+      </p>
       <template v-if="!generating">
         <div v-for="(turn, index) in turns" :key="index" class="report-turn">
           <p class="report-text report-question">{{ turn.question }}</p>
@@ -84,14 +79,33 @@ function onQuestionKeydown(event) {
         </div>
       </template>
     </div>
-    <form class="report-composer" @submit.prevent="ask">
+    <form class="report-composer" @submit.prevent="submitComposer">
+      <ul v-if="!canAsk && !generating" class="report-evidence" aria-label="Report evidence" aria-live="polite">
+        <li
+          v-for="(label, key) in reportStages"
+          :key="key"
+          :class="{ submitted: slots[key], active: stage === key }"
+          :title="slots[key] ? `${evidenceMethodName(slots[key])} · ${slots[key].window}` : undefined"
+        >
+          <strong>{{ label }}</strong>
+          <template v-if="slots[key]">
+            <span class="report-evidence-method">{{ evidenceMethodName(slots[key]) }}</span>
+            <span class="report-evidence-window">{{ slots[key].window }}</span>
+          </template>
+          <span v-else-if="stage === key && canSubmit">Ready</span>
+        </li>
+      </ul>
       <el-input
-        v-model="question" type="textarea" :rows="1" resize="none"
-        aria-label="Follow-up question" :disabled="!canAsk || generating"
-        :placeholder="report?.legacy ? 'Generate a report to ask a question' : 'Ask about this report…'"
+        :model-value="generating ? '' : question" type="textarea" :autosize="{ minRows: 1, maxRows: 3 }" resize="none"
+        :aria-label="canAsk ? 'Follow-up question' : 'Optional question for the report'"
+        :readonly="!ready || generating"
+        :placeholder="generating ? undefined : questionPlaceholder"
+        @update:model-value="question = $event"
         @keydown="onQuestionKeydown"
       />
-      <el-button size="small" type="primary" native-type="submit" :disabled="!canSend">Send</el-button>
+      <el-button size="small" type="primary" native-type="submit" :disabled="ready ? !canSend : !canSubmit" :loading="busy">
+        {{ ready ? 'Send' : 'Submit' }}
+      </el-button>
     </form>
   </section>
 </template>

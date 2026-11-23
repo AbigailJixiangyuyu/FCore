@@ -69,7 +69,7 @@ function useCoreness() {
         size="small"
         native-type="button"
         @click="useCoreness"
-      >Use coreness {{ coreness }} of node {{ account }}</el-button>
+      >Use coreness {{ coreness }} of vertex {{ account }}</el-button>
     </div>
   </div>
 </template>

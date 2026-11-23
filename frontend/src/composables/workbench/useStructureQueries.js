@@ -1,8 +1,8 @@
 import { computed, watch } from 'vue'
 
 import { matchesContext } from '../../api/analysis.js'
+import { currentAlgorithms } from '../../domain/algorithms.js'
 import { snapshotIndex } from '../../domain/timeline.js'
-import { currentAlgorithms } from '../workbenchContext.js'
 import { useAnalysisQuery } from './useAnalysisQuery.js'
 
 function byMembership(items, membershipHash) {

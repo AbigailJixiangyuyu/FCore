@@ -26,9 +26,9 @@ const exitedNodes = computed(function () {
   }))
 })
 const changeLabels = {
-  retained: 'Retained',
-  added: 'Added',
-  exited: 'Exited',
+  retained: 'Remain',
+  added: 'Join',
+  exited: 'Leave',
 }
 </script>
 
@@ -47,11 +47,11 @@ const changeLabels = {
         <dd>
           <el-popover v-if="comparison[change].length" trigger="click" placement="top" :width="235">
             <template #reference>
-              <el-button link type="primary" :aria-label="`Show ${label.toLowerCase()} nodes`">
+              <el-button link type="primary" :aria-label="`Show vertices predicted to ${label.toLowerCase()}`">
                 {{ formatNumber(comparison[change].length) }}
               </el-button>
             </template>
-            <ul class="forecast-member-list" :aria-label="`${label} node IDs`" tabindex="0">
+            <ul class="forecast-member-list" :aria-label="`Vertices predicted to ${label.toLowerCase()}`" tabindex="0">
               <li v-for="id in comparison[change]" :key="id">{{ id }}</li>
             </ul>
           </el-popover>
@@ -59,7 +59,7 @@ const changeLabels = {
         </dd>
       </div>
     </dl>
-    <h3 id="forecast-exits-heading" class="forecast-exits-heading">Nodes Predicted to Exit</h3>
+    <h3 id="forecast-exits-heading" class="forecast-exits-heading">Vertices Predicted to Leave</h3>
     <div
       v-if="exitedNodes.length"
       class="member-table forecast-exit-table"
@@ -70,7 +70,7 @@ const changeLabels = {
       <table>
         <thead>
           <tr>
-            <th scope="col">Node ID</th>
+            <th scope="col">Vertex ID</th>
             <th scope="col">Current Coreness</th>
             <th scope="col">Current SLADE Score</th>
           </tr>
@@ -85,7 +85,7 @@ const changeLabels = {
       </table>
     </div>
     <p v-else class="summary-empty forecast-comparison-note" role="status">
-      No predicted exits.
+      No vertices are predicted to leave.
     </p>
   </template>
   <p v-else class="summary-empty forecast-comparison-note" role="status">

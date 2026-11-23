@@ -2,7 +2,9 @@
 import { computed } from 'vue'
 
 import { useWorkbench } from '../composables/workbenchContext.js'
+import { historyAlgorithms } from '../domain/algorithms.js'
 import { HISTORY_LENGTH } from '../domain/timeline.js'
+import AlgorithmPicker from './AlgorithmPicker.vue'
 import HistoryRangeFields from './HistoryRangeFields.vue'
 import QueryAccountField from './QueryAccountField.vue'
 import QueryForm from './QueryForm.vue'
@@ -14,29 +16,15 @@ const requiredSnapshots = computed(function () {
   if (store.pattern === 'frequency') return store.historyDraft.t
   return 0
 })
-const paperTitles = {
-  periodic: 'Periodic Community Search in Temporal Graphs: Time Series-based Methods',
-  durable: 'Effective Durable Community Search in Large Temporal Graph',
-  burst: 'Mining Bursting Core in Large Temporal Graphs',
-  frequency: 'Efficient Frequency-Aware k-Core Query on Temporal Graphs',
-  temporal_core: 'Scalable Time-Range k-Core Query on Temporal Graphs',
-}
 </script>
 
 <template>
-  <section class="algorithm-picker">
-    <h3>Algorithm</h3>
-    <el-radio-group
-      :model-value="store.pattern"
-      class="paper-options"
-      aria-label="Historical mining algorithm"
-      @update:model-value="store.selectAlgorithm('pattern', $event)"
-    >
-      <el-radio v-for="(title, pattern) in paperTitles" :key="pattern" :value="pattern">
-        {{ title }}
-      </el-radio>
-    </el-radio-group>
-  </section>
+  <AlgorithmPicker
+    :model-value="store.pattern"
+    :algorithms="historyAlgorithms"
+    label="Historical community mining algorithm"
+    @update:model-value="store.selectAlgorithm('pattern', $event)"
+  />
   <QueryForm :key="store.pattern" v-slot="{ clearError }" @submit="runHistory">
     <h3>Parameters</h3>
     <HistoryRangeFields />
@@ -57,7 +45,7 @@ const paperTitles = {
         />
       </div>
       <div v-if="store.pattern === 'periodic'" class="compact-field number-field">
-        <label for="history-epsilon-input">Similarity ε</label>
+        <label for="history-epsilon-input" title="Minimum Jaccard similarity between periods">Similarity ε</label>
         <el-input-number
           id="history-epsilon-input"
           v-model="store.historyDraft.epsilon"
@@ -66,7 +54,7 @@ const paperTitles = {
         />
       </div>
       <div v-else-if="store.pattern === 'frequency'" class="compact-field number-field short-number-field">
-        <label for="history-t-input" title="A node pair counts once per snapshot">Min. active t</label>
+        <label for="history-t-input" title="Minimum active snapshots for a temporal edge">Min. active t</label>
         <el-input-number
           id="history-t-input"
           v-model="store.historyDraft.t"
@@ -80,7 +68,7 @@ const paperTitles = {
     </div>
     <div v-else class="field-row">
       <div class="compact-field number-field short-number-field">
-        <label for="history-length-input" title="Minimum window length in snapshots">Span l</label>
+        <label for="history-length-input" title="Minimum segment length in snapshots">Min. length ℓ</label>
         <el-input-number
           id="history-length-input"
           v-model="store.historyDraft.l"
@@ -92,7 +80,7 @@ const paperTitles = {
         />
       </div>
       <div class="compact-field number-field">
-        <label for="history-delta-input" title="Minimum average internal degree">Avg. deg. δ</label>
+        <label for="history-delta-input" title="Threshold for maximum ℓ-segment density">MSD threshold δ</label>
         <el-input-number
           id="history-delta-input"
           v-model="store.historyDraft.delta"
@@ -101,7 +89,7 @@ const paperTitles = {
       </div>
     </div>
     <div v-if="store.pattern === 'frequency'" class="compact-field number-field">
-      <label for="history-f-input" title="Minimum share of active snapshots in a qualifying window">Min. freq. f</label>
+      <label for="history-f-input" title="Minimum t-frequency for an edge to qualify">t-Frequency f</label>
       <el-input-number
         id="history-f-input"
         v-model="store.historyDraft.f"

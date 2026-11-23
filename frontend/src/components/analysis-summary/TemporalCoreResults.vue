@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 
+import { historyAlgorithms } from '../../domain/algorithms.js'
 import { formatCount, formatNumber } from '../../domain/format.js'
 import ChartCanvas from '../ChartCanvas.vue'
 
@@ -89,12 +90,12 @@ const option = computed(function () {
   <div class="temporal-core-results">
     <div class="summary-line temporal-core-overview">
       <div class="temporal-core-window">
-        <span>Tightest Window</span>
+        <span title="Tightest Time Interval (TTI)">{{ historyAlgorithms.temporal_core.name }} · TTI</span>
         <el-select
           v-if="results.length > 1"
           :model-value="selectedId"
-          aria-label="Tightest Window"
-          placeholder="Select window"
+          aria-label="Tightest Time Interval (TTI)"
+          placeholder="Select interval"
           class="core-window-select"
           size="small"
           @update:model-value="emit('select', $event)"
@@ -115,7 +116,7 @@ const option = computed(function () {
         >{{ tightestWindow(results[0].evidence) }}</el-button>
       </div>
       <span v-if="selected" class="temporal-core-size">
-        <strong>{{ formatNumber(selected.metrics.node_count) }}</strong> Nodes ·
+        <strong>{{ formatNumber(selected.metrics.node_count) }}</strong> Vertices ·
         <strong>{{ formatNumber(selected.metrics.internal_edges) }}</strong> Internal Edges
       </span>
     </div>
@@ -127,7 +128,7 @@ const option = computed(function () {
       <ChartCanvas class="temporal-core-chart" :option="option" :label="chartLabel" :height="104" />
       <div v-if="passingTrims.length" class="trimmed-window-notes helper">
         <span v-for="window in passingTrims" :key="window.label">
-          {{ window.label }} meets k · {{ formatCount(window.omitted_temporal_edges, 'fewer timestamped edge') }}
+          {{ window.label }} meets k · {{ formatCount(window.omitted_temporal_edges, 'fewer temporal edge') }}
         </span>
       </div>
     </template>

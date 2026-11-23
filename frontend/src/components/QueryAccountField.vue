@@ -12,8 +12,8 @@ function selectRankedAccount(id) {
 
 <template>
   <div class="compact-field account-field">
-    <label for="query-account-id">Query node</label>
-    <el-input id="query-account-id" v-model="account" placeholder="ID" />
+    <label for="query-account-id">Query Vertex</label>
+    <el-input id="query-account-id" v-model="account" placeholder="Vertex ID" />
     <el-dropdown
       trigger="click"
       :disabled="!anomalyResults.length"

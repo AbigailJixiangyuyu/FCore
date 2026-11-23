@@ -2,16 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { effectScope, reactive, ref } from 'vue'
 import { useLifecycleReport } from '../src/composables/workbench/useLifecycleReport.js'
-import { readReportSession, saveReportSession } from '../src/domain/reportEvidence.js'
+import { evidenceMethodName } from '../src/domain/reportEvidence.js'
 
 const encoder = new TextEncoder()
 
 function setupReport(t) {
-  const memory = new Map()
-  Object.defineProperty(globalThis, 'sessionStorage', { configurable: true, value: {
-    getItem: key => memory.get(key) ?? null, setItem: (key, value) => memory.set(key, value), removeItem: key => memory.delete(key),
-  } })
-  t.after(() => { delete globalThis.sessionStorage })
   let finish
   const fetch = t.mock.method(globalThis, 'fetch', () => new Promise(resolve => { finish = resolve }))
   const textLine = event => encoder.encode(JSON.stringify(event) + '\n')
@@ -32,32 +27,54 @@ function setupReport(t) {
     patternResult: query(), queryResult: query(), anomalyQuery: { isError: ref(false) },
     anomalyResponse: ref({ model_version: 'slade' }), prediction: query(), matchingPrediction: ref(null),
   }
+  function selectCurrent() {
+    workbench.store.stage = 'present'
+    workbench.selected.value = { ...context.value, origin: 'max_core', method: 'pkmc', structure_id: 'M1',
+      membership_hash: 'c', snapshot_id: 'S12', parameters: { algorithm: 'pkmc' } }
+  }
+  function selectFuture() {
+    workbench.store.stage = 'future'
+    workbench.matchingPrediction.value = { ...context.value, result_fingerprint: 'f', account: 'q', k: 4,
+      model: 'zebra', threshold: 0.5, model_version: 'z', target_snapshot: 'S13' }
+  }
   const scope = effectScope()
   t.after(() => scope.stop())
-  const restore = () => scope.run(() => useLifecycleReport(workbench))
-  return { context, workbench, restore, fetch, openStream, textLine, flushStream }
+  const createReport = () => scope.run(() => useLifecycleReport(workbench))
+  return { context, workbench, createReport, selectCurrent, selectFuture, fetch, openStream, textLine, flushStream }
 }
 
-test('manual generation displays report chunks and ignores chunks from replaced evidence', async t => {
-  const { context, workbench, restore, fetch, openStream, textLine, flushStream } = setupReport(t)
-  const report = restore()
+test('the first message sends only after all three evidence submissions and replaces an obsolete stream', async t => {
+  const { context, workbench, createReport, selectCurrent, selectFuture, fetch, openStream, textLine, flushStream } = setupReport(t)
+  const report = createReport()
+  assert.equal(report.question.value, '')
+  assert.equal(report.ready.value, false)
+  assert.equal(report.canSend.value, false)
+  await report.ask()
   report.submit()
-  workbench.store.stage = 'present'
-  workbench.selected.value = { ...context.value, origin: 'max_core', method: 'pkmc', structure_id: 'M1',
-    membership_hash: 'c', snapshot_id: 'S12', parameters: { algorithm: 'pkmc' } }
+  assert.deepEqual(Object.keys(report.slots.value), ['history'])
+  assert.equal(report.canSend.value, false)
+  selectCurrent()
   report.submit()
-  workbench.store.stage = 'future'
-  workbench.matchingPrediction.value = { ...context.value, result_fingerprint: 'f', account: 'q', k: 4,
-    model: 'zebra', threshold: 0.5, model_version: 'z', target_snapshot: 'S13' }
+  assert.deepEqual(Object.keys(report.slots.value), ['history', 'current'])
+  assert.equal(report.canSend.value, false)
+  await report.ask()
+  selectFuture()
   workbench.prediction.isPlaceholderData.value = true
   assert.equal(report.canSubmit.value, false)
   workbench.prediction.isPlaceholderData.value = false
   report.submit()
-  assert.equal(report.count.value, 3)
+  assert.equal(report.ready.value, true)
+  assert.deepEqual(Object.values(report.slots.value).map(evidenceMethodName), ['OTCD', 'PKMC', 'Zebra'])
   assert.equal(fetch.mock.callCount(), 0)
-  const generation = report.generate()
-  await report.generate()
+  const draft = 'History · OTCD · S10\nCurrent · PKMC · S12\nFuture · Zebra · S13 · 50%'
+  assert.equal(report.question.value, '')
+  assert.equal(report.canSend.value, true)
+  report.question.value = 'Compare the current and future communities.'
+  const generation = report.ask()
+  await report.ask()
   assert.equal(fetch.mock.callCount(), 1)
+  assert.equal(fetch.mock.calls[0].arguments[0], '/api/reports/generate')
+  assert.equal(JSON.parse(fetch.mock.calls[0].arguments[1].body).initial_prompt, `${draft}\n\n${report.question.value}`)
   const oldStream = openStream()
   oldStream.enqueue(textLine({ type: 'start', model: 'test', node_labels: {} }))
   oldStream.enqueue(textLine({ type: 'delta', content: 'First part.' }))
@@ -72,14 +89,17 @@ test('manual generation displays report chunks and ignores chunks from replaced 
   oldStream.close()
   await generation
   assert.equal(report.report.value, null)
-  saveReportSession({ ...readReportSession(), report: { sentences: ['Saved report.', 'Second sentence.'], model: 'old' } })
-  const restored = restore()
-  assert.equal(restored.slots.value.future.reference.threshold, 0.6)
-  assert.equal(restored.report.value.content, 'Saved report. Second sentence.')
-  assert.equal(restored.canAsk.value, false)
-  const nextGeneration = restored.generate()
+  assert.equal(report.slots.value.future.reference.threshold, 0.6)
+  assert.equal(report.canAsk.value, false)
+  const initialPrompt = draft.replace('50%', '60%')
+  assert.equal(report.question.value, '')
+  const nextGeneration = report.ask()
+  assert.equal(JSON.parse(fetch.mock.calls[1].arguments[1].body).initial_prompt, initialPrompt)
   const stream = openStream()
-  const result = { content: '13 members overlap.\n\nN001（q） is forecast to remain.', model: 'test', node_labels: { N001: 'q' } }
+  const result = {
+    content: '13 members overlap.\n\nN001（q） is forecast to remain.', model: 'test',
+    node_labels: { N001: 'q' }, initial_prompt: initialPrompt,
+  }
   stream.enqueue(textLine({ type: 'start', model: result.model, node_labels: result.node_labels }))
   const delta = textLine({ type: 'delta', content: result.content })
   const split = delta.indexOf(encoder.encode('（')[0]) + 1
@@ -88,36 +108,52 @@ test('manual generation displays report chunks and ignores chunks from replaced 
   stream.enqueue(textLine({ type: 'done' }))
   stream.close()
   await nextGeneration
-  assert.deepEqual(restored.report.value, result)
-  assert.deepEqual(readReportSession().report, result)
-  assert.equal(restored.canAsk.value, true)
+  assert.deepEqual(report.report.value, result)
+  assert.equal(report.canAsk.value, true)
+  assert.equal(report.question.value, '')
   context.value = { ...context.value, dataset_version: 'v2' }
-  assert.equal(restored.count.value, 0)
+  assert.deepEqual(report.slots.value, {})
+  assert.equal(report.ready.value, false)
   assert.equal(fetch.mock.callCount(), 2)
 })
 
-test('follow-ups carry completed turns, replace an interrupted reply on retry, and restore on refresh', async t => {
-  const { context, workbench, restore, fetch, openStream, textLine, flushStream } = setupReport(t)
-  const slots = Object.fromEntries(['history', 'current', 'future'].map(stage => [
-    stage, { reference: { ...context.value, stage } },
-  ]))
-  const initialReport = { model: 'test', content: 'N001 belongs to the overlap of 13 members.', node_labels: { N001: 'q' } }
-  saveReportSession({ context: context.value, slots, report: initialReport })
-  const discussion = restore()
+test('follow-ups carry completed turns and a fresh page starts with an empty report', async t => {
+  const { context, workbench, createReport, selectCurrent, selectFuture, fetch, openStream, textLine, flushStream } = setupReport(t)
+  const discussion = createReport()
+  discussion.submit()
+  selectCurrent()
+  discussion.submit()
+  selectFuture()
+  discussion.submit()
+  const slots = discussion.slots.value
+  const question = 'Compare the historical and current communities.'
+  const initialReport = {
+    model: 'test', content: 'N001 belongs to the overlap of 13 members.', node_labels: { N001: 'q' },
+    initial_prompt: `History · OTCD · S10\nCurrent · PKMC · S12\nFuture · Zebra · S13 · 50%\n\n${question}`,
+  }
   const start = { type: 'start', model: initialReport.model, node_labels: initialReport.node_labels }
+  discussion.question.value = question
+  const generation = discussion.ask()
+  const reportStream = openStream()
+  reportStream.enqueue(textLine(start))
+  reportStream.enqueue(textLine({ type: 'delta', content: initialReport.content }))
+  reportStream.enqueue(textLine({ type: 'done' }))
+  reportStream.close()
+  await generation
   const latestRequest = () => JSON.parse(fetch.mock.calls.at(-1).arguments[1].body)
 
   discussion.question.value = '  '
   await discussion.ask()
-  assert.equal(fetch.mock.callCount(), 0)
+  assert.equal(fetch.mock.callCount(), 1)
 
   discussion.question.value = '  How many members are shared?  '
   const first = discussion.ask()
   const firstRequest = latestRequest()
-  assert.equal(fetch.mock.calls[0].arguments[0], '/api/reports/follow-up')
+  assert.equal(fetch.mock.calls[1].arguments[0], '/api/reports/follow-up')
   assert.deepEqual(firstRequest, {
     ...context.value, ...Object.fromEntries(Object.entries(slots).map(([key, slot]) => [key, slot.reference])),
-    report_content: initialReport.content, turns: [], question: 'How many members are shared?',
+    initial_prompt: initialReport.initial_prompt, report_content: initialReport.content,
+    turns: [], question: 'How many members are shared?',
   })
   const firstStream = openStream()
   firstStream.enqueue(textLine(start))
@@ -125,7 +161,7 @@ test('follow-ups carry completed turns, replace an interrupted reply on retry, a
   await flushStream()
   assert.equal(discussion.answering.value, true)
   assert.equal(discussion.pendingTurn.value.answer, '13 members')
-  assert.deepEqual(readReportSession().turns, [])
+  assert.deepEqual(discussion.turns.value, [])
   firstStream.enqueue(textLine({ type: 'delta', content: ' form the shared group.' }))
   firstStream.enqueue(textLine({ type: 'done' }))
   firstStream.close()
@@ -147,7 +183,7 @@ test('follow-ups carry completed turns, replace an interrupted reply on retry, a
   await second
   assert.equal(discussion.pendingTurn.value.answer, 'Partial reply')
   assert.equal(discussion.replyError.value, 'Interrupted.')
-  assert.deepEqual(readReportSession().turns, [firstTurn])
+  assert.deepEqual(discussion.turns.value, [firstTurn])
 
   const retry = discussion.retry()
   assert.deepEqual(latestRequest(), secondRequest)
@@ -157,20 +193,25 @@ test('follow-ups carry completed turns, replace an interrupted reply on retry, a
   retryStream.enqueue(textLine({ type: 'done' }))
   retryStream.close()
   await retry
-  const restored = restore()
-  assert.deepEqual(restored.report.value, initialReport)
-  assert.deepEqual(restored.turns.value, [firstTurn, { question: secondRequest.question, answer: '其中有 8 人。' }])
-  assert.equal(restored.pendingTurn.value, null)
+  assert.deepEqual(discussion.report.value, initialReport)
+  assert.deepEqual(discussion.turns.value, [firstTurn, { question: secondRequest.question, answer: '其中有 8 人。' }])
+  assert.equal(discussion.pendingTurn.value, null)
+  const fresh = createReport()
+  assert.deepEqual(fresh.slots.value, {})
+  assert.equal(fresh.ready.value, false)
+  assert.equal(fresh.question.value, '')
+  assert.equal(fresh.report.value, null)
+  assert.deepEqual(fresh.turns.value, [])
 
-  restored.question.value = '为什么？'
-  const stale = restored.ask()
+  discussion.question.value = '为什么？'
+  const stale = discussion.ask()
   const staleStream = openStream()
   staleStream.enqueue(textLine(start))
   context.value = { ...context.value, dataset_version: 'v2' }
   staleStream.enqueue(textLine({ type: 'delta', content: 'Old dataset' }))
   staleStream.close()
   await stale
-  assert.equal(restored.report.value, null)
-  assert.deepEqual(restored.turns.value, [])
-  assert.equal(restored.canAsk.value, false)
+  assert.equal(discussion.report.value, null)
+  assert.deepEqual(discussion.turns.value, [])
+  assert.equal(discussion.canAsk.value, false)
 })

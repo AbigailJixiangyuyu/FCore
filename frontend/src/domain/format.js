@@ -4,7 +4,7 @@ export function formatNumber(value, digits = 0) {
     : value.toLocaleString('en-US', { maximumFractionDigits: digits })
 }
 
-export function formatCount(count, noun) {
-  const label = count === 1 ? noun : `${noun}s`
+export function formatCount(count, noun, plural = `${noun}s`) {
+  const label = count === 1 ? noun : plural
   return `${formatNumber(count)} ${label}`
 }

@@ -34,12 +34,12 @@ const bands = computed(function () {
   const { formation_start: start, formation_end: formed, stable_end: last } = evidence.value
   const result = [{
     first: start, last: formed, kind: 'formation', label: 'Formation',
-    title: `${coreLabel.value} formed in ${rangeLabel(start, formed)}`,
+    title: `Formation window · ${rangeLabel(start, formed)}`,
   }]
   if (last > formed) {
     result.push({
-      first: formed + 1, last, kind: 'stable', label: 'Stable',
-      title: `${rangeLabel(formed, last)} · Stable membership`,
+      first: formed + 1, last, kind: 'stable', label: 'Duration',
+      title: `Community Duration · ${rangeLabel(formed, last)} · Unchanged membership`,
     })
   }
   return result
@@ -47,12 +47,12 @@ const bands = computed(function () {
 
 function snapshotLabel(id, index) {
   if (periodic.value) {
-    const formed = evidence.value.kcore_series[index] === 1
-    return `${id} · ${coreLabel.value} ${formed ? 'formed' : 'absent'}`
+    const present = evidence.value.kcore_series[index] === 1
+    return `${id} · ${coreLabel.value} ${present ? 'present' : 'absent'}`
   }
   if (index === evidence.value.formation_end) return `${id} · Community formation`
   if (index > evidence.value.formation_end && index <= evidence.value.stable_end)
-    return `${id} · Stable membership`
+    return `${id} · Unchanged membership`
   return id
 }
 
@@ -77,7 +77,7 @@ const ticks = computed(() => snapshots.value.map((id, index) => ({
       class="core-pattern-timeline"
       :style="{ '--snapshot-count': snapshots.length }"
       role="group"
-      :aria-label="periodic ? 'k-core presence by snapshot' : 'Community formation and stability windows'"
+      :aria-label="periodic ? 'k-Core Time Series' : 'Formation Window and Community Duration'"
     >
       <span
         v-for="band in bands"
@@ -109,7 +109,7 @@ const ticks = computed(() => snapshots.value.map((id, index) => ({
         <span>{{ tick.id }}</span>
       </button>
     </div>
-    <p v-if="periodic" class="pattern-key">1 {{ coreLabel }} present <span>0 absent</span></p>
+    <p v-if="periodic" class="pattern-key">k-Core Time Series <span>1 {{ coreLabel }} present · 0 absent</span></p>
     <DurableMemberChart
       v-if="!periodic && evidence.member_count_series?.length"
       :structure="structure"

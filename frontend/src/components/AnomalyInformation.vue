@@ -28,7 +28,7 @@ watch(selectedAccount, async function (account) {
     <el-empty
       v-if="!anomalyResults.length"
       :image-size="40"
-      :description="anomalyResponse.message || 'No nodes with anomaly scores'"
+      :description="anomalyResponse.message || 'No vertices with anomaly scores'"
       class="compact-empty"
     />
     <div
@@ -38,7 +38,7 @@ watch(selectedAccount, async function (account) {
     >
       <div class="anomaly-list-header">
         <span>Rank</span>
-        <span>Node ID</span>
+        <span>Vertex ID</span>
         <span title="Higher unitless scores indicate a greater difference from past behavior and the state inferred from neighbors.">Anomaly Score (0–1)</span>
       </div>
       <button
@@ -47,7 +47,7 @@ watch(selectedAccount, async function (account) {
         class="result-item"
         :class="{ active: item.account_id === store.anomalyAccount }"
         :aria-pressed="item.account_id === store.anomalyAccount"
-        :aria-label="`Rank ${item.rank}, node ${item.account_id}, anomaly score ${item.score.toFixed(4)}`"
+        :aria-label="`Rank ${item.rank}, vertex ${item.account_id}, anomaly score ${item.score.toFixed(4)}`"
         :data-anomaly-account="item.account_id"
         @click="selectAnomaly(item)"
       >
@@ -68,19 +68,19 @@ watch(selectedAccount, async function (account) {
     >
       <h3 id="anomaly-evidence-title">{{ inspected.account_id }} · Score breakdown</h3>
       <div class="score-card">
-        <small>SLADE score</small>
+        <small>SLADE Anomaly Score</small>
         <strong>{{ inspected.score.toFixed(4) }}<span> / 1</span></strong>
         <small>Unitless anomaly score</small>
       </div>
       <div class="slade-score-row">
-        <span>Temporal contrast score</span>
+        <span>Temporal Contrast Score</span>
         <strong
           >{{ inspected.temporal_contrast_score.toFixed(4)
           }}<small> / 2</small></strong
         >
       </div>
       <div class="slade-score-row">
-        <span>Memory generation score</span>
+        <span>Memory Generation Score</span>
         <strong
           >{{ inspected.memory_generation_score.toFixed(4)
           }}<small> / 2</small></strong

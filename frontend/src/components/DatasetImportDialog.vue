@@ -37,7 +37,7 @@ function clearFile() {
 <template>
   <ElDialog
     v-model="open"
-    title="Add Dataset"
+    title="Load Dataset"
     width="450px"
     append-to-body
     destroy-on-close

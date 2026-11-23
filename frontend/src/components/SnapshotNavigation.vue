@@ -21,9 +21,8 @@ const snapshotMinutes = computed(function () {
 </script>
 
 <template>
-  <section class="panel time-navigation" aria-label="Snapshot navigation">
-    <div class="time-navigation-settings">
-      <span class="panel-number">01</span>
+  <section class="panel time-navigation" aria-label="Dataset Setup and Time Window Selection">
+    <div class="time-navigation-settings" role="group" aria-label="Dataset Setup">
       <el-dropdown trigger="click" placement="bottom-start" @command="selectDataset">
         <el-button class="time-setting-button" :title="dataset?.name">
           Dataset<ArrowDown class="time-setting-caret" aria-hidden="true" />
@@ -45,7 +44,7 @@ const snapshotMinutes = computed(function () {
       <el-popover trigger="click" placement="bottom-start" :width="190">
         <template #reference>
           <el-button class="time-setting-button">
-            Granularity<ArrowDown class="time-setting-caret" aria-hidden="true" />
+            Temporal Granularity<ArrowDown class="time-setting-caret" aria-hidden="true" />
           </el-button>
         </template>
         <div class="snapshot-granularity">
@@ -54,7 +53,7 @@ const snapshotMinutes = computed(function () {
         </div>
       </el-popover>
       <el-button class="time-setting-button" :icon="Plus" @click="importOpen = true">
-        Add Dataset
+        Load Dataset
       </el-button>
       <DatasetImportDialog v-model="importOpen" />
     </div>

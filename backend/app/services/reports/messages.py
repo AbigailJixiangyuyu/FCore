@@ -10,8 +10,10 @@ from .facts import ReportFacts
 REPORT_PROMPT = """Write a concise English report for a graph analyst using the supplied evidence.
 Present the report as plain text in short paragraphs.
 
-Connect the historical pattern and its members to the selected current community. Interpret the
-current SLADE scores and coverage, and relate the forecast to these communities and their members.
+Use initial_prompt, when provided, to focus the report on the analyst's request. Ground factual
+claims in the verified evidence fields. Connect the historical pattern and its members to the
+selected current community. Interpret the current SLADE scores and coverage, and relate the
+forecast to these communities and their members.
 Support the analysis with the supplied counts, scores and snapshot labels. Refer to individual
 accounts by their supplied aliases.
 
@@ -32,30 +34,37 @@ use the forecast query's own observed q,k baseline. Respond in plain text."""
 def _node_mentions(aliases: dict[str, str]) -> re.Pattern[str]:
     accounts = "|".join(re.escape(account) for account in sorted(aliases, key=len, reverse=True))
     return re.compile(
-        rf"((?:(?i:\b(?:node|account)\b)|节点|账户)\s*[:：]?\s*`?)"
+        rf"((?:(?i:\b(?:vertex|node|account)\b)|顶点|节点|账户)\s*[:：]?\s*`?)"
         rf"({accounts})(?![A-Za-z0-9_-]|\.[A-Za-z0-9_])",
     )
 
 
 def report_messages(
     facts: ReportFacts, follow_up: ReportFollowUpRequest | None = None,
+    *, initial_prompt: str | None = None,
 ) -> list[dict[str, str]]:
+    mentions = _node_mentions(facts.aliases) if facts.aliases else None
+
+    def with_aliases(text: str) -> str:
+        if mentions is None:
+            return text
+        return mentions.sub(lambda match: match[1] + facts.aliases[match[2]], text)
+
+    supplied = {**facts.values}
+    if initial_prompt is not None:
+        supplied["initial_prompt"] = with_aliases(initial_prompt)
     messages = [
         {"role": "system", "content": FOLLOW_UP_PROMPT if follow_up else REPORT_PROMPT},
-        {"role": "user", "content": json.dumps(facts.values, ensure_ascii=False)},
+        {"role": "user", "content": json.dumps(supplied, ensure_ascii=False)},
     ]
     if follow_up is None:
         return messages
 
-    mentions = _node_mentions(facts.aliases) if facts.aliases else None
-
-    def question(text: str) -> dict[str, str]:
-        if mentions is not None:
-            text = mentions.sub(lambda match: match[1] + facts.aliases[match[2]], text)
-        return {"role": "user", "content": text}
-
     messages.append({"role": "assistant", "content": follow_up.report_content})
     for turn in follow_up.turns:
-        messages.extend((question(turn.question), {"role": "assistant", "content": turn.answer}))
-    messages.append(question(follow_up.question))
+        messages.extend((
+            {"role": "user", "content": with_aliases(turn.question)},
+            {"role": "assistant", "content": turn.answer},
+        ))
+    messages.append({"role": "user", "content": with_aliases(follow_up.question)})
     return messages

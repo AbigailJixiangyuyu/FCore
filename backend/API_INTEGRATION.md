@@ -268,6 +268,8 @@ Zebra 加载权重和 S11 预热状态，再处理真实 S12 事件。匹配模�
 
 `POST /api/reports/generate` 接收公共数据上下文及三个对象 `history`、`current`、`future`。每个对象保存提交时的数据上下文。历史和当前引用结构的 `structure_id`、`membership_hash`、`snapshot_id`、`origin`、`method`、`parameters`，当前另附 `risk_model_version`（评分不可用时为 null）。未来引用预测参数、`target_snapshot`、`model_version` 及 `/api/link-prediction/community` 返回的 `result_fingerprint`。
 
+可选的 `initial_prompt` 保存输入框发送的首条消息，包括预填的阶段摘要和用户补充的问题。后端将它与重新核验的统计事实一起发送给模型。
+
 后端复核选中结果，在本地计算成员交集、S12 SLADE 统计以及预测变化。保留、增减人数使用相同 q、k 在 S12 的观测社区作基准。发送给 DeepSeek 的信息包含指标摘要和本次报告中的节点代号。
 
 DeepSeek 以 Thinking 模式分析证据，再流式生成英文正文。单次生成最多使用 4,096 个 token，包含思考和正文。接口成功时返回 `application/jsonl`，每行是一个事件。
@@ -279,7 +281,7 @@ DeepSeek 以 Thinking 模式分析证据，再流式生成英文正文。单次�
 
 连接建立前的配置、限流或证据错误使用 HTTP 状态码和 `detail`。数据或模型版本失配需要重新提交对应证据。配置方法见 [工程 README](../README.md#开发启动)。
 
-`POST /api/reports/follow-up` 接收同一份报告的证据引用，另附 `report_content`（首份报告原文）、`turns`（按序排列的 `question` 和 `answer`）以及本轮 `question`。后端复核证据，用原报告及完成的问答构建 DeepSeek 上下文。追问沿用上述流式事件。界面会保留部分回复供阅读和重试，并在回复完成时保存本轮问答。
+`POST /api/reports/follow-up` 接收同一份报告的证据引用，另附 `report_content`（首份报告原文）、`turns`（按序排列的 `question` 和 `answer`）以及本轮 `question`。有首条消息时一并传入 `initial_prompt`。后端复核证据，用首条消息、原报告及完成的问答构建 DeepSeek 上下文。追问沿用上述流式事件。界面会保留部分回复供阅读和重试，并在回复完成时保存本轮问答。
 
 ## 6. 替换正式方法的位置
 
