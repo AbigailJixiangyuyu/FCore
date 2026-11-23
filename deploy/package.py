@@ -57,16 +57,12 @@ def package_files():
         files.extend(directory / (meta["snapshot_id"] + ".csv") for meta in manifest["snapshots"])
         files.extend(directory / name for name in ("accounts.json", "manifest.json", "observed.json", "replay.json", "README.md"))
         files.append(directory / ("scenarios.json" if dataset == "synthetic-small" else "provenance.json"))
+    vendor = ROOT / "backend/vendor/parallel-kcore"
+    files.extend(sorted(path for path in vendor.rglob("*") if path.is_file()))
     files.extend(active_model_files())
     for path in files:
         yield path, path.relative_to(ROOT).as_posix()
 
-    source = ROOT.parent / "参考论文" / "并行核分解" / "代码"
-    for name in ("KCore/kcore.h", "graph.h", "hashbag.h", "sampler.h", "utils.h", "README.md", "external/parlaylib/LICENSE"):
-        yield source / name, f"native-source/{name}"
-    for path in sorted((source / "external/parlaylib/include").rglob("*")):
-        if path.is_file():
-            yield path, "native-source/" + path.relative_to(source).as_posix()
 
 
 def main():

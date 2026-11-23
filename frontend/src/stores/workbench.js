@@ -1,5 +1,6 @@
 import { defineStore } from 'pinia'
 import queryDefaults from '../../../config/query-defaults.json'
+import { currentAlgorithms, historyAlgorithms } from '../domain/algorithms.js'
 import {
   FUTURE_INDEX, LAST_HISTORICAL_SNAPSHOT_ID, PRESENT_INDEX, PRESENT_SNAPSHOT_ID,
   forecastSnapshotId, snapshotId, snapshotIndex,
@@ -11,7 +12,7 @@ let nextAnalysisRunId = 0
 function historyDefaults(defaults) {
   const window = { start_snapshot_id: snapshotId(0), end_snapshot_id: LAST_HISTORICAL_SNAPSHOT_ID }
   return Object.fromEntries(
-    ['periodic', 'durable', 'burst', 'frequency', 'temporal_core'].map(pattern => [
+    Object.keys(historyAlgorithms).map(pattern => [
       pattern, { ...window, ...defaults[pattern] },
     ]),
   )
@@ -49,10 +50,10 @@ function initialState(datasetId = DEFAULT_DATASET_ID, suggested) {
     timeIndex: PRESENT_INDEX,
     historyStartIndex: 0,
     historyEndIndex: PRESENT_INDEX - 1,
-    pattern: 'periodic',
+    pattern: Object.keys(historyAlgorithms)[0],
     historyDrafts: historyDefaults(profile),
     historySubmitted: historyDefaults(profile),
-    currentAlgorithm: 'parallel',
+    currentAlgorithm: Object.keys(currentAlgorithms)[0],
     currentDrafts: currentDefaults(profile),
     currentSubmitted: currentDefaults(profile),
     analysisRunId: null,

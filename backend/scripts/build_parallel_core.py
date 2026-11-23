@@ -1,4 +1,4 @@
-"""Build the local author solver adapter without editing the reference checkout."""
+"""Build the parallel core solver using the vendored backend headers."""
 
 import argparse
 import os
@@ -48,7 +48,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
         "--source-dir", type=Path,
-        default=settings.project_root.parent / "参考论文" / "并行核分解" / "代码",
+        default=Path(__file__).resolve().parents[1] / "vendor" / "parallel-kcore",
         help="Parallel-KCore source directory including external/parlaylib",
     )
     args = parser.parse_args()

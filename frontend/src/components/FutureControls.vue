@@ -17,7 +17,7 @@ const { zebra } = predictionAlgorithms
   <section class="algorithm-picker" aria-labelledby="forecast-model-selection">
     <h3 id="forecast-model-selection">Model Selection</h3>
     <p :title="zebra.paperTitle">
-      {{ zebra.name }}<span class="visually-hidden">. {{ zebra.paperTitle }}</span>
+      {{ zebra.topic }} ({{ zebra.name }})<span class="visually-hidden">. {{ zebra.paperTitle }}</span>
     </p>
     <QueryState :query="predictionModels" />
   </section>

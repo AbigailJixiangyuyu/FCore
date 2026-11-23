@@ -1,6 +1,6 @@
 # 当前搜索：并行核分解
 
-算法来自 Liu、Dong、Gu、Sun 的 [*Parallel k-Core Decomposition: Theory and Practice*](https://doi.org/10.1145/3725332)（SIGMOD 2025）。[作者代码](https://github.com/ucrparlay/Parallel-KCore/tree/b4966c8ffc48f6e0de8c6a50ffb626af37a91bb8)（`b4966c8`，ParlayLib `e1f1dc0`）保存在仓库同级的 `参考论文/并行核分解/代码` 目录下。项目只提供调用适配器，直接使用原版 `KCore::kcore()`，保留分层桶、局部队列及采样策略和触发条件。
+算法来自 Liu、Dong、Gu、Sun 的 [*Parallel k-Core Decomposition: Theory and Practice*](https://doi.org/10.1145/3725332)（SIGMOD 2025）。[作者代码](https://github.com/ucrparlay/Parallel-KCore/tree/b4966c8ffc48f6e0de8c6a50ffb626af37a91bb8)（`b4966c8`，ParlayLib `e1f1dc0`）的编译依赖随项目保存在 `backend/vendor/parallel-kcore/`。项目通过调用适配器，直接使用原版 `KCore::kcore()`，保留分层桶、局部队列及采样策略和触发条件。
 
 在工作区根目录运行：
 

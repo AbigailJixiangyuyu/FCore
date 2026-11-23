@@ -70,7 +70,7 @@ const snapshotMinutes = computed(function () {
         @click="selectTime(meta.index)"
       >
         <span>{{ meta.kind === 'present' ? 'Current' : 'Future' }}</span>
-        <strong>{{ meta.kind === 'future' ? store.futureSnapshotId : meta.snapshot_id }}</strong>
+        <strong>{{ meta.kind === 'future' ? '…' : meta.snapshot_id }}</strong>
       </button>
     </div>
   </section>

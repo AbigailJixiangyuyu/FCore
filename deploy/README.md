@@ -44,7 +44,7 @@ curl -fsS http://127.0.0.1:8000/api/health
 
 ## 从项目重新打包
 
-在开发机的 `demo/` 下安装前端依赖后运行打包脚本。脚本会构建 Vue、核对已启用权重的 SHA-256，并将部署包写入 `exports/`。编译并行核使用项目同级的 `参考论文/并行核分解/代码` 中的头文件。Windows 开发环境的训练入口继续使用 GPU，服务进程可通过 `FCORE_DEVICE=cpu` 选择 CPU 推理。
+在开发机的 `demo/` 下安装前端依赖后运行打包脚本。脚本会构建 Vue、核对已启用权重的 SHA-256，并将部署包写入 `exports/`。编译并行核使用仓库内的 `backend/vendor/parallel-kcore` 中的头文件。Windows 开发环境的训练入口继续使用 GPU，服务进程可通过 `FCORE_DEVICE=cpu` 选择 CPU 推理。
 
 ```powershell
 npm --prefix frontend ci

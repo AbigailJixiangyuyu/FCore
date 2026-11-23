@@ -11,8 +11,8 @@ RUN uv sync --locked --no-dev --no-install-project --python /usr/local/bin/pytho
 COPY backend/algorithms ./algorithms
 COPY backend/app ./app
 COPY backend/scripts ./scripts
-COPY native-source /build/parallel-kcore
-RUN python -m scripts.build_parallel_core --source-dir /build/parallel-kcore
+COPY backend/vendor/parallel-kcore ./vendor/parallel-kcore
+RUN python -m scripts.build_parallel_core
 
 FROM base
 ENV PATH="/opt/fcore/backend/.venv/bin:${PATH}" FCORE_DEVICE=cpu OMP_NUM_THREADS=2 MKL_NUM_THREADS=2
