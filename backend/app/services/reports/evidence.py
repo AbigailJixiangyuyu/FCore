@@ -37,7 +37,9 @@ def verify_evidence(
     scores = None
     if request.current.risk_model_version is not None:
         try:
-            scores = score_accounts(scope, AnomalyQuery(**context, top_r=None), models_dir)
+            scores = score_accounts(
+                scope, AnomalyQuery(**context, snapshot_id=scope.context.observed_until, top_r=None), models_dir,
+            )
         except HTTPException as error:
             raise HTTPException(error.status_code, "Current SLADE evidence could not be verified. Check the model and resubmit Current evidence.") from error
         if scores["model_version"] != request.current.risk_model_version:
@@ -46,10 +48,10 @@ def verify_evidence(
     ref = request.future
     query = FutureCommunityQuery.model_validate(ref.model_dump(exclude={"result_fingerprint", "model_version", "target_snapshot"}))
     try:
-        forecast = forecast_community(scope, query, models_dir)
+        result = forecast_community(scope, query, models_dir)
     except HTTPException as error:
         raise HTTPException(error.status_code, "Future evidence could not be verified. Check the prediction model and resubmit Future evidence.") from error
-    if (forecast["model_version"] != ref.model_version or forecast["target_snapshot"] != ref.target_snapshot
-            or forecast["result_fingerprint"] != ref.result_fingerprint):
+    if (result["model_version"] != ref.model_version or result["target_snapshot"] != ref.target_snapshot
+            or result["result_fingerprint"] != ref.result_fingerprint):
         raise HTTPException(409, "The forecast changed. Run the prediction and submit Future evidence again.")
-    return collect_facts(history, current, scores, forecast)
+    return collect_facts(history, current, scores, result)

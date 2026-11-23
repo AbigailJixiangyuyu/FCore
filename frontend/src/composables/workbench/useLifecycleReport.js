@@ -2,7 +2,7 @@ import { computed, onScopeDispose, ref, watch } from 'vue'
 
 import { matchesContext } from '../../api/analysis.js'
 import { postJsonLines } from '../../api/client.js'
-import { forecastEvidence, reportEvidenceDraft, reportStages, structureEvidence } from '../../domain/reportEvidence.js'
+import { forecastEvidence, reportStages, structureEvidence } from '../../domain/reportEvidence.js'
 
 export function useLifecycleReport(workbench) {
   const { context, store, selected, patternResult, queryResult, anomalyQuery, anomalyResponse, prediction, matchingPrediction } = workbench
@@ -79,8 +79,7 @@ export function useLifecycleReport(workbench) {
   function ask() {
     if (!canSend.value) return
     const followUp = canAsk.value
-    const message = question.value.trim()
-    const text = followUp ? message : [reportEvidenceDraft(slots.value), message].filter(Boolean).join('\n\n')
+    const text = question.value.trim()
     if (followUp) question.value = ''
     return requestReply({ text, followUp })
   }
@@ -105,7 +104,7 @@ export function useLifecycleReport(workbench) {
       pendingTurn.value = { question: text, answer: '' }
       replyError.value = ''
     } else {
-      body.initial_prompt = text
+      if (text) body.initial_prompt = text
       error.value = ''
       draftReport.value = { content: '', initial_prompt: text }
     }

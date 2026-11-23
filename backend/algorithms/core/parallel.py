@@ -1,4 +1,4 @@
-"""Call the SIGMOD 2025 author's solver through a small WSL adapter."""
+"""Run the parallel core solver directly on Linux or through WSL on Windows."""
 
 import logging
 import os
@@ -22,7 +22,9 @@ def wsl_command(directory: Path, *command: str) -> list[str]:
 
 
 def is_built(binary: Path) -> bool:
-    return binary.is_file() and which("wsl.exe") is not None
+    if os.name == "nt":
+        return binary.is_file() and which("wsl.exe") is not None
+    return binary.is_file() and os.access(binary, os.X_OK)
 
 
 def decompose(
@@ -48,21 +50,22 @@ def decompose(
         + "\n"
     ).encode("ascii")
 
-    command = wsl_command(
-        binary.parent, "env", f"PARLAY_NUM_THREADS={threads}", f"./{binary.name}"
-    )
+    command = [str(binary.resolve())]
+    if os.name == "nt":
+        command = wsl_command(binary.parent, "env", f"PARLAY_NUM_THREADS={threads}", f"./{binary.name}")
     try:
         result = subprocess.run(
-            command, input=data, capture_output=True, timeout=60, check=True
+            command, input=data, capture_output=True, timeout=60, check=True,
+            env={**os.environ, "PARLAY_NUM_THREADS": str(threads)},
         )
     except subprocess.TimeoutExpired as error:
         raise ParallelCoreError("Parallel core decomposition timed out. Try again.") from error
     except subprocess.CalledProcessError as error:
         message = (error.stderr or error.stdout).decode("utf-8", errors="replace")[-1500:]
         _LOGGER.warning("Parallel k-core exited with status %s: %s", error.returncode, message)
-        raise ParallelCoreError("Parallel core decomposition failed. Check WSL or rebuild the solver and try again.") from error
+        raise ParallelCoreError("Parallel core decomposition failed. Rebuild the solver and try again.") from error
     except OSError as error:
-        raise ParallelCoreError(f"Could not start WSL. Parallel core decomposition requires {DISTRO}.") from error
+        raise ParallelCoreError(f"Could not start the parallel core solver. Check the build at {binary}.") from error
 
     try:
         line, = [

@@ -6,7 +6,7 @@ from fastapi import HTTPException
 
 from algorithms.anomaly.artifacts import ModelConflict, ModelNotReady, load_artifact
 from algorithms.anomaly.events import event_fingerprint, seconds, snapshot_events
-from algorithms.anomaly.runtime import CudaUnavailable
+from algorithms.runtime import ModelUnavailable
 from algorithms.anomaly.slade import METHOD
 from app.schemas.analysis import AnomalyQuery
 from app.services.context import AnalysisScope
@@ -50,7 +50,7 @@ def model_ready(repository, manifest, models_dir: Path) -> bool:
         _, metadata = prepare_training(repository, manifest)
         load_artifact(models_dir, manifest.dataset_id, metadata)
         return True
-    except (ModelNotReady, ModelConflict, CudaUnavailable, ValueError, HTTPException):
+    except (ModelNotReady, ModelConflict, ModelUnavailable, ValueError, HTTPException):
         return False
 
 
@@ -92,7 +92,7 @@ def score_accounts(scope: AnalysisScope, request: AnomalyQuery, models_dir: Path
         raise HTTPException(409, str(error)) from error
     except ModelNotReady as error:
         raise HTTPException(503, str(error)) from error
-    except CudaUnavailable as error:
+    except ModelUnavailable as error:
         raise HTTPException(503, str(error)) from error
     except ValueError as error:
         raise HTTPException(422, str(error)) from error

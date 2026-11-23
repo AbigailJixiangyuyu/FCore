@@ -1,4 +1,5 @@
 <script setup>
+import { SetUp, Warning } from '@element-plus/icons-vue'
 import { provide } from 'vue'
 
 import AnalysisSummaryPanel from '../components/AnalysisSummaryPanel.vue'
@@ -19,9 +20,9 @@ provide(workbenchKey, workbench)
 const { store, system, connected, catalog, selectTime } = workbench
 const datasets = system.datasets
 const stages = [
-  { id: 'history', label: 'History', title: 'Historical Community Mining' },
-  { id: 'present', label: 'Current', title: 'Current Community Search' },
-  { id: 'future', label: 'Future', title: 'Future Community Prediction' },
+  { id: 'history', label: 'Historical Mining' },
+  { id: 'present', label: 'Current Search' },
+  { id: 'future', label: 'Future Prediction' },
 ]
 
 function selectStage(stage) {
@@ -38,16 +39,19 @@ function selectStage(stage) {
       <div class="workspace">
         <aside class="panel control-panel" aria-labelledby="query-setup-title">
           <div class="sidebar-heading">
-            <h2 id="query-setup-title">Query Setup</h2>
+            <h2 id="query-setup-title" class="section-title">
+              <SetUp aria-hidden="true" />
+              Query Setup
+            </h2>
           </div>
           <div class="control-stages">
             <el-radio-group
               :model-value="store.stage"
               class="full-segment"
-              aria-label="Analysis stage"
+              aria-label="Temporal Community Search &amp; Prediction"
               @update:model-value="selectStage"
             >
-              <el-radio-button v-for="stage in stages" :key="stage.id" :value="stage.id" :title="stage.title">
+              <el-radio-button v-for="stage in stages" :key="stage.id" :value="stage.id" :title="stage.label">
                 {{ stage.label }}
               </el-radio-button>
             </el-radio-group>
@@ -61,7 +65,10 @@ function selectStage(stage) {
         <GraphPanel />
         <aside class="panel anomaly-panel" aria-labelledby="risk-assessment-title">
           <div class="sidebar-heading">
-            <h2 id="risk-assessment-title">Risk Assessment</h2>
+            <h2 id="risk-assessment-title" class="section-title">
+              <Warning aria-hidden="true" />
+              Online Risk Assessment
+            </h2>
           </div>
           <div class="sidebar-content">
             <AnomalyInformation />

@@ -37,7 +37,7 @@ function clearFile() {
 <template>
   <ElDialog
     v-model="open"
-    title="Load Dataset"
+    title="Data Updates"
     width="450px"
     append-to-body
     destroy-on-close
@@ -47,7 +47,7 @@ function clearFile() {
     @closed="clearFile"
   >
     <div class="dataset-import">
-      <p>Choose one UTF-8 CSV file with the header <code>u,v,t</code>.</p>
+      <p>Import a new dataset from a UTF-8 CSV file with the header <code>u,v,t</code>.</p>
       <pre>u,v,t
 001,002,1767232805
 001,002,1767232805
@@ -63,7 +63,7 @@ function clearFile() {
     <template #footer>
       <el-button :disabled="isPending" @click="open = false">Cancel</el-button>
       <el-button type="primary" :disabled="!file" :loading="isPending" @click="mutate(file)">
-        Import
+        Import Dataset
       </el-button>
     </template>
   </ElDialog>

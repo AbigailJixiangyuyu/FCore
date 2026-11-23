@@ -10,13 +10,13 @@ dependencies = [
     "numpy>=1.26,<3",
     "pydantic>=2,<3",
     "python-dotenv>=1.2,<2",
-    "torch==2.8.0+cu128",
+    "torch==2.8.0",
 ]
 
 [tool.uv]
 package = false
-# Supplied by the existing Python 3.10 via --system-site-packages.
-# Keep uv sync / uv run from downloading a second CUDA distribution.
+# Windows development uses the base interpreter's cu128 wheel. The Linux
+# deployment installs the matching CPU wheel explicitly.
 exclude-dependencies = ["torch"]
 
 [tool.fastapi]

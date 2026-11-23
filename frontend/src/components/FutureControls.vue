@@ -1,4 +1,5 @@
 <script setup>
+import { TrendCharts } from '@element-plus/icons-vue'
 import { useWorkbench } from '../composables/workbenchContext.js'
 import { predictionAlgorithms } from '../domain/algorithms.js'
 import { FORECAST_HORIZONS, forecastSnapshotId } from '../domain/timeline.js'
@@ -13,15 +14,15 @@ const { zebra } = predictionAlgorithms
 </script>
 
 <template>
-  <section class="algorithm-picker">
-    <h3>Algorithm</h3>
+  <section class="algorithm-picker" aria-labelledby="forecast-model-selection">
+    <h3 id="forecast-model-selection">Model Selection</h3>
     <p :title="zebra.paperTitle">
       {{ zebra.name }}<span class="visually-hidden">. {{ zebra.paperTitle }}</span>
     </p>
     <QueryState :query="predictionModels" />
   </section>
   <QueryForm v-slot="{ clearError }" @submit="runPrediction">
-    <h3>Parameters</h3>
+    <h3>Parameters Configuration</h3>
     <div class="compact-field forecast-target">
       <label for="forecast-target-input">Target snapshot</label>
       <el-select
@@ -63,6 +64,7 @@ const { zebra } = predictionAlgorithms
       <el-button
         native-type="submit"
         type="primary"
+        :icon="TrendCharts"
         :loading="canRunPrediction && prediction.isFetching.value"
         :disabled="!canRunPrediction || !store.validFutureParameters"
       >Run Prediction</el-button>

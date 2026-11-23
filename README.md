@@ -41,9 +41,13 @@ Dept3 使用 S01—S11 的 9,525 条交互训练 10 轮，冻结参数后处理 
 
 ## 开发启动
 
-05 的 **LLM-Assisted Interpretation** 输入框显示 **History**、**Current**、**Future** 三项证据提示。分别运行三个阶段的算法并点击 **Submit**，对应位置会填入已提交结果的算法和时间范围。三项齐全后，按钮变为 **Send**，可直接生成报告或先补充问题。三项齐全时，如果当前阶段有新结果，可点击 **Update Evidence** 更新该项。刷新页面会清空会话并恢复三项提示。
+在 Ubuntu 24.04 x86_64 服务器上使用 Docker 和 CPU 运行 Demo，见[远程服务器部署说明](deploy/README.md)。
 
-报告完成后，在面板底部输入问题并点击 **Send**。每次追问使用同一组证据、首份报告和此前完成的问答。回复随生成进度追加，**Retry** 可重试中断的回复。
+**LLM-Assisted Interpretation** 输入框显示 **History**、**Current**、**Future** 三项证据提示。分别运行三个阶段的算法并点击 **Submit**，对应位置会填入已提交结果的算法和时间范围。三项齐全后，按钮变为 **Send**，可直接生成报告或先补充问题。三项齐全时，如果当前阶段有新结果，可点击 **Update Evidence** 更新该项。刷新页面会清空会话并恢复三项提示。
+
+报告以提交的 History 社区为基线，按节点 ID 比较 History → Current、Current → Future 的保留、新增和退出成员，并计算三阶段共有成员。留存率以较早阶段的成员数为分母。各阶段使用自己的时间范围、查询节点和核阶数，历史部分引用所选算法找到的模式。异常分析使用 Current 成员的 S12 SLADE 评分，并结合其历史和预计成员身份解释社区内高分节点。输入框的首个问题可留空。
+
+报告完成后，在面板底部输入问题并点击 **Send**。每次追问使用同一组证据、首份报告和此前完成的问答。回复随生成进度追加，**Retry** 可重试中断的回复。首条消息的完整提示词、证据统计口径和 EmailDept3 实例见[报告提示词与证据规则](backend/REPORT_PROMPT.md)。
 
 在 `backend/.env` 填写 `LLM_API_KEY`，保存后重启后端。新检出项目可从 `backend/.env.example` 复制此文件。DeepSeek 使用 `LLM_BASE_URL=https://api.deepseek.com` 和 API 模型 ID `LLM_MODEL=deepseek-flash`。系统环境变量优先。实际 Key 由后端读取，`.env` 已加入 Git 忽略规则。
 

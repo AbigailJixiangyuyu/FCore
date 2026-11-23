@@ -1,4 +1,5 @@
 <script setup>
+import { Share } from '@element-plus/icons-vue'
 import { computed, ref, shallowRef, watch } from 'vue'
 import { DEFAULT_GRAPH_ZOOM } from '../composables/useGraphCanvas.js'
 import { useGraphLayout } from '../composables/useGraphLayout.js'
@@ -6,6 +7,7 @@ import { usePeriodicCommunity } from '../composables/workbench/usePeriodicCommun
 import { useWorkbench } from '../composables/workbenchContext.js'
 import { algorithmLabel, currentAlgorithms, structureAlgorithm } from '../domain/algorithms.js'
 import { formatCount } from '../domain/format.js'
+import { PRESENT_SNAPSHOT_ID } from '../domain/timeline.js'
 import {
   forecastNodeColors, futureScene, graphEdgeColor, locatedAccountColor, observedScene,
 } from '../graph/scene.js'
@@ -61,8 +63,9 @@ const rangeLabel = computed(function () {
 const periodicStamp = computed(function () {
   const view = periodic.value
   if (!view || view.state === null) return ''
-  const status = view.state === 1 ? 'present' : 'absent'
-  return `${view.end} · ${view.k}-core ${status}`
+  return view.state === 1
+    ? `${view.end} · Historical Communities · ${view.k}-core present`
+    : `${view.end} · ${view.k}-core absent`
 })
 const location = computed(function () {
   if (store.stage !== 'present') return null
@@ -76,22 +79,6 @@ const standaloneLocation = computed(function () {
   if (request?.source === 'anomaly' && !selected.value?.members.includes(request.accountId))
     return request
   return null
-})
-const graphStamp = computed(function () {
-  if (overview.value) {
-    if (future.value) return 'S12 · Observed graph'
-    return `${rangeLabel.value || 'S12'} · Full graph`
-  }
-  if (showPrediction.value) {
-    const result = matchingPrediction.value
-    return result
-      ? `${result.target_snapshot} / PREDICTED · Threshold ${result.threshold.toFixed(2)}`
-      : `${store.futureSnapshotId} / PREDICTED`
-  }
-  if (standaloneLocation.value) return 'S12 / OBSERVED'
-  if (periodicStamp.value) return periodicStamp.value
-  if (rangeLabel.value) return `${rangeLabel.value} / AGGREGATED`
-  return 'S12 / OBSERVED'
 })
 const observedQuery = computed(function () {
   if (overview.value || standaloneLocation.value) return snapshotQuery.value
@@ -132,6 +119,21 @@ const scene = computed(function () {
     location: location.value,
     rangeLabel: rangeLabel.value,
   })
+})
+const graphStamp = computed(function () {
+  const windowLabel = rangeLabel.value || PRESENT_SNAPSHOT_ID
+  if (standaloneLocation.value || (overview.value && future.value)) return `${PRESENT_SNAPSHOT_ID} · Observed graph`
+  if (overview.value) return `${windowLabel} · Full graph`
+  if (showPrediction.value) {
+    const result = matchingPrediction.value
+    if (!result) return store.futureSnapshotId
+    const target = result.members.length ? `${result.target_snapshot} · Predicted Community` : result.target_snapshot
+    return `${target} · Threshold ${result.threshold.toFixed(2)}`
+  }
+  if (periodicStamp.value) return periodicStamp.value
+  if (!scene.value?.nodes.length) return windowLabel
+  const community = store.stage === 'history' ? 'Historical Communities' : 'Current Community'
+  return `${windowLabel} · ${community}`
 })
 const sceneKey = computed(function () {
   const base = `${store.datasetId}:${layout.value?.key || 'pending'}`
@@ -189,7 +191,10 @@ const emptyText = computed(function () {
 <template>
   <section class="panel graph-panel" aria-labelledby="community-visualization-title">
     <div class="panel-heading">
-      <h2 id="community-visualization-title">Community Visualization</h2>
+      <h2 id="community-visualization-title" class="section-title">
+        <Share aria-hidden="true" />
+        Community Visualization
+      </h2>
       <span class="count-chip">{{
         scene
           ? `${formatCount(scene.nodes.length, 'vertex', 'vertices')} · ${formatCount(scene.edges.length, showPrediction ? 'predicted edge' : 'edge')}`

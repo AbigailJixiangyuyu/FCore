@@ -4,10 +4,12 @@ import pickle
 
 import torch
 
+from algorithms.runtime import inference_device
+
 from .checkpoint import CheckpointStore
 from .data import MAX_FORECAST_HORIZON
 from .model import METHOD, Zebra, ZebraConfig, ZebraState
-from .runtime import ZebraUnavailable, cuda_device
+from .runtime import ZebraUnavailable
 
 _STORES = {
     horizon: CheckpointStore(
@@ -57,7 +59,7 @@ def activate_artifact(models_dir, dataset_id, artifact, *, horizon=1):
 
 def load_artifact(models_dir, dataset_id, expected, version=None, *, horizon=1):
     directory, artifact = read_artifact(models_dir, dataset_id, expected, version, horizon=horizon)
-    device = cuda_device()
+    device = inference_device("Zebra")
     try:
         config_values = dict(artifact["config"])
         config_values["metrics"] = tuple(tuple(item) for item in config_values["metrics"])

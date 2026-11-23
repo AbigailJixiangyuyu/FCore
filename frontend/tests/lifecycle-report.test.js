@@ -65,8 +65,8 @@ test('the first message sends only after all three evidence submissions and repl
   report.submit()
   assert.equal(report.ready.value, true)
   assert.deepEqual(Object.values(report.slots.value).map(evidenceMethodName), ['OTCD', 'PKMC', 'Zebra'])
+  assert.equal(report.slots.value.future.window, 'S13')
   assert.equal(fetch.mock.callCount(), 0)
-  const draft = 'History · OTCD · S10\nCurrent · PKMC · S12\nFuture · Zebra · S13 · 50%'
   assert.equal(report.question.value, '')
   assert.equal(report.canSend.value, true)
   report.question.value = 'Compare the current and future communities.'
@@ -74,7 +74,9 @@ test('the first message sends only after all three evidence submissions and repl
   await report.ask()
   assert.equal(fetch.mock.callCount(), 1)
   assert.equal(fetch.mock.calls[0].arguments[0], '/api/reports/generate')
-  assert.equal(JSON.parse(fetch.mock.calls[0].arguments[1].body).initial_prompt, `${draft}\n\n${report.question.value}`)
+  const firstRequest = JSON.parse(fetch.mock.calls[0].arguments[1].body)
+  assert.equal(firstRequest.initial_prompt, report.question.value)
+  assert.equal(firstRequest.future.threshold, 0.5)
   const oldStream = openStream()
   oldStream.enqueue(textLine({ type: 'start', model: 'test', node_labels: {} }))
   oldStream.enqueue(textLine({ type: 'delta', content: 'First part.' }))
@@ -91,14 +93,15 @@ test('the first message sends only after all three evidence submissions and repl
   assert.equal(report.report.value, null)
   assert.equal(report.slots.value.future.reference.threshold, 0.6)
   assert.equal(report.canAsk.value, false)
-  const initialPrompt = draft.replace('50%', '60%')
   assert.equal(report.question.value, '')
   const nextGeneration = report.ask()
-  assert.equal(JSON.parse(fetch.mock.calls[1].arguments[1].body).initial_prompt, initialPrompt)
+  const nextRequest = JSON.parse(fetch.mock.calls[1].arguments[1].body)
+  assert.equal('initial_prompt' in nextRequest, false)
+  assert.equal(nextRequest.future.result_fingerprint, 'next')
   const stream = openStream()
   const result = {
     content: '13 members overlap.\n\nN001（q） is forecast to remain.', model: 'test',
-    node_labels: { N001: 'q' }, initial_prompt: initialPrompt,
+    node_labels: { N001: 'q' }, initial_prompt: '',
   }
   stream.enqueue(textLine({ type: 'start', model: result.model, node_labels: result.node_labels }))
   const delta = textLine({ type: 'delta', content: result.content })
@@ -129,7 +132,7 @@ test('follow-ups carry completed turns and a fresh page starts with an empty rep
   const question = 'Compare the historical and current communities.'
   const initialReport = {
     model: 'test', content: 'N001 belongs to the overlap of 13 members.', node_labels: { N001: 'q' },
-    initial_prompt: `History · OTCD · S10\nCurrent · PKMC · S12\nFuture · Zebra · S13 · 50%\n\n${question}`,
+    initial_prompt: question,
   }
   const start = { type: 'start', model: initialReport.model, node_labels: initialReport.node_labels }
   discussion.question.value = question

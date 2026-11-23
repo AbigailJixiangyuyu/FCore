@@ -17,7 +17,7 @@ from algorithms.link_prediction.data import (
     prepare_history,
     read_window,
 )
-from algorithms.link_prediction.runtime import ModelUnavailable, cuda_device
+from algorithms.runtime import ModelUnavailable, inference_device
 from app.schemas.analysis import LinkPredictionQuery
 from app.services.context import AnalysisScope
 from app.services.parallel_core import ParallelCoreCache
@@ -61,7 +61,7 @@ def list_models(repository, manifest, models_dir, *, horizon=1):
     try:
         _, metadata = prepare_history(repository, manifest)
         _, artifact = ZEBRA.artifacts.read_artifact(models_dir, manifest.dataset_id, metadata, horizon=horizon)
-        cuda_device(ZEBRA.name)
+        inference_device(ZEBRA.name)
         key = (str(models_dir.resolve()), manifest.dataset_id, artifact["model_version"], artifact["checkpoint_sha256"])
         with _LOCK:
             if key not in _VERIFIED:
@@ -84,7 +84,7 @@ def list_models(repository, manifest, models_dir, *, horizon=1):
 def full_network_prediction(repository, manifest, models_dir, *, horizon=1):
     history, metadata = prepare_history(repository, manifest)
     _, artifact = ZEBRA.artifacts.read_artifact(models_dir, manifest.dataset_id, metadata, horizon=horizon)
-    cuda_device(ZEBRA.name)
+    inference_device(ZEBRA.name)
     current_meta = next(m for m in manifest.snapshots if m.snapshot_id == manifest.observed_until)
     current = read_window(repository, manifest, current_meta, metadata["origin_timestamp"])
     key = (

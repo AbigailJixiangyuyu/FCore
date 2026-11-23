@@ -1,5 +1,5 @@
 <script setup>
-import { ArrowDown, Plus } from '@element-plus/icons-vue'
+import { ArrowDown, Files, Plus, Timer } from '@element-plus/icons-vue'
 import { computed, ref } from 'vue'
 import { useWorkbench } from '../composables/workbenchContext.js'
 import { formatNumber } from '../domain/format.js'
@@ -24,8 +24,8 @@ const snapshotMinutes = computed(function () {
   <section class="panel time-navigation" aria-label="Dataset Setup and Time Window Selection">
     <div class="time-navigation-settings" role="group" aria-label="Dataset Setup">
       <el-dropdown trigger="click" placement="bottom-start" @command="selectDataset">
-        <el-button class="time-setting-button" :title="dataset?.name">
-          Dataset<ArrowDown class="time-setting-caret" aria-hidden="true" />
+        <el-button class="time-setting-button" :icon="Files" :title="dataset?.name">
+          Dataset Loading<ArrowDown class="time-setting-caret" aria-hidden="true" />
         </el-button>
         <template #dropdown>
           <el-dropdown-menu>
@@ -43,7 +43,7 @@ const snapshotMinutes = computed(function () {
       </el-dropdown>
       <el-popover trigger="click" placement="bottom-start" :width="190">
         <template #reference>
-          <el-button class="time-setting-button">
+          <el-button class="time-setting-button" :icon="Timer">
             Temporal Granularity<ArrowDown class="time-setting-caret" aria-hidden="true" />
           </el-button>
         </template>
@@ -53,7 +53,7 @@ const snapshotMinutes = computed(function () {
         </div>
       </el-popover>
       <el-button class="time-setting-button" :icon="Plus" @click="importOpen = true">
-        Load Dataset
+        Data Updates
       </el-button>
       <DatasetImportDialog v-model="importOpen" />
     </div>

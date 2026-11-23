@@ -1,51 +1,85 @@
-"""Supply the actual criterion for each selected historical algorithm."""
+"""Describe the pattern witnessed by the submitted historical result."""
 
 from collections import Counter
+from collections.abc import Callable
+
+from app.schemas.analysis import Structure
+
+
+_METHODS = {
+    "periodic": "TD", "durable": "ONCE", "burst": "MBC-B",
+    "frequency": "OL", "temporal_core": "OTCD",
+}
 
 
 def window(start: str, end: str) -> str:
     return start if start == end else f"{start}–{end}"
 
 
-def history_facts(history, facts):
-    p, e = history.parameters, history.evidence
-    ids = e["analysis_snapshot_ids"]
-    values = facts.values
-    values.update(history_method=history.label, history_size=len(history.members), mining_window=window(ids[0], ids[-1]))
-    if p.get("account") is not None:
-        facts.node("history_query_node", p["account"])
-    for key in ("k", "epsilon", "l", "delta", "t", "f"):
-        if key in p:
-            values[f"history_{key}"] = p[key]
-
-    pattern = p["pattern"]
+def submitted_history_evidence(
+    history: Structure, alias: Callable[[str], str],
+) -> dict:
+    parameters, evidence = history.parameters, history.evidence
+    snapshot_ids = evidence["analysis_snapshot_ids"]
+    pattern = parameters["pattern"]
+    record = {
+        "id": "H01",
+        "topic": history.label,
+        "method": _METHODS[pattern],
+        "analysis_window": window(snapshot_ids[0], snapshot_ids[-1]),
+        "member_count": len(history.members),
+    }
     if pattern == "periodic":
-        values.update(period_snapshots=e["period"], cycles=e["frequency"],
-                      periodic_window=window(e["start_index_snapshot_id"], e["end_index_snapshot_id"]),
-                      presence_by_snapshot=", ".join(f"{sid}={int(bit)}" for sid, bit in zip(ids, e["kcore_series"])))
+        record.update(
+            period_snapshots=evidence["period"],
+            cycles=evidence["frequency"],
+            periodic_window=window(evidence["start_index_snapshot_id"], evidence["end_index_snapshot_id"]),
+            community_present_snapshots=[
+                sid for sid, present in zip(snapshot_ids, evidence["kcore_series"]) if present
+            ],
+        )
     elif pattern == "durable":
-        values.update(formation_window=window(e["formation_start_snapshot_id"], e["formation_end_snapshot_id"]),
-                      stable_through=e["stable_end_snapshot_id"], stable_snapshots=e["duration"])
+        first = evidence["formation_start_snapshot_id"]
+        last = evidence["stable_end_snapshot_id"]
+        record.update(
+            formation_window=window(first, evidence["formation_end_snapshot_id"]),
+            stable_through=last,
+            stable_snapshots=evidence["duration"],
+        )
     elif pattern == "burst":
-        # A witness belongs to one member. Prefer the submitted query node.
-        witnesses = e["nodes"]
-        witness = next((w for w in witnesses if w["account"] == p.get("account")), None)
+        witnesses = evidence["nodes"]
+        witness = next((row for row in witnesses if row["account"] == parameters.get("account")), None)
         if witness is None:
-            witness = max(witnesses, key=lambda w: w["max_average_degree"])
-        facts.node("burst_witness_node", witness["account"])
-        values.update(witness_max_average_degree=f'{witness["max_average_degree"]:.2f}',
-                      burst_witness_window=window(witness["witness_start_snapshot_id"], witness["witness_end_snapshot_id"]))
+            witness = max(witnesses, key=lambda row: row["max_average_degree"])
+        windows = Counter(window(row["witness_start_snapshot_id"], row["witness_end_snapshot_id"]) for row in witnesses)
+        most_members = max(windows.values())
+        record.update(
+            witness_node=alias(witness["account"]),
+            witness_max_average_degree=round(witness["max_average_degree"], 2),
+            burst_witness_window=window(witness["witness_start_snapshot_id"], witness["witness_end_snapshot_id"]),
+            most_common_member_witness_windows=sorted(name for name, count in windows.items() if count == most_members),
+            members_per_most_common_window=most_members,
+        )
     elif pattern == "frequency":
-        edges = e["qualified_edges"]
+        edges = evidence["qualified_edges"]
         degree = Counter(node for edge in edges for node in (edge["u"], edge["v"]))
-        values.update(qualified_internal_edges=len(edges), min_qualified_neighbors=min(degree[n] for n in history.members),
-                      weakest_qualified_frequency=f'{min(edge["frequency"] for edge in edges):.1%}')
+        record.update(
+            qualified_internal_edges=len(edges),
+            min_qualified_neighbors=min(degree[node] for node in history.members),
+            weakest_qualified_frequency=round(min(edge["frequency"] for edge in edges), 4),
+        )
     elif pattern == "temporal_core":
-        values.update(tightest_window=window(e["witness_start_snapshot_id"], e["witness_end_snapshot_id"]),
-                      tightest_internal_edges=history.metrics["internal_edges"])
-        comparison = e["window_comparison"]
-        labels = ("full",) if len(comparison) == 1 else ("without_last", "without_first", "full")
-        for label, row in zip(labels, comparison):
-            values[f"{label}_window"] = window(row["start_snapshot_id"], row["end_snapshot_id"])
-            values[f"{label}_min_internal_degree"] = row["min_internal_degree"]
-            values[f"{label}_members_below_k"] = row["below_k_members"]
+        first, last = evidence["witness_start_snapshot_id"], evidence["witness_end_snapshot_id"]
+        record.update(
+            tightest_window=window(first, last),
+            tightest_internal_edges=history.metrics["internal_edges"],
+            min_internal_degree_by_window=[
+                {
+                    "window": window(row["start_snapshot_id"], row["end_snapshot_id"]),
+                    "min_internal_degree": row["min_internal_degree"],
+                }
+                for row in evidence["window_comparison"]
+            ],
+        )
+
+    return record

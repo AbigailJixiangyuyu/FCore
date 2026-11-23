@@ -1,4 +1,5 @@
 <script setup>
+import { DataAnalysis } from '@element-plus/icons-vue'
 import { computed } from 'vue'
 
 import { metricLabels, useWorkbench } from '../../composables/workbenchContext.js'
@@ -63,7 +64,10 @@ function locateMember(accountId) {
 <template>
   <section class="summary-column result-summary" aria-labelledby="result-summary-title">
     <div class="summary-heading">
-      <h2 id="result-summary-title">Result Analysis</h2>
+      <h2 id="result-summary-title" class="section-title">
+        <DataAnalysis aria-hidden="true" />
+        Result Analysis
+      </h2>
       <span v-if="analysisRange" class="summary-context">
         Range {{ analysisRange }}
       </span>

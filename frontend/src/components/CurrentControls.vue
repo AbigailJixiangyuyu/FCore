@@ -1,4 +1,5 @@
 <script setup>
+import { Search } from '@element-plus/icons-vue'
 import { computed } from 'vue'
 import { useWorkbench } from '../composables/workbenchContext.js'
 import { currentAlgorithms } from '../domain/algorithms.js'
@@ -25,14 +26,14 @@ const validParameters = computed(function () {
   <AlgorithmPicker
     :model-value="store.currentAlgorithm"
     :algorithms="currentAlgorithms"
-    label="Current community search algorithm"
+    label="Current Search Model Selection"
     @update:model-value="store.selectAlgorithm('currentAlgorithm', $event)"
   />
   <QueryForm :key="store.currentAlgorithm" v-slot="{ clearError }" @submit="validParameters && runQuery()">
     <template v-if="usesParameters">
-      <h3>Parameters</h3>
-      <div v-if="store.currentAlgorithm === 'tccs'" class="compact-field range-field">
-        <span>Range</span>
+      <h3>Parameters Configuration</h3>
+      <div v-if="store.currentAlgorithm === 'tccs'" class="compact-field range-field" role="group" aria-labelledby="current-time-window">
+        <span id="current-time-window">Time Window Selection</span>
         <el-select v-model="store.draft.start_snapshot_id" aria-label="Start snapshot">
           <el-option v-for="id in startSnapshots" :key="id" :value="id" :label="id" />
         </el-select>
@@ -51,6 +52,7 @@ const validParameters = computed(function () {
       <el-button
         native-type="submit"
         type="primary"
+        :icon="Search"
         :loading="queryResult.isFetching.value"
         :disabled="!validParameters"
       >Run Query</el-button>

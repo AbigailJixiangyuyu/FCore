@@ -30,13 +30,15 @@
   position: absolute;
   top: 12px;
   left: 14px;
-  color: #91a1b8;
+  padding: 2px 4px;
+  border-radius: 3px;
+  background: #ffffffed;
+  color: var(--muted);
   z-index: 3;
   pointer-events: none;
 }
 .graph-stamp.periodic-stamp {
   padding: 3px 6px;
-  border-radius: 3px;
   background: #f0f3f8;
   color: #506681;
   font-weight: 700;

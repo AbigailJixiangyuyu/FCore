@@ -8,16 +8,6 @@ export function evidenceMethodName({ reference, method }) {
   return algorithm?.name ?? method
 }
 
-export function reportEvidenceDraft(slots) {
-  return Object.entries(reportStages)
-    .filter(([stage]) => slots[stage])
-    .map(([stage, label]) => {
-      const slot = slots[stage]
-      return [label, evidenceMethodName(slot), slot.window].filter(Boolean).join(' · ')
-    })
-    .join('\n')
-}
-
 function rangeLabel(start, end) {
   return start === end ? end : [start, end].join('–')
 }
@@ -43,7 +33,7 @@ export function forecastEvidence(context, forecast, parameters) {
   const { account, k, model, threshold, model_version, target_snapshot, result_fingerprint } = forecast
   return {
     method: predictionAlgorithms[model]?.name ?? model,
-    window: [target_snapshot, Number((threshold * 100).toFixed(2)) + '%'].join(' · '),
+    window: target_snapshot,
     reference: { ...context, account, k, model, threshold, horizon: parameters.horizon, model_version, target_snapshot, result_fingerprint },
   }
 }

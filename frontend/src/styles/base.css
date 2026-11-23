@@ -76,6 +76,17 @@ p.helper {
   background: #fff;
   min-width: 0;
 }
+.section-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.section-title > svg {
+  flex: none;
+  width: 15px;
+  height: 15px;
+  color: var(--section-icon-color, #4f71ac);
+}
 
 .count-chip {
   display: inline-block;
@@ -98,6 +109,9 @@ p.helper {
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+.anomaly-panel {
+  --section-icon-color: #b2683b;
 }
 .sidebar-heading {
   height: 40px;

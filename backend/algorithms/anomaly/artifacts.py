@@ -10,7 +10,7 @@ from pathlib import Path
 
 import torch
 
-from .runtime import CudaUnavailable, cuda_device
+from algorithms.runtime import ModelUnavailable, inference_device
 from .slade import METHOD, Slade, SladeConfig
 from .state import MemoryState
 
@@ -124,7 +124,7 @@ def load_artifact(
             or payload["config"] != manifest["config"]
         ):
             raise ValueError("Model metadata does not match the weights.")
-        device = cuda_device()
+        device = inference_device("SLADE")
         model = Slade(SladeConfig(**payload["config"])).to(device)
         model.load_state_dict(payload["model_state"], strict=True)
         model.eval()
@@ -148,7 +148,7 @@ def load_artifact(
         if not all(torch.isfinite(tensor).all() for tensor in tensors):
             raise ValueError("The model or its warm-up state contains nonfinite values.")
         return model, state, manifest
-    except (ModelConflict, CudaUnavailable):
+    except (ModelConflict, ModelUnavailable):
         raise
     except Exception as error:
         raise ModelNotReady(

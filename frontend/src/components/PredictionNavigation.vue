@@ -17,10 +17,10 @@ const { store, selectTime } = useWorkbench()
       type="primary"
       class="full"
       @click="selectTime(FUTURE_INDEX)"
-      >Go to Prediction →</el-button
+      >Go to Future Prediction →</el-button
     >
     <el-button v-else class="full" @click="selectTime(PRESENT_INDEX)"
-      >← Back to Current</el-button
+      >← Back to Current Search</el-button
     >
   </div>
 </template>

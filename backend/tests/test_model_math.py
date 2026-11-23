@@ -7,9 +7,20 @@ from algorithms.anomaly.state import MemoryState
 from algorithms.link_prediction.data import Event, Window, labels_for, prepare_history
 from algorithms.link_prediction.tppr import Santa
 from algorithms.link_prediction.undergs.tcns import prepare_snapshot
+from algorithms.runtime import ModelUnavailable, inference_device
 from app.core.config import Settings
 from app.repositories.datasets import DatasetRepository
 from app.services.anomalies import prepare_training
+
+
+def test_cpu_inference_and_explicit_cuda_without_gpu(monkeypatch):
+    monkeypatch.setattr(torch.cuda, "is_available", lambda: False)
+    monkeypatch.setenv("FCORE_DEVICE", "cpu")
+    assert inference_device("SLADE") == torch.device("cpu")
+    assert inference_device("Zebra") == torch.device("cpu")
+    monkeypatch.delenv("FCORE_DEVICE")
+    with pytest.raises(ModelUnavailable, match="requires CUDA"):
+        inference_device("Zebra")
 
 
 def test_slade_scores_match_the_paper():

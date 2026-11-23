@@ -36,6 +36,9 @@
   min-height: 20px;
   margin-bottom: 10px;
 }
+.report-summary {
+  --section-icon-color: #77549d;
+}
 
 .summary-context {
   margin-left: auto;
@@ -477,7 +480,7 @@
   outline: none;
 }
 .report-composer .el-textarea__inner::placeholder { color: var(--muted); }
-.report-composer .el-button { min-width: 70px; }
+.report-composer .el-button { min-width: 86px; }
 
 .summary-empty {
   color: var(--muted);

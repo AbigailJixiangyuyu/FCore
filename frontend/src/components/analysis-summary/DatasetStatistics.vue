@@ -1,4 +1,5 @@
 <script setup>
+import { Histogram } from '@element-plus/icons-vue'
 import { computed } from 'vue'
 
 import { useWorkbench } from '../../composables/workbenchContext.js'
@@ -48,7 +49,10 @@ const largestComponent = computed(function () {
 <template>
   <section class="summary-column dataset-summary" aria-labelledby="dataset-summary-title">
     <div class="summary-heading">
-      <h2 id="dataset-summary-title">Dataset Statistics</h2>
+      <h2 id="dataset-summary-title" class="section-title">
+        <Histogram aria-hidden="true" />
+        Dataset Statistics
+      </h2>
       <span class="summary-context">{{ scope }}</span>
     </div>
     <template v-if="stats">

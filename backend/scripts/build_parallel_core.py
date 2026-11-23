@@ -1,11 +1,12 @@
 """Build the local author solver adapter without editing the reference checkout."""
 
 import argparse
+import os
 import subprocess
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
-from algorithms.core.parallel import DISTRO, wsl_command
+from algorithms.core.parallel import wsl_command
 from app.core.config import Settings
 
 ADAPTER = Path(__file__).resolve().parents[1] / "algorithms" / "core" / "parallel_adapter.cpp"
@@ -22,19 +23,21 @@ def build(source: Path, binary: Path) -> None:
     with NamedTemporaryFile(dir=binary.parent, prefix="kcore-", suffix=".tmp", delete=False) as file:
         temporary = Path(file.name)
     try:
-        linux_output = subprocess.check_output(
-            wsl_command(source, "wslpath", "-a", "-u", str(temporary)),
-            encoding="utf-8",
-        ).strip()
+        output = str(temporary.resolve())
+        if os.name == "nt":
+            output = subprocess.check_output(
+                wsl_command(source, "wslpath", "-a", "-u", output), encoding="utf-8",
+            ).strip()
+        command = [
+            "g++", "-std=c++20", "-O3", "-mcx16", "-pthread", "-I.",
+            f"-I{parlay_include.as_posix()}", "-x", "c++", "-", "-o", output,
+        ]
         subprocess.run(
-            wsl_command(
-                source, "g++", "-std=c++20", "-O3", "-mcx16", "-march=native",
-                "-pthread", "-I.", f"-I{parlay_include.as_posix()}",
-                "-x", "c++", "-", "-o", linux_output,
-            ),
-            input=ADAPTER.read_bytes(),
-            check=True,
+            wsl_command(source, *command) if os.name == "nt" else command,
+            cwd=source, input=ADAPTER.read_bytes(), check=True,
         )
+        if os.name != "nt":
+            temporary.chmod(0o755)
         temporary.replace(binary)
     finally:
         temporary.unlink(missing_ok=True)
@@ -52,7 +55,7 @@ def main() -> None:
     try:
         build(args.source_dir.resolve(), settings.parallel_core_binary)
     except (OSError, subprocess.CalledProcessError) as error:
-        parser.exit(1, f"Build failed. Check {DISTRO}, g++, and the source directory. {error}\n")
+        parser.exit(1, f"Build failed. Check g++ and the source directory. {error}\n")
     print(f"Built the parallel core solver at {settings.parallel_core_binary}")
 
 

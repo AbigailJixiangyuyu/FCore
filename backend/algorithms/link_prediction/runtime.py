@@ -1,31 +1,15 @@
-"""Use the existing CUDA environment, without dependency installation/fallback."""
+"""Reproducible GPU training for link prediction."""
 
-import os
 import random
-
-os.environ.setdefault("CUBLAS_WORKSPACE_CONFIG", ":4096:8")
 
 import numpy as np
 import torch
 
-
-class ModelUnavailable(RuntimeError):
-    pass
+from algorithms.runtime import ModelUnavailable, cuda_device
 
 
 # Keep existing Zebra callers and tests compatible.
 ZebraUnavailable = ModelUnavailable
-
-
-def cuda_device(model_name: str = "Zebra") -> torch.device:
-    if not torch.cuda.is_available():
-        raise ModelUnavailable(f"{model_name} requires cuda:0. Use the project GPU environment and check the GPU driver.")
-    torch.use_deterministic_algorithms(True)
-    torch.backends.cudnn.benchmark = False
-    torch.backends.cudnn.deterministic = True
-    torch.backends.cuda.matmul.allow_tf32 = False
-    torch.backends.cudnn.allow_tf32 = False
-    return torch.device("cuda:0")
 
 
 def seed_everything(seed: int) -> None:

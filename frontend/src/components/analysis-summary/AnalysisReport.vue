@@ -1,4 +1,5 @@
 <script setup>
+import { ChatDotRound, DocumentAdd, Position } from '@element-plus/icons-vue'
 import { computed, nextTick, ref, watch } from 'vue'
 
 import { useWorkbench } from '../../composables/workbenchContext.js'
@@ -53,7 +54,10 @@ function onQuestionKeydown(event) {
 <template>
   <section class="summary-column report-summary" aria-labelledby="report-summary-title">
     <div class="summary-heading">
-      <h2 id="report-summary-title">LLM-Assisted Interpretation</h2>
+      <h2 id="report-summary-title" class="section-title">
+        <ChatDotRound aria-hidden="true" />
+        LLM-Assisted Interpretation
+      </h2>
       <el-button v-if="ready && canSubmit" class="report-update" size="small" @click="submit">Update Evidence</el-button>
     </div>
     <div ref="reportArea" class="report-content" role="log" aria-label="Report and discussion" :aria-busy="busy">
@@ -103,7 +107,14 @@ function onQuestionKeydown(event) {
         @update:model-value="question = $event"
         @keydown="onQuestionKeydown"
       />
-      <el-button size="small" type="primary" native-type="submit" :disabled="ready ? !canSend : !canSubmit" :loading="busy">
+      <el-button
+        size="small"
+        type="primary"
+        native-type="submit"
+        :icon="ready ? Position : DocumentAdd"
+        :disabled="ready ? !canSend : !canSubmit"
+        :loading="busy"
+      >
         {{ ready ? 'Send' : 'Submit' }}
       </el-button>
     </form>

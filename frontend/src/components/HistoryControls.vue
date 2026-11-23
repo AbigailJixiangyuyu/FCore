@@ -1,4 +1,5 @@
 <script setup>
+import { Search } from '@element-plus/icons-vue'
 import { computed } from 'vue'
 
 import { useWorkbench } from '../composables/workbenchContext.js'
@@ -22,11 +23,11 @@ const requiredSnapshots = computed(function () {
   <AlgorithmPicker
     :model-value="store.pattern"
     :algorithms="historyAlgorithms"
-    label="Historical community mining algorithm"
+    label="Historical Mining Model Selection"
     @update:model-value="store.selectAlgorithm('pattern', $event)"
   />
   <QueryForm :key="store.pattern" v-slot="{ clearError }" @submit="runHistory">
-    <h3>Parameters</h3>
+    <h3>Parameters Configuration</h3>
     <HistoryRangeFields />
     <QueryAccountField
       v-if="store.historyUsesAccount"
@@ -105,6 +106,7 @@ const requiredSnapshots = computed(function () {
       <el-button
         native-type="submit"
         type="primary"
+        :icon="Search"
         :loading="patternResult.isFetching.value"
         :disabled="!store.validHistoryParameters"
       >Run Query</el-button>

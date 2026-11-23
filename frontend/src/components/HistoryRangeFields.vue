@@ -9,11 +9,11 @@ const snapshots = Array.from({ length: HISTORY_LENGTH }, function (_, index) {
 </script>
 
 <template>
-  <div class="compact-field range-field">
-    <span>Range</span>
+  <div class="compact-field range-field" role="group" aria-labelledby="history-time-window">
+    <span id="history-time-window">Time Window Selection</span>
     <el-select
       v-model="store.historyDraft.start_snapshot_id"
-      aria-label="First snapshot to mine"
+      aria-label="Start snapshot"
     >
       <el-option
         v-for="snapshot in snapshots"
@@ -26,7 +26,7 @@ const snapshots = Array.from({ length: HISTORY_LENGTH }, function (_, index) {
     <span aria-hidden="true">–</span>
     <el-select
       v-model="store.historyDraft.end_snapshot_id"
-      aria-label="Last snapshot to mine"
+      aria-label="End snapshot"
     >
       <el-option
         v-for="snapshot in snapshots"

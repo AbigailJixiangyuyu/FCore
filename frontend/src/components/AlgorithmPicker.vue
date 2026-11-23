@@ -10,7 +10,7 @@ const selected = defineModel({ type: String, required: true })
 
 <template>
   <section class="algorithm-picker">
-    <h3>Algorithm</h3>
+    <h3>Model Selection</h3>
     <el-radio-group v-model="selected" class="paper-options" :aria-label="label">
       <el-radio
         v-for="(algorithm, id) in algorithms"
