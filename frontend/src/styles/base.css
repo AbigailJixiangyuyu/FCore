@@ -1,5 +1,5 @@
 :root {
-  --ui-font-size: 13px;
+  --ui-font-size: 15px;
   --ui-font-family: 'Microsoft YaHei', 'PingFang SC', system-ui, sans-serif;
   font-family: var(--ui-font-family);
   color: #20334b;

@@ -9,7 +9,7 @@ const snapshots = computed(() => Array.from({ length: store.presentIndex }, (_, 
 
 <template>
   <div class="compact-field range-field" role="group" aria-labelledby="history-time-window">
-    <span id="history-time-window">Time Window Selection</span>
+    <span id="history-time-window">Time Window</span>
     <el-select
       v-model="store.historyDraft.start_snapshot_id"
       aria-label="Start snapshot"

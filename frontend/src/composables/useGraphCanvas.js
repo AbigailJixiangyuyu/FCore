@@ -1,7 +1,6 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
-import { formatCount } from '../domain/format.js'
-import { probabilityLabel, useWorkbench } from './workbenchContext.js'
+import { useWorkbench } from './workbenchContext.js'
 import { applyCommunityHover } from '../graph/hover.js'
 import { measureNodeLabels, placeNodeLabels } from '../graph/labels.js'
 import { loadSigmaRenderer } from '../graph/sigmaRenderer.js'
@@ -153,19 +152,7 @@ export function useGraphCanvas(props, emit) {
     renderer.on('enterEdge', function ({ edge, event }) {
       setHover('', edge)
       const attributes = renderer.getGraph().getEdgeAttributes(edge)
-      let text = `${attributes.u} — ${attributes.v}`
-      if (attributes.predicted)
-        text += ` · ${attributes.target_snapshot} edge probability ${probabilityLabel(attributes.probability)} · ${attributes.currently_connected ? 'Connected' : 'Not connected'} in the current snapshot`
-      else {
-        const scope = attributes.aggregated
-          ? `${attributes.observation_scope} total`
-          : attributes.observation_scope
-        text += ` · ${scope} · ${formatCount(attributes.transaction_count, 'interaction')}`
-        const witness = attributes.frequencyEvidence
-        if (witness)
-          text += ` · t-frequency ${witness.frequency.toFixed(3)} · ${witness.witness_start_snapshot_id}–${witness.witness_end_snapshot_id}`
-      }
-      showTooltip(text, event)
+      showTooltip(`${attributes.u}—${attributes.v}`, event)
     })
     renderer.on('leaveEdge', function () {
       setHover()

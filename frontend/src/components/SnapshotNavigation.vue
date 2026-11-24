@@ -17,8 +17,13 @@ const snapshots = computed(function () {
 const history = computed(() => snapshots.value.filter((meta) => meta.kind === 'history'))
 const stageStops = computed(() => snapshots.value.filter((meta) => meta.kind !== 'history'))
 const nextSnapshot = computed(() => snapshots.value.find((meta) => meta.kind === 'future'))
-const snapshotMinutes = computed(function () {
-  return formatNumber(dataset.value?.snapshot_minutes)
+const snapshotInterval = computed(function () {
+  const minutes = dataset.value?.snapshot_minutes
+  const days = minutes / (24 * 60)
+  if (days > 0 && Number.isInteger(days)) {
+    return `${formatNumber(days)} ${days === 1 ? 'day' : 'days'}`
+  }
+  return `${formatNumber(minutes)} min`
 })
 
 function handleDatasetCommand(command) {
@@ -61,7 +66,7 @@ function handleDatasetCommand(command) {
         </template>
         <div class="snapshot-granularity">
           <span>Snapshot interval</span>
-          <strong>{{ snapshotMinutes }} min per snapshot</strong>
+          <strong>{{ snapshotInterval }} per snapshot</strong>
         </div>
       </el-popover>
       <el-button class="time-setting-button" :icon="Plus" :disabled="!nextSnapshot" @click="appendMode = true; importOpen = true">

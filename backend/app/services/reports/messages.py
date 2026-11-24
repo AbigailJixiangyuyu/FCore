@@ -7,14 +7,14 @@ from app.schemas.reports import ReportFollowUpRequest
 
 from .facts import ReportFacts
 
-EVIDENCE_GUIDANCE = """Use only the three submitted community results. Cite evidence using its ID,
+EVIDENCE_GUIDANCE = """Use only the submitted stages and cite only evidence IDs present in the supplied facts. Cite evidence using its ID,
 such as 〔H01〕, 〔C01〕, 〔C02〕 or 〔P01〕. Each stage has its own method, window and, where applicable,
 query node and k. When these differ, describe the overlap between the selections and avoid
 attributing every membership difference to the passage of time.
 
 Use the historical method's actual finding. Periodic presence refers to the listed snapshots.
-A burst witness describes an individual member's window. Compare history with current, then
-current with the submitted prediction. Give the number retained, added and exited and use net
+A burst witness describes an individual member's window. Compare the submitted selections in
+chronological order when a comparison is supplied. Give the number retained, added and exited and use net
 change alongside turnover. Retention is the share of the earlier selection that appears in the
 later one. Use the membership groups and node aliases to identify members shared across stages.
 Describe every future membership or change as predicted for the specified target snapshot.
@@ -23,18 +23,38 @@ Use SLADE scores only for scored members of the current selection. Describe cove
 median and any notable members in the context of both community and global rank. Higher scores
 indicate more unusual current interactions. Connect a named member's score to its historical
 and predicted membership when supported. If scoring evidence is unavailable, state which
-conclusions the evidence can support. Missing forecast scores leave future membership unknown."""
+conclusions the evidence can support. Missing forecast scores leave future membership unknown. Omitted stages provide no evidence."""
 
 REPORT_PROMPT = """Write a concise English Markdown report for a graph analyst. Open with one sentence stating the
-main finding. After a blank line, give exactly three bullet points in this order:
-- **Historical pattern**: explain the historical method's finding.
-- **Current changes and unusual members**: connect observed turnover to current SLADE evidence.
-- **Predicted changes**: explain expected retention or turnover for the target snapshot.
+main finding. After a blank line, give the following Markdown bullet points in order:
+{outline}
 Lead each point with its conclusion, then support it with specific counts, vertices or snapshots.
 Place each evidence ID immediately after the claim it supports. Use initial_prompt, when supplied,
 to focus the analysis. Keep each point short.
 
 """ + EVIDENCE_GUIDANCE
+
+
+def _report_outline(facts: ReportFacts) -> str:
+    ids = {row["id"] for row in facts.values.get("evidence", [])}
+    points = []
+    if "H01" in ids:
+        points.append("- **Historical pattern**: describe the submitted community and the method's finding.")
+    if "C01" in ids:
+        if "H01" in ids:
+            points.append("- **Current changes and unusual members**: compare with the historical selection and explain current SLADE evidence.")
+        else:
+            points.append("- **Current community and unusual members**: describe size, internal edges and current SLADE evidence.")
+    if "P01" in ids:
+        if "C01" in ids or "H01" in ids:
+            earlier = "current" if "C01" in ids else "historical"
+            points.append(f"- **Predicted changes**: compare predicted membership directly with the {earlier} selection when scores are available.")
+        else:
+            points.append("- **Predicted community**: describe the target snapshot, predicted size and members when scores are available.")
+    if {"H01", "C01", "P01"} <= ids:
+        points[-1] += " Identify members shared across all three stages when supported."
+    return "\n".join(points)
+
 
 FOLLOW_UP_PROMPT = """Answer the latest question about the lifecycle report in the language it uses.
 Use earlier replies to resolve references. Use the supplied evidence in the first user message for
@@ -69,7 +89,7 @@ def report_messages(
     if initial_prompt is not None:
         supplied["initial_prompt"] = with_aliases(initial_prompt)
     messages = [
-        {"role": "system", "content": FOLLOW_UP_PROMPT if follow_up else REPORT_PROMPT},
+        {"role": "system", "content": FOLLOW_UP_PROMPT if follow_up else REPORT_PROMPT.format(outline=_report_outline(facts))},
         {"role": "user", "content": json.dumps(supplied, ensure_ascii=False)},
     ]
     if follow_up is None:

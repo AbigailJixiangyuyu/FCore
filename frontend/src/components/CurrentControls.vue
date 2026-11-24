@@ -31,7 +31,7 @@ const validParameters = computed(function () {
     <template v-if="usesParameters">
       <h3>Parameters Configuration</h3>
       <div v-if="store.currentAlgorithm === 'tccs'" class="compact-field range-field" role="group" aria-labelledby="current-time-window">
-        <span id="current-time-window">Time Window Selection</span>
+        <span id="current-time-window">Time Window</span>
         <el-select v-model="store.draft.start_snapshot_id" aria-label="Start snapshot">
           <el-option v-for="id in startSnapshots" :key="id" :value="id" :label="id" />
         </el-select>

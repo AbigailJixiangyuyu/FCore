@@ -1,57 +1,29 @@
 # LLM-Assisted Interpretation 提示词与证据规则
 
-FCore 以用户提交的历史社区为基线，比较当前社区新增和退出了哪些成员，再分析这些成员在未来社区中的预计去向。后端按节点 ID 计算成员变化，并将历史算法的发现和当前 S12 的 SLADE 分数交给 LLM，用于解释哪些成员值得关注。
+用户可提交 History、Current、Future 中的任意一个、两个或三个阶段。点击 **Submit** 加入该阶段的结果，再点击 **Send** 请求分析。首问可留空。
 
-## 首次点击 Send 时，模型收到什么
+## 首次发送
 
-用户在 **History、Current、Future** 各运行算法并点击 **Submit**，前端保存对应结果的引用。三项齐全后，用户点击 **Send**，后端核对数据集版本、观察截止、所选结构和模型结果，然后向 DeepSeek 发送同一请求中的两条消息。[证据复核](app/services/reports/evidence.py) · [消息组装](app/services/reports/messages.py)
+后端复核已提交结果的数据集版本、观察截止、结构或预测指纹。第一条消息为英文系统提示词，第二条为 JSON，包含所选阶段的 `evidence`、成员归属 `membership_groups` 和可选首问 `initial_prompt`。模型按证据组合生成英文 Markdown，以一句话概括主要发现，再按时间顺序为每个已提交阶段写一条要点。每项引用对应的证据编号。页面流式显示正文。[消息与提示词原文](app/services/reports/messages.py)
 
-| 消息顺序 | 角色 | 实际内容 |
-| --- | --- | --- |
-| 1 | `system` | 固定的英文提示词，规定分析对象、证据引用方式、语言及输出格式。完整原文见下节。 |
-| 2 | `user` | 一个序列化为文本的 JSON 对象。`evidence` 是四条证据，`membership_groups` 是成员在三个阶段的归属。用户填写的首问放在可选字段 `initial_prompt`，留空时省略该字段。 |
+| 提交组合 | 首份报告的重点 |
+| --- | --- |
+| History | 按所选历史方法解释规律和时间窗口。 |
+| Current | 描述社区规模、内部边及当前成员的 SLADE 评分。 |
+| Future | 说明目标快照的预计社区规模和成员。 |
+| History + Current | 比较历史与当前成员，结合当前异常分数解释值得关注的对象。 |
+| History + Future | 直接比较历史成员与预计成员，成员变化使用预测措辞。 |
+| Current + Future | 说明当前结构、异常成员及预计保留、新增和退出情况。 |
+| 三个阶段 | 依次比较历史与当前、当前与预测，并指出三个结果都包含的成员。 |
 
-界面中的 **Ask FCore** 是输入框占位文字。直接点击 **Send** 会生成英文全周期报告。填写首问时，模型围绕该问题组织同一组证据。首句概括主要发现，随后用三个 Markdown 列表项解释历史规律、当前变化与异常成员、未来预计变化。每项给出结论及支持它的数字、顶点或快照，相关判断后紧跟证据编号。请求启用 Thinking 和流式输出，页面随正文到达更新排版。[前端提交逻辑](../frontend/src/composables/workbench/useLifecycleReport.js) · [上游请求与流式响应](app/services/reports/provider.py)
-
-## 首份报告的系统提示词原文
-
-```text
-Write a concise English Markdown report for a graph analyst. Open with one sentence stating the
-main finding. After a blank line, give exactly three bullet points in this order:
-- **Historical pattern**: explain the historical method's finding.
-- **Current changes and unusual members**: connect observed turnover to current SLADE evidence.
-- **Predicted changes**: explain expected retention or turnover for the target snapshot.
-Lead each point with its conclusion, then support it with specific counts, vertices or snapshots.
-Place each evidence ID immediately after the claim it supports. Use initial_prompt, when supplied,
-to focus the analysis. Keep each point short.
-
-Use only the three submitted community results. Cite evidence using its ID,
-such as 〔H01〕, 〔C01〕, 〔C02〕 or 〔P01〕. Each stage has its own method, window and, where applicable,
-query node and k. When these differ, describe the overlap between the selections and avoid
-attributing every membership difference to the passage of time.
-
-Use the historical method's actual finding. Periodic presence refers to the listed snapshots.
-A burst witness describes an individual member's window. Compare history with current, then
-current with the submitted prediction. Give the number retained, added and exited and use net
-change alongside turnover. Retention is the share of the earlier selection that appears in the
-later one. Use the membership groups and node aliases to identify members shared across stages.
-Describe every future membership or change as predicted for the specified target snapshot.
-
-Use SLADE scores only for scored members of the current selection. Describe coverage, mean,
-median and any notable members in the context of both community and global rank. Higher scores
-indicate more unusual current interactions. Connect a named member's score to its historical
-and predicted membership when supported. If scoring evidence is unavailable, state which
-conclusions the evidence can support. Missing forecast scores leave future membership unknown.
-```
-
-## 四条证据怎样解释
+## 各阶段提供的证据
 
 | 引用 | 分析对象 | 报告可以使用的事实 |
 | --- | --- | --- |
 | 〔H01〕 | 所提交的历史社区 | 历史算法、实际分析范围、成员数和该算法找到的模式。各方法的专属指标见下表。 |
-| 〔C01〕 | 所提交的当前社区与历史社区 | 当前查询方法及窗口、成员数、内部边数，以及历史 → 当前的保留、新增、退出、净变化和留存率。全局最大核另给出求得的最高核阶数。 |
+| 〔C01〕 | 所提交的当前社区 | 当前查询方法及窗口、成员数、内部边数。同时提交历史时，给出历史 → 当前的保留、新增、退出、净变化和留存率。全局最大核另给出求得的最高核阶数。 |
 | 〔C02〕 | 当前社区成员在 S12 的 SLADE 评分 | 已评分与未评分人数、已评分成员的均值和中位数、进入全图前十的人数。列出社区内前三名，以及该社区其余进入全图前十的成员。每位列出者都有分数、社区排名和全图排名，可关联其历史与预计成员身份。 |
-| 〔P01〕 | 所提交的未来社区与当前社区 | 预测方法、目标快照和预计成员数。给出当前 → 未来的预计保留、新增、退出、净变化、留存率，以及三个结果共有多少人。 |
+| 〔P01〕 | 所提交的未来社区 | 预测方法、目标快照和预计成员数。有较早的已提交阶段时，给出从最近该阶段到预测阶段的成员变化。三项齐全时另给出共有成员数。 |
 
 **历史社区提供的指标随方法变化。** [历史证据提取](app/services/reports/history.py)
 
@@ -66,11 +38,11 @@ conclusions the evidence can support. Missing forecast scores leave future membe
 
 **怎样计算跨期变化。** 设较早和较晚的成员集合分别为 `A`、`B`。保留人数等于交集大小，新增人数等于只在 `B` 中的人数，退出人数等于只在 `A` 中的人数。净变化等于新增减退出。留存率以较早社区为分母，计算为 `保留人数 / |A|`，分母为零时记为 `null`。报告同时给出净变化和成员更替，这样即使两次人数相同，也能看出有多少人换了。[成员比较与风险统计](app/services/reports/facts.py)
 
-**怎样对齐查询。** 各阶段保留各自适用的查询点 `q`（JSON 中为 `query_node`）和核阶数 `k`。例如，PKMC 的 `maximum_core_order` 是算法求得的值。若三次提交的查询条件不同，能够直接说明的是所选社区重合多少、哪些成员进出。相似度 ε、连边阈值等输入参数用于后端复核。报告对未来的判断以所提交阈值下的那一次预测为依据。
+**怎样对齐查询。** 各阶段保留各自适用的查询点 `q`（JSON 中为 `query_node`）和核阶数 `k`。例如，PKMC 的 `maximum_core_order` 是算法求得的值。若所提交阶段的查询条件不同，能够直接说明的是所选社区重合多少、哪些成员进出。相似度 ε、连边阈值等输入参数用于后端复核。报告对未来的判断以所提交阈值下的那一次预测为依据。
 
 **怎样定位成员。** `membership_groups` 按 `history`、`current`、`predicted` 的实际组合列出节点，每个节点出现一次。同一份报告对同一节点使用同一代号，例如 `N002`。首问和追问中“节点 12”这类带节点标记的 ID 会映射到相应代号，页面显示回复时再还原原始 ID。[节点代号与提问处理](app/services/reports/messages.py) · [页面显示](../frontend/src/components/analysis-summary/AnalysisReport.vue)
 
-**怎样处理证据不足。** SLADE 均值和中位数只计入有分数的当前成员。当前查询使用回溯窗口时，SLADE 的评分时刻仍为 S12。评分越高表示该节点在当前时刻的交互越偏离模型学到的模式。整组缺少评分时，〔C02〕给出覆盖人数及 `evidence_gap`。未来有候选对获评分、预测社区为空时，预计成员数为 0，此时所提交的当前成员均计入预计退出。若候选对均无法评分，〔P01〕给出 `evidence_gap`，未来成员归属和变化记为未知。[证据组装](app/services/reports/facts.py)
+**怎样处理证据不足。** SLADE 均值和中位数只计入有分数的当前成员。当前查询使用回溯窗口时，SLADE 的评分时刻仍为 S12。评分越高表示该节点在当前时刻的交互越偏离模型学到的模式。整组缺少评分时，〔C02〕给出覆盖人数及 `evidence_gap`。未来有候选对获评分、预测社区为空时，预计成员数为 0，此时较早比较阶段的全部成员计入预计退出。若候选对均无法评分，〔P01〕给出 `evidence_gap`，未来成员归属和变化记为未知。[证据组装](app/services/reports/facts.py)
 
 ## EmailDept3 的首次发送实例
 
@@ -99,7 +71,7 @@ conclusions the evidence can support. Missing forecast scores leave future membe
     },
     {
       "id": "C01",
-      "topic": "submitted current community compared with submitted history",
+      "topic": "submitted current community",
       "method": "PKMC (global maximum k-core)",
       "window": "S12",
       "member_count": 30,
@@ -145,7 +117,7 @@ conclusions the evidence can support. Missing forecast scores leave future membe
     },
     {
       "id": "P01",
-      "topic": "submitted prediction compared with the submitted current community",
+      "topic": "submitted predicted community",
       "method": "Zebra",
       "target_snapshot": "S13",
       "predicted_member_count": 23,
@@ -201,7 +173,7 @@ conclusions the evidence can support. Missing forecast scores leave future membe
 
 每次追问发送的消息依次为 `system`（追问规则）、`user`（同一组证据及原首问）、`assistant`（首份报告原文）、按时间排列的每轮已完成问答，最后是 `user`（本轮问题）。更新任何一个阶段的已提交证据后，下一次 **Send** 会基于新组合重新生成首份报告。[前端会话管理](../frontend/src/composables/workbench/useLifecycleReport.js) · [报告接口说明](API_INTEGRATION.md#全周期联合报告)
 
-追问使用提问者的语言。单个数值或顶点问题直接回答，多个发现或比较分点展开。前端保存回复的原始 Markdown 供后续追问，显示时还原节点 ID。以下提示词之后复用从 “Use only the three submitted community results” 起的证据规则。[原文](app/services/reports/messages.py)
+追问使用提问者的语言。单个数值或顶点问题直接回答，多个发现或比较分点展开。前端保存回复的原始 Markdown 供后续追问，显示时还原节点 ID。以下提示词之后复用从 “Use only the submitted stages” 起的证据规则。[原文](app/services/reports/messages.py)
 
 ```text
 Answer the latest question about the lifecycle report in the language it uses.

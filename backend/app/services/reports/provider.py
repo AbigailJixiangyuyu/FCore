@@ -70,13 +70,14 @@ class ReportClient:
 
     async def _events(self, response: httpx.Response, facts: ReportFacts) -> AsyncIterator[dict]:
         started = False
+        has_answer = False
         try:
             async for line in response.aiter_lines():
                 if not line.startswith("data:"):
                     continue
                 data = line[5:].strip()
                 if data == "[DONE]":
-                    if started:
+                    if has_answer:
                         yield {"type": "done"}
                     else:
                         yield {"type": "error", "detail": "The report provider returned no text. Try again."}
@@ -89,17 +90,21 @@ class ReportClient:
                 choices = chunk.get("choices")
                 if not choices:
                     continue
-                content = choices[0].get("delta", {}).get("content")
-                if not isinstance(content, str) or not content:
-                    continue
-                if not started:
-                    started = True
-                    yield {
-                        "type": "start",
-                        "model": chunk.get("model") or self.model,
-                        "node_labels": {alias: account for account, alias in facts.aliases.items()},
-                    }
-                yield {"type": "delta", "content": content}
+                delta = choices[0].get("delta") or {}
+                for field, event_type in (("reasoning_content", "thinking"), ("content", "delta")):
+                    content = delta.get(field)
+                    if not isinstance(content, str) or not content:
+                        continue
+                    if not started:
+                        started = True
+                        yield {
+                            "type": "start",
+                            "model": chunk.get("model") or self.model,
+                            "node_labels": {alias: account for account, alias in facts.aliases.items()},
+                        }
+                    if event_type == "delta" and content.strip():
+                        has_answer = True
+                    yield {"type": event_type, "content": content}
         except httpx.TimeoutException:
             yield {"type": "error", "detail": "The report provider timed out. Try again."}
             return

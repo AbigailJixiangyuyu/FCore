@@ -22,7 +22,7 @@ async function scrollToLatest() {
   area.scrollTop = area.scrollHeight
 }
 
-watch([reportText, () => pendingTurn.value?.answer, replyError], () => {
+watch([reportText, () => report.value?.thinking, () => pendingTurn.value?.thinking, () => pendingTurn.value?.answer, replyError], () => {
   const area = reportArea.value
   if ((busy.value || replyError.value) && area && area.scrollHeight - area.scrollTop - area.clientHeight <= 8) {
     scrollToLatest()
@@ -70,18 +70,18 @@ function onQuestionKeydown(event) {
     <div ref="reportArea" class="report-content" role="log" aria-label="Report and discussion" :aria-busy="busy">
       <p v-if="report?.initial_prompt" class="report-text report-question report-opening">{{ report.initial_prompt }}</p>
       <p v-if="error" class="report-error" role="alert">{{ error }}</p>
-      <ReportAnswer v-if="reportText" :content="reportText" :node-labels="report.node_labels" />
+      <ReportAnswer v-if="reportText || report?.thinking" :content="reportText" :thinking="report.thinking" :thinking-duration-ms="report.thinkingDurationMs" :node-labels="report.node_labels" />
       <p v-else-if="generating" class="report-status">
-        Generating the full-cycle report<span class="report-status-dots" aria-hidden="true">...</span>
+        Generating report<span class="report-status-dots" aria-hidden="true">...</span>
       </p>
       <template v-if="!generating">
         <div v-for="(turn, index) in turns" :key="index" class="report-turn">
           <p class="report-text report-question">{{ turn.question }}</p>
-          <ReportAnswer :content="turn.answer" :node-labels="report.node_labels" />
+          <ReportAnswer :content="turn.answer" :thinking="turn.thinking" :thinking-duration-ms="turn.thinkingDurationMs" :node-labels="report.node_labels" />
         </div>
         <div v-if="pendingTurn" class="report-turn">
           <p class="report-text report-question">{{ pendingTurn.question }}</p>
-          <ReportAnswer v-if="pendingTurn.answer" :content="pendingTurn.answer" :node-labels="report.node_labels" />
+          <ReportAnswer v-if="pendingTurn.answer || pendingTurn.thinking" :content="pendingTurn.answer" :thinking="pendingTurn.thinking" :thinking-duration-ms="pendingTurn.thinkingDurationMs" :node-labels="report.node_labels" />
           <p v-else-if="answering" class="report-status">Thinking…</p>
           <div v-if="replyError" class="report-reply-error">
             <p class="report-error" role="alert">{{ replyError }}</p>
@@ -105,7 +105,7 @@ function onQuestionKeydown(event) {
         native-type="submit"
         :icon="Position"
         :disabled="!canSend"
-        :title="!ready ? 'Submit evidence from all three stages to send.' : undefined"
+        :title="!ready ? 'Submit evidence from at least one stage to send.' : undefined"
         :loading="busy"
       >
         Send

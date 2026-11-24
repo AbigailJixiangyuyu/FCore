@@ -13,7 +13,7 @@ export function readPaperReport(context) {
       if (!Object.hasOwn(reportStages, stage) || !matchesContext(slot?.reference, context)) return null
     }
     if (state.report && (typeof state.report.content !== 'string' ||
-      !Object.keys(reportStages).every(stage => state.slots[stage]))) return null
+      Object.keys(state.slots).length === 0)) return null
     if (state.turns.some(turn => !state.report || typeof turn?.question !== 'string' || typeof turn.answer !== 'string')) return null
     return state
   } catch {

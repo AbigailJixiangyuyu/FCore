@@ -417,6 +417,9 @@
   margin: 0 0 5px auto;
 }
 .report-answer { background: #f3f5f8; }
+.report-thinking { color: var(--muted); }
+.report-thinking span { margin-inline-start: .3em; white-space: pre-wrap; }
+.report-thinking-toggle { padding: 0; border: 0; background: none; font: inherit; font-weight: 600; color: inherit; cursor: pointer; }
 .report-answer :where(h1, h2, h3, h4, h5, h6, ul, ol, pre, blockquote) {
   margin: 0;
   font-size: inherit;
@@ -425,6 +428,7 @@
 .report-answer ul { list-style: disc; }
 .report-answer ol { list-style: decimal; }
 .report-answer > * + *,
+.report-answer-body > * + *,
 .report-answer li + li { margin-top: 0.3em; }
 .report-answer pre { white-space: pre-wrap; }
 .report-reply-error {

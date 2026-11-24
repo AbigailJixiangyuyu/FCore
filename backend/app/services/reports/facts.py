@@ -1,4 +1,4 @@
-"""Compare the members of the three verified, submitted communities."""
+"""Compare the members of the verified, submitted communities."""
 
 from collections import defaultdict
 from dataclasses import dataclass, field
@@ -39,7 +39,7 @@ def _membership_groups(facts: ReportFacts, stages: dict[str, set[str]]) -> list[
 
 
 def _current_risk(
-    facts: ReportFacts, snapshot: str, historical: set[str], current: set[str],
+    facts: ReportFacts, snapshot: str, historical: set[str] | None, current: set[str],
     predicted: set[str] | None, scores: dict | None,
 ) -> dict:
     rows = [] if scores is None else [row for row in scores["accounts"] if row["account_id"] in current]
@@ -69,8 +69,9 @@ def _current_risk(
             "score": round(row["score"], 4),
             "community_rank": rank,
             "global_rank": row["rank"],
-            "in_submitted_history": account in historical,
         }
+        if historical is not None:
+            member["in_submitted_history"] = account in historical
         if predicted is not None:
             member["in_submitted_prediction"] = account in predicted
         review_members.append(member)
@@ -90,55 +91,62 @@ _CURRENT_METHODS = {
 }
 
 
-def collect_facts(history: Structure, current: Structure, scores: dict | None, forecast: dict) -> ReportFacts:
+def _add_query_parameters(facts: ReportFacts, record: dict, parameters: dict) -> None:
+    if parameters.get("account") is not None:
+        record["query_node"] = facts.alias(parameters["account"])
+    if "k" in parameters:
+        record["k"] = parameters["k"]
+
+
+def collect_facts(history: Structure | None, current: Structure | None,
+                  scores: dict | None, forecast: dict | None) -> ReportFacts:
     facts = ReportFacts()
-    historical_members = set(history.members)
-    current_members = set(current.members)
-    stages = {"history": historical_members, "current": current_members}
-    historical_record = submitted_history_evidence(history, facts.alias)
-    current_record = {
-        "id": "C01",
-        "topic": "submitted current community compared with submitted history",
-        "method": _CURRENT_METHODS.get(current.method, current.method),
-        "window": window(current.parameters.get("start_snapshot_id") or current.snapshot_id, current.snapshot_id),
-        "member_count": len(current_members),
-        "internal_edges": current.metrics["internal_edges"],
-        "change_from_history": _membership_change(historical_members, current_members),
-    }
-    if "max_core" in current.parameters:
-        current_record["maximum_core_order"] = current.parameters["max_core"]
+    records = []
+    stages = {}
+    if history is not None:
+        stages["history"] = set(history.members)
+        record = submitted_history_evidence(history, facts.alias)
+        _add_query_parameters(facts, record, history.parameters)
+        records.append(record)
 
-    prediction = {
-        "id": "P01",
-        "topic": "submitted prediction compared with the submitted current community",
-        "method": forecast["model"].title(),
-        "target_snapshot": forecast["target_snapshot"],
-    }
-    # The forecast view's comparison uses the future query's q and k at S12.
-    # The report compares the submitted members directly, even when the queries differ.
-    predicted = None
-    if forecast["scored_pair_count"]:
-        predicted = set(forecast["members"])
-        stages["predicted"] = predicted
-        prediction.update(
-            predicted_member_count=len(predicted),
-            change_from_current=_membership_change(current_members, predicted),
-            members_in_all_three=len(historical_members & current_members & predicted),
-        )
-    else:
-        prediction["evidence_gap"] = "No candidate pair could be scored for this prediction."
+    if current is not None:
+        stages["current"] = set(current.members)
+        record = {
+            "id": "C01", "topic": "submitted current community",
+            "method": _CURRENT_METHODS.get(current.method, current.method),
+            "window": window(current.parameters.get("start_snapshot_id") or current.snapshot_id, current.snapshot_id),
+            "member_count": len(stages["current"]),
+            "internal_edges": current.metrics["internal_edges"],
+        }
+        if "history" in stages:
+            record["change_from_history"] = _membership_change(stages["history"], stages["current"])
+        if "max_core" in current.parameters:
+            record["maximum_core_order"] = current.parameters["max_core"]
+        _add_query_parameters(facts, record, current.parameters)
+        records.append(record)
 
-    for record, parameters in (
-        (historical_record, history.parameters), (current_record, current.parameters), (prediction, forecast),
-    ):
-        if parameters.get("account") is not None:
-            record["query_node"] = facts.alias(parameters["account"])
-        if "k" in parameters:
-            record["k"] = parameters["k"]
+    if forecast is not None:
+        prediction = {
+            "id": "P01", "topic": "submitted predicted community",
+            "method": forecast["model"].title(), "target_snapshot": forecast["target_snapshot"],
+        }
+        _add_query_parameters(facts, prediction, forecast)
+        if forecast["scored_pair_count"]:
+            members = set(forecast["members"])
+            prediction["predicted_member_count"] = len(members)
+            if stages:
+                earlier = next(reversed(stages))
+                prediction[f"change_from_{earlier}"] = _membership_change(stages[earlier], members)
+            if history is not None and current is not None:
+                prediction["members_in_all_three"] = len(stages["history"] & stages["current"] & members)
+            stages["predicted"] = members
+        else:
+            prediction["evidence_gap"] = "No candidate pair could be scored for this prediction."
 
-    risk = _current_risk(facts, current.observed_until, historical_members, current_members, predicted, scores)
-    facts.values = {
-        "evidence": [historical_record, current_record, risk, prediction],
-        "membership_groups": _membership_groups(facts, stages),
-    }
+    if current is not None:
+        records.append(_current_risk(facts, current.observed_until, stages.get("history"),
+                                     stages["current"], stages.get("predicted"), scores))
+    if forecast is not None:
+        records.append(prediction)
+    facts.values = {"evidence": records, "membership_groups": _membership_groups(facts, stages)}
     return facts

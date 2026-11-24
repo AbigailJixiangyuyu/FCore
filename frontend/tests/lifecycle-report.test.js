@@ -24,7 +24,7 @@ test('paper refresh restores submitted evidence, Markdown, turns and drafts for 
     original.question.value = question
     const request = original.ask()
     const stream = openStream()
-    for (const event of [{ type: 'start', model: 'test', node_labels: { N001: '49' } }, { type: 'delta', content: answer }, { type: 'done' }]) {
+    for (const event of [{ type: 'start', model: 'test', node_labels: { N001: '49' } }, { type: 'thinking', content: 'Checking evidence.' }, { type: 'delta', content: answer }, { type: 'done' }]) {
       stream.enqueue(textLine(event))
     }
     stream.close()
@@ -33,6 +33,8 @@ test('paper refresh restores submitted evidence, Markdown, turns and drafts for 
   original.question.value = 'Which members left?'
   await nextTick()
   const restored = createReport()
+  assert.equal(restored.report.value.thinking, 'Checking evidence.')
+  assert.equal(restored.turns.value[0].thinking, 'Checking evidence.')
   assert.deepEqual(restored.report.value, original.report.value)
   assert.deepEqual(restored.turns.value, original.turns.value)
   assert.equal(restored.question.value, original.question.value)
@@ -85,7 +87,41 @@ function setupReport(t) {
   return { context, workbench, createReport, selectCurrent, selectFuture, fetch, openStream, textLine, flushStream }
 }
 
-test('the first message sends only after all three evidence submissions and replaces an obsolete stream', async t => {
+test('paper view restores partial reports and adding evidence starts a new comparison', async t => {
+  const records = new Map()
+  globalThis.window = { localStorage: { getItem: key => records.get(key), setItem: (key, value) => records.set(key, value) } }
+  t.after(() => { delete globalThis.window })
+  const { workbench, createReport, selectFuture, fetch, openStream, textLine } = setupReport(t)
+  workbench.viewLayout = ref('paper')
+  const report = createReport()
+  report.submit()
+  for (const stages of [['history'], ['history', 'future']]) {
+    const request = report.ask()
+    const [url, options] = fetch.mock.calls.at(-1).arguments
+    assert.equal(url, '/api/reports/generate')
+    const body = JSON.parse(options.body)
+    assert.deepEqual(['history', 'current', 'future'].filter(stage => stage in body), stages)
+    assert.equal('initial_prompt' in body, false)
+    const stream = openStream()
+    for (const event of [{ type: 'start', model: 'test', node_labels: {} }, { type: 'delta', content: stages.join(' + ') }, { type: 'done' }]) {
+      stream.enqueue(textLine(event))
+    }
+    stream.close()
+    await request
+    await nextTick()
+    const restored = createReport()
+    assert.deepEqual(restored.report.value, report.report.value)
+    assert.equal(restored.canAsk.value, true)
+    if (stages.length === 1) {
+      selectFuture()
+      report.submit()
+      assert.equal(report.report.value, null)
+      assert.equal(report.canSend.value, true)
+    }
+  }
+})
+
+test('each submission enables sending and updated evidence replaces an obsolete stream', async t => {
   const { context, workbench, createReport, selectCurrent, selectFuture, fetch, openStream, textLine, flushStream } = setupReport(t)
   const report = createReport()
   assert.equal(report.question.value, '')
@@ -96,12 +132,11 @@ test('the first message sends only after all three evidence submissions and repl
   await report.ask()
   report.submit()
   assert.deepEqual(Object.keys(report.slots.value), ['history'])
-  assert.equal(report.canSend.value, false)
+  assert.equal(report.canSend.value, true)
   selectCurrent()
   report.submit()
   assert.deepEqual(Object.keys(report.slots.value), ['history', 'current'])
-  assert.equal(report.canSend.value, false)
-  await report.ask()
+  assert.equal(report.canSend.value, true)
   selectFuture()
   workbench.prediction.isPlaceholderData.value = true
   assert.equal(report.canSubmit.value, false)
@@ -202,18 +237,29 @@ test('follow-ups carry completed turns and a fresh page starts with an empty rep
     turns: [], question: 'How many members are shared?',
   })
   const firstStream = openStream()
+  let clockMs = 1000
+  t.mock.method(performance, 'now', () => clockMs)
   firstStream.enqueue(textLine(start))
+  firstStream.enqueue(textLine({ type: 'thinking', content: 'Checking ' }))
+  firstStream.enqueue(textLine({ type: 'thinking', content: 'overlap.' }))
+  await flushStream()
+  assert.equal(discussion.pendingTurn.value.thinking, 'Checking overlap.')
+  assert.equal(discussion.pendingTurn.value.answer, '')
+  clockMs += 300
   firstStream.enqueue(textLine({ type: 'delta', content: '13 members' }))
   await flushStream()
   assert.equal(discussion.answering.value, true)
   assert.equal(discussion.pendingTurn.value.answer, '13 members')
+  assert.equal(discussion.pendingTurn.value.thinkingDurationMs, 300)
+  clockMs += 700
   assert.deepEqual(discussion.turns.value, [])
   firstStream.enqueue(textLine({ type: 'delta', content: ' form the shared group.' }))
   firstStream.enqueue(textLine({ type: 'done' }))
   firstStream.close()
   await first
   const firstTurn = { question: firstRequest.question, answer: '13 members form the shared group.' }
-  assert.deepEqual(discussion.turns.value, [firstTurn])
+  const displayedTurn = { ...firstTurn, thinking: 'Checking overlap.', thinkingDurationMs: 300 }
+  assert.deepEqual(discussion.turns.value, [displayedTurn])
 
   workbench.store.stage = 'future'
   workbench.store.futureParameters.threshold = 0.7
@@ -229,7 +275,7 @@ test('follow-ups carry completed turns and a fresh page starts with an empty rep
   await second
   assert.equal(discussion.pendingTurn.value.answer, 'Partial reply')
   assert.equal(discussion.replyError.value, 'Interrupted.')
-  assert.deepEqual(discussion.turns.value, [firstTurn])
+  assert.deepEqual(discussion.turns.value, [displayedTurn])
 
   const retry = discussion.retry()
   assert.deepEqual(latestRequest(), secondRequest)
@@ -240,7 +286,7 @@ test('follow-ups carry completed turns and a fresh page starts with an empty rep
   retryStream.close()
   await retry
   assert.deepEqual(discussion.report.value, initialReport)
-  assert.deepEqual(discussion.turns.value, [firstTurn, { question: secondRequest.question, answer: '其中有 8 人。' }])
+  assert.deepEqual(discussion.turns.value, [displayedTurn, { question: secondRequest.question, answer: '其中有 8 人。' }])
   assert.equal(discussion.pendingTurn.value, null)
   const fresh = createReport()
   assert.deepEqual(fresh.slots.value, {})

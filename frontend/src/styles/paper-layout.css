@@ -1,7 +1,3 @@
-:root:has(.workbench[data-layout='paper']) {
-  --ui-font-size: 15px;
-}
-
 .workbench[data-layout='paper'] {
   --paper-workspace-reduction: 80px;
   --paper-workspace-floor: 356px;

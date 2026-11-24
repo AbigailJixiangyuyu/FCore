@@ -278,19 +278,20 @@ Zebra 加载权重和 S11 预热状态，再处理真实 S12 事件。匹配模�
 
 ### 全周期联合报告
 
-`POST /api/reports/generate` 接收公共数据上下文及三个对象 `history`、`current`、`future`。每个对象保存提交时的数据上下文。历史和当前引用结构的 `structure_id`、`membership_hash`、`snapshot_id`、`origin`、`method`、`parameters`，当前另附 `risk_model_version`（评分不可用时为 null）。未来引用预测参数、`target_snapshot`、`model_version` 及 `/api/link-prediction/community` 返回的 `result_fingerprint`。
+`POST /api/reports/generate` 接收公共数据上下文及 `history`、`current`、`future` 的任意非空组合。生成和追问接口在未提交证据时返回 422。每个对象保存提交时的数据上下文。历史和当前引用结构的 `structure_id`、`membership_hash`、`snapshot_id`、`origin`、`method`、`parameters`，当前另附 `risk_model_version`（评分不可用时为 null）。未来引用预测参数、`target_snapshot`、`model_version` 及 `/api/link-prediction/community` 返回的 `result_fingerprint`。
 
-可选的 `initial_prompt` 只包含用户在输入框中填写的问题。留空时前端省略该字段，后端直接用三份已核验的社区结果生成报告。
+可选的 `initial_prompt` 只包含用户在输入框中填写的问题。留空时前端省略该字段，后端直接用已提交并核验的社区结果生成报告。
 
-后端按节点 ID 比较两次相邻阶段的提交结果，统计保留、新增、退出、净变化和留存率（保留人数除以较早阶段人数），并记录三阶段共有成员。当前搜索为回溯窗口时，保留所提交窗口的成员和范围，SLADE 评分时刻始终为 S12。各阶段分别提供算法实际使用的查询节点和核阶数，全局最大核提供算出的核阶数。
+后端按节点 ID 按时间顺序比较相邻的已提交结果（仅历史与预测时直接比较两者），统计保留、新增、退出、净变化和留存率（保留人数除以较早阶段人数），三项齐全时记录三阶段共有成员。当前搜索为回溯窗口时，保留所提交窗口的成员和范围，SLADE 评分时刻始终为 S12。各阶段分别提供算法实际使用的查询节点和核阶数，全局最大核提供算出的核阶数。
 
-传给模型的四项证据为历史方法的实际发现〔H01〕、所选当前社区与历史成员的差异〔C01〕、当前社区成员的 SLADE 分布及重点节点〔C02〕、所选未来社区相对于当前社区的预计变化〔P01〕。SLADE 均值和中位数按有评分的成员计算。重点节点包括社区内评分前三及全部进入全图前十的社区成员。可评分但预测社区为空时，预计成员数为零。没有可评分节点对时，未来成员变化记为未知。
+按已提交阶段传给模型的证据包括历史方法的实际发现〔H01〕、当前社区结构及可用的历史对比〔C01〕、当前社区成员的 SLADE 分布及重点节点〔C02〕、预测社区及可用的跨期对比〔P01〕。SLADE 均值和中位数按有评分的成员计算。重点节点包括社区内评分前三及全部进入全图前十的社区成员。可评分但预测社区为空时，预计成员数为零。没有可评分节点对时，未来成员变化记为未知。
 
-算法输入阈值只用于复核提交引用。DeepSeek 收到统计值、时间范围和各节点所属的阶段，同一节点跨阶段使用同一个代号，页面通过 `node_labels` 还原为原始 ID。追问复用首份报告的三项提交引用。
+算法输入阈值只用于复核提交引用。DeepSeek 收到统计值、时间范围和各节点所属的阶段，同一节点跨阶段使用同一个代号，页面通过 `node_labels` 还原为原始 ID。追问复用首份报告使用的同一组提交引用。
 
 DeepSeek 以 Thinking 模式分析证据，再流式生成英文正文。单次生成最多使用 4,096 个 token，包含思考和正文。接口成功时返回 `application/jsonl`，每行是一个事件。
 
 - `start` 提供模型名 `model` 和报告中的节点代号映射 `node_labels`。
+- `thinking` 的 `content` 来自上游 `delta.reasoning_content`，页面在正文前以 **Thinking:** 标记并逐段显示。追问上下文只携带已完成的问答正文。
 - `delta` 的 `content` 是一段模型原文，页面收到后即追加显示。
 - `done` 表示模型流已结束，页面保存拼接后的报告。
 - `error` 的 `detail` 描述流中的故障。页面保留已收到的正文。

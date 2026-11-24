@@ -3,7 +3,7 @@ import { computed, onScopeDispose, ref, watch } from 'vue'
 import { matchesContext } from '../../api/analysis.js'
 import { postJsonLines } from '../../api/client.js'
 import { readPaperReport, writePaperReport } from '../../domain/paperReport.js'
-import { forecastEvidence, reportStages, structureEvidence } from '../../domain/reportEvidence.js'
+import { forecastEvidence, structureEvidence } from '../../domain/reportEvidence.js'
 
 export function useLifecycleReport(workbench) {
   const { context, store, selected, patternResult, queryResult, anomalyQuery, anomalyResponse, prediction, matchingPrediction } = workbench
@@ -87,7 +87,7 @@ export function useLifecycleReport(workbench) {
   })
   const canSubmit = computed(() => !!candidate.value &&
     JSON.stringify(slots.value[stage.value]?.reference) !== JSON.stringify(candidate.value.reference))
-  const ready = computed(() => Object.keys(reportStages).every(key => slots.value[key]) &&
+  const ready = computed(() => Object.keys(slots.value).length > 0 &&
     matchesContext(context.value, activeContext))
   const canAsk = computed(() => ready.value && !!completedReport.value?.content?.trim())
   const canSend = computed(() => ready.value && !busy.value && (!canAsk.value || !!question.value.trim()))
@@ -114,15 +114,16 @@ export function useLifecycleReport(workbench) {
 
   async function requestReply({ text, followUp }) {
     const controller = new AbortController()
+    let thinkingStartedAt
     const body = { ...activeContext }
-    for (const key of Object.keys(reportStages)) body[key] = slots.value[key].reference
+    for (const [key, slot] of Object.entries(slots.value)) body[key] = slot.reference
     activeRequest = controller
     requestKind.value = followUp ? 'follow-up' : 'report'
     if (followUp) {
       const { content, initial_prompt } = completedReport.value
       body.report_content = content
       if (initial_prompt) body.initial_prompt = initial_prompt
-      body.turns = turns.value
+      body.turns = turns.value.map(({ question, answer }) => ({ question, answer }))
       body.question = text
       pendingTurn.value = { question: text, answer: '' }
       replyError.value = ''
@@ -140,7 +141,15 @@ export function useLifecycleReport(workbench) {
             draftReport.value.model = event.model
             draftReport.value.node_labels = event.node_labels
           }
+        } else if (event.type === 'thinking') {
+          const reply = followUp ? pendingTurn.value : draftReport.value
+          thinkingStartedAt ??= performance.now()
+          reply.thinking = (reply.thinking ?? '') + event.content
         } else if (event.type === 'delta') {
+          if (thinkingStartedAt !== undefined && event.content.trim()) {
+            const reply = followUp ? pendingTurn.value : draftReport.value
+            reply.thinkingDurationMs ??= performance.now() - thinkingStartedAt
+          }
           if (followUp) pendingTurn.value.answer += event.content
           else draftReport.value.content += event.content
         } else if (event.type === 'error') {

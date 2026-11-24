@@ -109,7 +109,7 @@ def test_report_verifies_submitted_results_before_one_provider_call(submitted_re
             text=(
                 ": keep-alive\n\n" + provider_delta(role="assistant")
                 + provider_delta(reasoning_content="Thinking about the evidence.", content=None)
-                + provider_delta(content=first) + provider_delta(content=second)
+                + provider_delta(reasoning_content="Checking the overlap.", content=first) + provider_delta(content=second)
                 + 'data: {"choices":[{"delta":{},"finish_reason":"length"}]}\n\n'
                 + "data: [DONE]\n\n"
             ),
@@ -135,10 +135,55 @@ def test_report_verifies_submitted_results_before_one_provider_call(submitted_re
     for stage, expected in (("history", history.members), ("current", current.members), ("predicted", forecast["members"])):
         assert {labels[node] for g in groups if stage in g["stages"] for node in g["nodes"]} == set(expected)
     assert events[1:] == [
+        {"type": "thinking", "content": "Thinking about the evidence."},
+        {"type": "thinking", "content": "Checking the overlap."},
         {"type": "delta", "content": first},
         {"type": "delta", "content": second},
         {"type": "done"},
     ]
+
+
+def test_report_and_follow_up_use_only_submitted_stages(submitted_report):
+    application, body, forecast, history, _ = submitted_report
+    client = TestClient(application)
+    captured = []
+
+    def completion(request):
+        messages = json.loads(request.content)["messages"]
+        captured.append((messages[0]["content"], json.loads(messages[1]["content"])))
+        return httpx.Response(200, headers={"Content-Type": "text/event-stream"},
+                              text=provider_delta(content="Analysis.") + "data: [DONE]\n\n")
+
+    application.state.report_client = ReportClient("https://provider.invalid", "test", "test", httpx.MockTransport(completion))
+    stage_ids = {"history": {"H01"}, "current": {"C01", "C02"}, "future": {"P01"}}
+    context = {key: value for key, value in body.items() if key not in stage_ids}
+    follow_up = {"report_content": "Analysis.", "question": "Which members?"}
+    for size in range(4):
+        for selected in combinations(stage_ids, size):
+            request = {**context, **{key: body[key] for key in selected}}
+            first = client.post("/api/reports/generate", json=request)
+            follow = client.post("/api/reports/follow-up", json={**request, **follow_up})
+            if not selected:
+                assert first.status_code == follow.status_code == 422 and not captured
+                continue
+            assert first.status_code == follow.status_code == 200
+            (prompt, facts), (_, follow_facts) = captured[-2:]
+            assert facts == follow_facts
+            assert prompt.count("- **") == size
+            records = {record["id"]: record for record in facts["evidence"]}
+            assert records.keys() == set.union(*(stage_ids[stage] for stage in selected))
+            if "C02" in records:
+                member = records["C02"]["highest_scoring_members"][0]
+                assert ("in_submitted_history" in member) == ("history" in selected)
+                assert ("in_submitted_prediction" in member) == ("future" in selected)
+            if selected == ("history", "future"):
+                retained = len(set(history.members) & set(forecast["members"]))
+                assert records["P01"]["change_from_history"]["retained"] == retained
+                assert "change_from_current" not in records["P01"]
+                assert "historical selection" in prompt
+            if selected == ("future",):
+                assert "Predicted community" in prompt
+                assert not any(key.startswith("change_from_") for key in records["P01"])
 
 
 def test_disjoint_selections_empty_prediction_and_missing_scores(submitted_report):

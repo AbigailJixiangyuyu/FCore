@@ -1,8 +1,8 @@
-"""References to the three results explicitly submitted for a lifecycle report."""
+"""References to the stages explicitly submitted for a community report."""
 
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, Field, StringConstraints
+from pydantic import BaseModel, Field, StringConstraints, model_validator
 
 from app.schemas.analysis import AnalysisContext, FutureCommunityQuery
 
@@ -35,10 +35,16 @@ Question = Annotated[str, StringConstraints(strip_whitespace=True, min_length=1)
 
 
 class ReportRequest(AnalysisContext):
-    history: HistoricalEvidence
-    current: CurrentEvidence
-    future: FutureEvidence
+    history: HistoricalEvidence | None = None
+    current: CurrentEvidence | None = None
+    future: FutureEvidence | None = None
     initial_prompt: Question | None = None
+
+    @model_validator(mode="after")
+    def require_evidence(self):
+        if self.history is None and self.current is None and self.future is None:
+            raise ValueError("Submit evidence from at least one stage.")
+        return self
 
 
 class ReportTurn(BaseModel):
