@@ -1,7 +1,7 @@
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 
 import { formatCount } from '../domain/format.js'
-import { probabilityLabel } from './workbenchContext.js'
+import { probabilityLabel, useWorkbench } from './workbenchContext.js'
 import { applyCommunityHover } from '../graph/hover.js'
 import { measureNodeLabels, placeNodeLabels } from '../graph/labels.js'
 import { loadSigmaRenderer } from '../graph/sigmaRenderer.js'
@@ -9,6 +9,7 @@ import { loadSigmaRenderer } from '../graph/sigmaRenderer.js'
 export const DEFAULT_GRAPH_ZOOM = 150
 
 export function useGraphCanvas(props, emit) {
+  const { viewLayout } = useWorkbench()
   const container = ref(null)
   const overlayNodes = ref([])
   const failure = ref('')
@@ -154,7 +155,7 @@ export function useGraphCanvas(props, emit) {
       const attributes = renderer.getGraph().getEdgeAttributes(edge)
       let text = `${attributes.u} — ${attributes.v}`
       if (attributes.predicted)
-        text += ` · ${attributes.target_snapshot} edge probability ${probabilityLabel(attributes.probability)} · ${attributes.currently_connected ? 'Connected' : 'Not connected'} in S12`
+        text += ` · ${attributes.target_snapshot} edge probability ${probabilityLabel(attributes.probability)} · ${attributes.currently_connected ? 'Connected' : 'Not connected'} in the current snapshot`
       else {
         const scope = attributes.aggregated
           ? `${attributes.observation_scope} total`
@@ -207,6 +208,11 @@ export function useGraphCanvas(props, emit) {
   watch(function () {
     return props.labels
   }, updateOverlays)
+  watch(viewLayout, () => {
+    if (!renderer) return
+    labelMetrics = measureNodeLabels(container.value)
+    updateOverlays()
+  }, { flush: 'post' })
   watch(
     () => props.location,
     location => locate(location?.accountId),

@@ -1,4 +1,4 @@
-import { useQueries } from '@tanstack/vue-query'
+import { useQueries, useQueryClient } from '@tanstack/vue-query'
 import { computed } from 'vue'
 
 import { getCapabilities, getDatasets, getHealth } from '../api/system.js'
@@ -10,6 +10,7 @@ const endpoints = [
 ]
 
 export function useSystemStatus() {
+  const client = useQueryClient()
   const queries = useQueries({
     queries: endpoints.map(function (endpoint) {
       return {
@@ -62,9 +63,17 @@ export function useSystemStatus() {
     }))
   }
 
-  function refreshDatasets() {
-    return queries.value[2].refetch({ throwOnError: true })
+  async function updateDataset(dataset) {
+    const key = ['system', 'datasets']
+    await client.cancelQueries({ queryKey: key, exact: true })
+    client.setQueryData(key, previous => {
+      const items = [...(previous?.datasets ?? [])]
+      const index = items.findIndex(item => item.dataset_id === dataset.dataset_id)
+      if (index < 0) items.push(dataset)
+      else items[index] = dataset
+      return { datasets: items }
+    })
   }
 
-  return { connectionState, datasets, errors, refresh, refreshDatasets }
+  return { connectionState, datasets, errors, refresh, updateDataset }
 }

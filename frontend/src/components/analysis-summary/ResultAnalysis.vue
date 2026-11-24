@@ -5,7 +5,6 @@ import { computed } from 'vue'
 import { metricLabels, useWorkbench } from '../../composables/workbenchContext.js'
 import { algorithmLabel, structureAlgorithm } from '../../domain/algorithms.js'
 import { formatCount, formatNumber } from '../../domain/format.js'
-import { PRESENT_INDEX } from '../../domain/timeline.js'
 import EvidenceChart from '../EvidenceChart.vue'
 import QueryState from '../QueryState.vue'
 import BurstEvidence from './BurstEvidence.vue'
@@ -13,6 +12,7 @@ import CommunityRiskSummary from './CommunityRiskSummary.vue'
 import CorePatternTimeline from './CorePatternTimeline.vue'
 import FrequencyEvidence from './FrequencyEvidence.vue'
 import FutureCommunityAnalysis from './FutureCommunityAnalysis.vue'
+import HistoricalCoreResults from './HistoricalCoreResults.vue'
 import MemberAnomalyScores from './MemberAnomalyScores.vue'
 import TemporalCoreResults from './TemporalCoreResults.vue'
 
@@ -52,7 +52,7 @@ const patternViews = {
 const patternView = computed(() => patternViews[selected.value?.parameters.pattern])
 const query = computed(() => store.stage === 'history' ? patternResult : queryResult)
 function selectEvidenceTime(index) {
-  if (index >= 0 && index < PRESENT_INDEX) selectTime(index)
+  if (index >= 0 && index < store.presentIndex) selectTime(index)
 }
 
 function locateMember(accountId) {
@@ -117,8 +117,9 @@ function locateMember(accountId) {
       <QueryState v-else-if="predictionRequest" :query="predictionRequest" />
       <p v-else class="summary-empty">{{ predictionMessage }}</p>
     </template>
-    <TemporalCoreResults
-      v-else-if="store.stage === 'history' && store.pattern === 'temporal_core' && historyResults.length"
+    <component
+      :is="store.historyResultWindow === 'submitted' ? HistoricalCoreResults : TemporalCoreResults"
+      v-else-if="store.stage === 'history' && store.historyResultWindow && historyResults.length"
       :key="store.analysisRunId"
       :results="historyResults"
       :selected-id="store.historySelection"

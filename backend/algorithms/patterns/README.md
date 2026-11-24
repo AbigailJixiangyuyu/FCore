@@ -1,9 +1,10 @@
 # 历史模式算法接入
 
-五种方法使用本次提交的历史区间，默认 S01—S11。服务层将每个快照的无向交互按节点对建立简单邻接。各快照共享所选区间的账户并集，缺席账户邻居为空，保留空快照。
+六种方法都使用本次提交的历史区间。PHC-Query 和 OTCD 的内置数据默认窗口见下表，其他方法默认 S01—S11。服务层将每个快照的无向交互按节点对建立简单邻接，缺席账户邻居为空，保留空快照。
 
 | 模块 | 论文方法 | Web/API 默认值（Dept3；合成） | 方法版本 | 详细说明 |
 | --- | --- | --- | --- | --- |
+| 历史固定窗口核 `historical_core.py` | PHC-Query | S10—S11，`k=7` / S10，`k=4` | `phc-query-v1` | [PHC 索引与社区选择](HISTORICAL_CORE.md) |
 | 周期 `periodic.py` | TD＋FT/AC | `q=49, k=4, ε=1`；`q=a-001, k=4, ε=1` | `lpc-td-ftac-v1` | [复现约定与限制](PERIODIC.md) |
 | 持久 `durable.py` | ONCE | `q=49, k=3`；`q=a-001, k=4` | `tdc-once-v1` | [定义、边界与并列](DURABLE.md) |
 | 爆发 `burst.py` | MBC-B，剥离＋精确 MSD 区间枚举 | `l=3, δ=5.60`；`l=3, δ=5` | `mbc-exact-segments-v1` | [原始指标与见证区间](BURST.md) |
@@ -14,7 +15,7 @@ Web/API 共用 [查询默认配置](../../../config/README.md)，明确提交的
 
 ## 公共契约与工程归属
 
-`common.py` 定义 `TemporalSnapshots = tuple[dict[str, frozenset[str]], ...]` 以及 `PatternResult(members, evidence)`。成员为排序后的字符串元组，证据为可 JSON 序列化的字典。所有内部时间位置均从零开始、包含两端，由服务适配层补充快照 ID。时域核返回可为空的结果列表，其余纯算法入口在合法无解时返回 `None`。输入无效抛 `ValueError`。函数不修改输入、不读取文件、不依赖 FastAPI，也不打印结果。
+`common.py` 定义 `TemporalSnapshots = tuple[dict[str, frozenset[str]], ...]` 以及 `PatternResult(members, evidence)`。成员为排序后的字符串元组，证据为可 JSON 序列化的字典。所有内部时间位置均从零开始、包含两端，由服务适配层补充快照 ID。PHC 索引按快照边集构建，查询返回合格顶点及其最早达标终点。时域核返回可为空的结果列表，其余纯算法入口在合法无解时返回 `None`。输入无效抛 `ValueError`。函数不修改输入、不读取文件、不依赖 FastAPI，也不打印结果。
 
 各算法模块有对应的单元测试及复现说明。公共契约、`app/services/patterns.py` 数据适配、HTTP schemas、前端和接口测试统一由集成层维护。
 

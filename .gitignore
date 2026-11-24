@@ -36,7 +36,7 @@ Thumbs.db
 *.key
 *.pem
 
-# Keep the synthetic sample and the explicitly imported small public SNAP dataset.
+# Ship the synthetic sample and the two curated public datasets.
 # Other real datasets, model weights and exports stay local.
 /data/*
 !/data/README.md
@@ -50,6 +50,11 @@ Thumbs.db
 !/data/email-eu-core-dept3/*.json
 !/data/email-eu-core-dept3/*.csv
 !/data/email-eu-core-dept3/README.md
+!/data/ethereum-eth/
+/data/ethereum-eth/*
+!/data/ethereum-eth/*.json
+!/data/ethereum-eth/*.csv
+!/data/ethereum-eth/README.md
 !/data/raw/
 /data/raw/*
 !/data/raw/email-Eu-core-temporal-Dept3.txt.gz

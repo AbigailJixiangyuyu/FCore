@@ -87,7 +87,8 @@ export function useStructureQueries(store, { context, ready }) {
       store.historySelection = ''
       return
     }
-    const match = store.pattern === 'temporal_core'
+    if (store.historyResultWindow === 'submitted' && !store.viewingSubmittedHistoryWindow) return
+    const match = store.historyResultWindow
       ? items[0]
       : containingAccount(items, store.historyAnchor) || items[0]
     selectHistoryResult(match.membership_hash)
@@ -96,7 +97,10 @@ export function useStructureQueries(store, { context, ready }) {
   function selectHistoryResult(membershipHash) {
     const structure = byMembership(historyResults.value, membershipHash)
     if (!structure) return
-    if (structure.parameters.pattern === 'temporal_core') {
+    if (store.historyResultWindow === 'submitted') {
+      const { start_snapshot_id: start, end_snapshot_id: end } = structure.parameters
+      store.selectHistoryRange(snapshotIndex(start), snapshotIndex(end))
+    } else if (store.historyResultWindow === 'tightest') {
       const { witness_start_snapshot_id: start, witness_end_snapshot_id: end } = structure.evidence
       store.selectHistoryRange(snapshotIndex(start), snapshotIndex(end))
     }
@@ -104,7 +108,7 @@ export function useStructureQueries(store, { context, ready }) {
   }
 
   function matchHistoryAccount(account) {
-    if (store.pattern === 'temporal_core') return
+    if (store.historyResultWindow) return
     const match = containingAccount(historyResults.value, account)
     if (match) selectHistoryResult(match.membership_hash)
   }

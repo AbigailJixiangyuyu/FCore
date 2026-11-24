@@ -1,3 +1,21 @@
+// getRandomValues also works on HTTP deployments outside localhost.
+export function newRequestId() {
+  const bytes = crypto.getRandomValues(new Uint8Array(16))
+  bytes[6] = (bytes[6] & 15) | 64
+  bytes[8] = (bytes[8] & 63) | 128
+  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('')
+}
+
+let pageId
+export function startDemoSession() {
+  if (pageId) return
+  pageId = newRequestId()
+  window.addEventListener('pagehide', event => {
+    if (!event.persisted)
+      fetch('/api/demo-session', { method: 'DELETE', headers: { 'X-FCore-Session': pageId }, keepalive: true }).catch(() => {})
+  })
+}
+
 async function request(path, { signal, method = 'GET', body, accept = 'application/json' } = {}) {
   let response
 
@@ -9,6 +27,7 @@ async function request(path, { signal, method = 'GET', body, accept = 'applicati
       cache: 'no-store',
       headers: {
         Accept: accept,
+        ...(pageId ? { 'X-FCore-Session': pageId } : {}),
         ...(typeof body === 'string' ? { 'Content-Type': 'application/json' } : {}),
       },
     })

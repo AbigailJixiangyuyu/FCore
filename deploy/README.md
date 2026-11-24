@@ -1,6 +1,6 @@
 # 在远程 Ubuntu 服务器部署 FCore
 
-适用环境为 Ubuntu 24.04.4 LTS、`x86_64` 和 Linux Docker Engine。部署包包含已构建的网页、后端代码、EmailDept3 与合成样例、当前使用的模型权重，以及并行核分解的编译源码。服务器上的 Docker 负责构建镜像并运行 FastAPI。首次构建需能访问 Docker Hub、Debian 软件源、PyPI 和 PyTorch CPU 下载源。
+适用环境为 Ubuntu 24.04.4 LTS、`x86_64` 和 Linux Docker Engine。部署包包含已构建的网页、后端代码、Ethereum、EmailDept3 与合成样例、当前使用的模型权重，以及并行核分解的编译源码。服务器上的 Docker 负责构建镜像并运行 FastAPI。首次构建需能访问 Docker Hub、Debian 软件源、PyPI 和 PyTorch CPU 下载源。
 
 ## 上传部署包
 
@@ -37,6 +37,12 @@ curl -fsS http://127.0.0.1:8000/api/health
 命名卷 `fcore-data` 首次使用时会获得内置数据集，后续保留用户在网页上上传的数据。DeepSeek 设置在进程启动时读取。修改环境文件或更新镜像后，运行 `docker stop fcore`、`docker rm fcore`，再用上面的命令和原数据卷启动新容器。
 
 ## 检查功能
+
+- Ethereum 为默认金融样本。S12 查询 E025、k=2 得到 27 个地址和 50 条内部边。升级已有数据卷时，可在服务器上用新镜像把新数据集单独复制进原卷，再启动服务。
+
+```bash
+docker run --rm -v fcore-data:/existing fcore:cpu sh -c 'test -e /existing/ethereum-eth || cp -R /opt/fcore/data/ethereum-eth /existing/'
+```
 
 - 打开 EmailDept3，执行当前 S12 的并行核分解，`q=49, k=7` 应显示 30 个节点和 145 条内部边。
 - 查看异常排名。SLADE 为 S12 的 88 个节点生成分数。用 Zebra 预测 S13，`q=49, k=4`、连边阈值 0.50 应返回 23 个成员。包内同时包含 S14 和 S15 的模型。

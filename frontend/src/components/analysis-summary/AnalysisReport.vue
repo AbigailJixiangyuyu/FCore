@@ -1,26 +1,19 @@
 <script setup>
 import { ChatDotRound, DocumentAdd, Position } from '@element-plus/icons-vue'
-import { computed, nextTick, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, ref, watch } from 'vue'
 
 import { useWorkbench } from '../../composables/workbenchContext.js'
 import { useLifecycleReport } from '../../composables/workbench/useLifecycleReport.js'
 import { evidenceMethodName, reportStages } from '../../domain/reportEvidence.js'
 
+const ReportAnswer = defineAsyncComponent(() => import('./ReportAnswer.vue'))
+
 const {
   stage, slots, ready, canSubmit, submit, generating, report, error,
   busy, canAsk, canSend, answering, question, ask, retry, turns, pendingTurn, replyError,
 } = useLifecycleReport(useWorkbench())
-const questionPlaceholder = computed(() => {
-  if (!ready.value) return 'Submit one result from each stage.'
-  return canAsk.value ? 'Ask about this report…' : 'Ask FCore'
-})
 const reportArea = ref(null)
-const reportText = computed(() => displayText(report.value?.content ?? ''))
-
-function displayText(content) {
-  const labels = report.value?.node_labels
-  return content.replace(/\bN\d{3,}\b/g, alias => labels?.[alias] ?? alias)
-}
+const reportText = computed(() => report.value?.content ?? '')
 
 async function scrollToLatest() {
   const area = reportArea.value
@@ -39,15 +32,10 @@ watch(busy, (active) => {
   if (active) scrollToLatest()
 })
 
-function submitComposer() {
-  if (ready.value) return ask()
-  submit()
-}
-
 function onQuestionKeydown(event) {
   if (event.key !== 'Enter' || event.shiftKey || event.isComposing || event.keyCode === 229) return
   event.preventDefault()
-  submitComposer()
+  ask()
 }
 </script>
 
@@ -58,33 +46,9 @@ function onQuestionKeydown(event) {
         <ChatDotRound aria-hidden="true" />
         LLM-Assisted Interpretation
       </h2>
-      <el-button v-if="ready && canSubmit" class="report-update" size="small" @click="submit">Update Evidence</el-button>
     </div>
-    <div ref="reportArea" class="report-content" role="log" aria-label="Report and discussion" :aria-busy="busy">
-      <p v-if="report?.initial_prompt" class="report-text report-question report-opening">{{ report.initial_prompt }}</p>
-      <p v-if="error" class="report-error" role="alert">{{ error }}</p>
-      <p v-if="reportText" class="report-text report-answer">{{ reportText }}</p>
-      <p v-else-if="generating" class="report-status">
-        Generating the full-cycle report<span class="report-status-dots" aria-hidden="true">...</span>
-      </p>
-      <template v-if="!generating">
-        <div v-for="(turn, index) in turns" :key="index" class="report-turn">
-          <p class="report-text report-question">{{ turn.question }}</p>
-          <p class="report-text report-answer">{{ displayText(turn.answer) }}</p>
-        </div>
-        <div v-if="pendingTurn" class="report-turn">
-          <p class="report-text report-question">{{ pendingTurn.question }}</p>
-          <p v-if="pendingTurn.answer" class="report-text report-answer">{{ displayText(pendingTurn.answer) }}</p>
-          <p v-else-if="answering" class="report-status">Thinking…</p>
-          <div v-if="replyError" class="report-reply-error">
-            <p class="report-error" role="alert">{{ replyError }}</p>
-            <el-button size="small" text :disabled="busy || !canAsk" @click="retry">Retry</el-button>
-          </div>
-        </div>
-      </template>
-    </div>
-    <form class="report-composer" @submit.prevent="submitComposer">
-      <ul v-if="!canAsk && !generating" class="report-evidence" aria-label="Report evidence" aria-live="polite">
+    <div class="report-evidence-bar" role="group" aria-label="Report evidence">
+      <ul class="report-evidence" aria-live="polite">
         <li
           v-for="(label, key) in reportStages"
           :key="key"
@@ -99,11 +63,39 @@ function onQuestionKeydown(event) {
           <span v-else-if="stage === key && canSubmit">Ready</span>
         </li>
       </ul>
+      <el-button size="small" :icon="DocumentAdd" :disabled="!canSubmit || busy" @click="submit">
+        {{ slots[stage] ? 'Update' : 'Submit' }}
+      </el-button>
+    </div>
+    <div ref="reportArea" class="report-content" role="log" aria-label="Report and discussion" :aria-busy="busy">
+      <p v-if="report?.initial_prompt" class="report-text report-question report-opening">{{ report.initial_prompt }}</p>
+      <p v-if="error" class="report-error" role="alert">{{ error }}</p>
+      <ReportAnswer v-if="reportText" :content="reportText" :node-labels="report.node_labels" />
+      <p v-else-if="generating" class="report-status">
+        Generating the full-cycle report<span class="report-status-dots" aria-hidden="true">...</span>
+      </p>
+      <template v-if="!generating">
+        <div v-for="(turn, index) in turns" :key="index" class="report-turn">
+          <p class="report-text report-question">{{ turn.question }}</p>
+          <ReportAnswer :content="turn.answer" :node-labels="report.node_labels" />
+        </div>
+        <div v-if="pendingTurn" class="report-turn">
+          <p class="report-text report-question">{{ pendingTurn.question }}</p>
+          <ReportAnswer v-if="pendingTurn.answer" :content="pendingTurn.answer" :node-labels="report.node_labels" />
+          <p v-else-if="answering" class="report-status">Thinking…</p>
+          <div v-if="replyError" class="report-reply-error">
+            <p class="report-error" role="alert">{{ replyError }}</p>
+            <el-button size="small" text :disabled="busy || !canAsk" @click="retry">Retry</el-button>
+          </div>
+        </div>
+      </template>
+    </div>
+    <form class="report-composer" aria-label="Message FCore" @submit.prevent="ask">
       <el-input
         :model-value="generating ? '' : question" type="textarea" :autosize="{ minRows: 1, maxRows: 3 }" resize="none"
         :aria-label="canAsk ? 'Follow-up question' : 'Optional question for the report'"
-        :readonly="!ready || generating"
-        :placeholder="generating ? undefined : questionPlaceholder"
+        :readonly="generating"
+        :placeholder="canAsk ? 'Ask about this report…' : 'Ask FCore'"
         @update:model-value="question = $event"
         @keydown="onQuestionKeydown"
       />
@@ -111,11 +103,12 @@ function onQuestionKeydown(event) {
         size="small"
         type="primary"
         native-type="submit"
-        :icon="ready ? Position : DocumentAdd"
-        :disabled="ready ? !canSend : !canSubmit"
+        :icon="Position"
+        :disabled="!canSend"
+        :title="!ready ? 'Submit evidence from all three stages to send.' : undefined"
         :loading="busy"
       >
-        {{ ready ? 'Send' : 'Submit' }}
+        Send
       </el-button>
     </form>
   </section>

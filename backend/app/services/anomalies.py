@@ -46,6 +46,8 @@ def prepare_training(repository, manifest):
 
 
 def model_ready(repository, manifest, models_dir: Path) -> bool:
+    if manifest.has_demo_updates:
+        return False
     try:
         _, metadata = prepare_training(repository, manifest)
         load_artifact(models_dir, manifest.dataset_id, metadata)
@@ -58,7 +60,7 @@ def score_accounts(scope: AnalysisScope, request: AnomalyQuery, models_dir: Path
     repository, manifest = scope.repository, scope.manifest
     snapshot_id = request.snapshot_id
     frame = repository.snapshot(manifest.dataset_id, snapshot_id)
-    if snapshot_id != manifest.observed_until:
+    if snapshot_id != manifest.observed_until or manifest.has_demo_updates:
         return {
             **scope.metadata("computed", METHOD),
             "snapshot_id": snapshot_id,
@@ -67,7 +69,8 @@ def score_accounts(scope: AnalysisScope, request: AnomalyQuery, models_dir: Path
             "training_snapshot_ids": [],
             "accounts": [],
             "unscored_accounts": [],
-            "message": "This snapshot has not been evaluated. Anomaly scores are available for S12.",
+            "message": ("SLADE is unavailable for this static graph update." if manifest.has_demo_updates
+                        else f"Anomaly scores are available for {manifest.observed_until}."),
         }
     try:
         _, training = prepare_training(repository, manifest)

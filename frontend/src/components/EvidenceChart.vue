@@ -2,7 +2,8 @@
 import { computed } from 'vue'
 
 import { formatCount } from '../domain/format.js'
-import { HISTORY_LENGTH, snapshotId } from '../domain/timeline.js'
+import { useWorkbench } from '../composables/workbenchContext.js'
+import { snapshotId } from '../domain/timeline.js'
 import ChartCanvas from './ChartCanvas.vue'
 
 const props = defineProps({
@@ -14,9 +15,10 @@ const props = defineProps({
 })
 defineEmits(['select-index'])
 
-const ticks = Array.from({ length: HISTORY_LENGTH }, (_, index) => snapshotId(index))
+const { store } = useWorkbench()
 const option = computed(function () {
-  const points = new Map(props.track.points.map(point => [point.index, point.value]))
+  const ticks = Array.from({ length: store.presentIndex }, (_, index) => snapshotId(index))
+  const points = new Map(props.track.points.map(point => [point.index, point]))
   const [start, end] = props.selectedRange
   return {
     animationDuration: 180,
@@ -25,10 +27,9 @@ const option = computed(function () {
       trigger: 'axis',
       formatter: function ([point]) {
         if (!point) return ''
-        const value = point.value == null
-          ? 'Members absent'
-          : formatCount(point.value, props.unit.replace(/s$/, ''))
-        return `${point.axisValueLabel}\n${value}`
+        const entry = points.get(point.dataIndex)
+        const missing = entry?.status === 'unavailable' ? 'Interactions unavailable' : 'Members absent'
+        return `${point.axisValueLabel}\n${entry?.value == null ? missing : formatCount(entry.value, props.unit.replace(/s$/, ''))}`
       },
     },
     xAxis: {
@@ -55,8 +56,7 @@ const option = computed(function () {
       itemStyle: { color: props.track.color },
       areaStyle: { opacity: 0.05, color: props.track.color },
       data: ticks.map(function (_, index) {
-        const value = points.get(index)
-        return value == null ? null : Number(value)
+        return points.get(index)?.value ?? null
       }),
       markLine: {
         silent: true,

@@ -1,15 +1,16 @@
 # SLADE 模型产物
 
-当前异常模块使用训练得到的 SLADE 权重，离线脚本与在线检测均在 `cuda:0` 运行。Python 3.10 项目环境复用主环境已安装的 PyTorch 2.8.0+cu128；初始化见 `demo/setup-backend.ps1`。
+每个数据集使用独立的权重。默认 Ethereum 的 SLADE 和 Zebra 使用 S01—S11 的转账记录训练。开发机使用 `cuda:0` 训练，服务端可设置 `FCORE_DEVICE=cpu` 加载同一组权重。[金融样本训练命令](../data/ethereum-eth/README.md)
 
 在 `demo/` 下训练：
 
 ```powershell
-uv run --directory backend python -m scripts.train_slade --dataset email-eu-core-dept3
+uv run --directory backend python -m scripts.train_slade --dataset ethereum-eth
 ```
 
 ```text
 models/
+├── ethereum-eth/                # SLADE 与三个预测窗口的 Zebra
 ├── synthetic-small/slade/       # 独立的合成数据模型
 └── email-eu-core-dept3/slade/
     ├── current.json

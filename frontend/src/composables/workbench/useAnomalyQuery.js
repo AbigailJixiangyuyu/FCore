@@ -1,7 +1,6 @@
 import { computed, watch } from 'vue'
 
 import { matchesContext } from '../../api/analysis.js'
-import { PRESENT_INDEX } from '../../domain/timeline.js'
 import { useAnalysisQuery } from './useAnalysisQuery.js'
 
 export function useAnomalyQuery(store, { connected, context, ready }, selectTime) {
@@ -23,7 +22,7 @@ export function useAnomalyQuery(store, { connected, context, ready }, selectTime
   const anomalyResults = computed(() => anomalyResponse.value?.accounts.slice(0, 10) || [])
 
   function selectAnomaly(account) {
-    if (store.stage !== 'present') selectTime(PRESENT_INDEX)
+    if (store.stage !== 'present') selectTime(store.presentIndex)
     store.graphLocation = { accountId: account.account_id, source: 'anomaly' }
   }
   watch(

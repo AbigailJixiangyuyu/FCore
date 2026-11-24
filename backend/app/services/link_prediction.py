@@ -58,6 +58,9 @@ def _remember(cache, key, value):
 
 def list_models(repository, manifest, models_dir, *, horizon=1):
     row = {"id": "zebra", "name": ZEBRA.name, "status": "not_ready", "model_version": None, "message": ""}
+    if manifest.has_demo_updates:
+        row["message"] = "Zebra is unavailable for this static graph update."
+        return [row]
     try:
         _, metadata = prepare_history(repository, manifest)
         _, artifact = ZEBRA.artifacts.read_artifact(models_dir, manifest.dataset_id, metadata, horizon=horizon)
@@ -119,6 +122,8 @@ def full_network_prediction(repository, manifest, models_dir, *, horizon=1):
 
 
 def score_network(scope: AnalysisScope, models_dir: Path, *, horizon: int = 1) -> dict:
+    if scope.manifest.has_demo_updates:
+        raise HTTPException(503, "Zebra is unavailable for this static graph update.")
     try:
         return full_network_prediction(scope.repository, scope.manifest, models_dir, horizon=horizon)
     except ModelConflict as error:
@@ -141,7 +146,7 @@ def predict_selected_links(
     structure = resolve_structure(scope, selection, parallel_core)
     manifest = scope.manifest
     if structure.origin == "pattern" or structure.snapshot_id != manifest.observed_until:
-        raise HTTPException(422, "Link prediction requires a community queried in S12.")
+        raise HTTPException(422, f"Link prediction requires a community queried in {manifest.observed_until}.")
     result = score_network(scope, models_dir)
     members = set(structure.members)
     rows = [row for row in result["pairs"] if row["u"] in members and row["v"] in members]

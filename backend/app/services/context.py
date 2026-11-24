@@ -4,16 +4,21 @@ from time import perf_counter
 from uuid import uuid4
 
 from app.repositories.datasets import DatasetRepository
-from app.schemas.analysis import AnalysisContext, AnalysisResult
+from app.schemas.analysis import AnalysisContext, AnalysisResult, SnapshotQuery
 
 
 class AnalysisScope:
     def __init__(self, repository: DatasetRepository, context: AnalysisContext):
         self.repository = repository
         self.context = context
+        cutoff_was_supplied = "observed_until" in context.model_fields_set
         self.manifest = repository.validate_context(
-            context.dataset_id, context.dataset_version, context.observed_until
+            context.dataset_id, context.dataset_version, context.observed_until if cutoff_was_supplied else None
         )
+        if not cutoff_was_supplied:
+            context.observed_until = self.manifest.observed_until
+            if isinstance(context, SnapshotQuery) and "snapshot_id" not in context.model_fields_set:
+                context.snapshot_id = self.manifest.observed_until
         self.started_at = perf_counter()
 
     def metadata(self, result_kind: str, method: str) -> dict:

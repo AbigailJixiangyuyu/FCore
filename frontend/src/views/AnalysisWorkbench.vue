@@ -1,6 +1,6 @@
 <script setup>
 import { SetUp, Warning } from '@element-plus/icons-vue'
-import { provide } from 'vue'
+import { onBeforeUnmount, onMounted, provide, ref } from 'vue'
 
 import AnalysisSummaryPanel from '../components/AnalysisSummaryPanel.vue'
 import AnomalyInformation from '../components/AnomalyInformation.vue'
@@ -13,10 +13,23 @@ import QueryState from '../components/QueryState.vue'
 import SnapshotNavigation from '../components/SnapshotNavigation.vue'
 import { useWorkbenchData } from '../composables/useWorkbenchData.js'
 import { workbenchKey } from '../composables/workbenchContext.js'
-import { FUTURE_INDEX, PRESENT_INDEX } from '../domain/timeline.js'
+
+const DEFAULT_LAYOUT = 'video'
+const layout = ref(DEFAULT_LAYOUT)
+
+function syncLayout() {
+  const hash = window.location.hash.slice(1)
+  layout.value = hash === 'paper' || hash === 'video' ? hash : DEFAULT_LAYOUT
+}
+
+onMounted(() => {
+  syncLayout()
+  window.addEventListener('hashchange', syncLayout)
+})
+onBeforeUnmount(() => window.removeEventListener('hashchange', syncLayout))
 
 const workbench = useWorkbenchData()
-provide(workbenchKey, workbench)
+provide(workbenchKey, { ...workbench, viewLayout: layout })
 const { store, system, connected, catalog, selectTime } = workbench
 const datasets = system.datasets
 const stages = [
@@ -27,14 +40,14 @@ const stages = [
 
 function selectStage(stage) {
   if (stage === 'history') selectTime(store.historyEndIndex)
-  else selectTime(stage === 'present' ? PRESENT_INDEX : FUTURE_INDEX)
+  else selectTime(stage === 'present' ? store.presentIndex : store.presentIndex + 1)
 }
 </script>
 
 <template>
-  <main class="workbench">
+  <main class="workbench" :data-layout="layout">
+    <SnapshotNavigation v-if="connected" />
     <template v-if="connected && datasets.length">
-      <SnapshotNavigation />
       <QueryState v-if="catalog.isError.value" :query="catalog" />
       <div class="workspace">
         <aside class="panel control-panel" aria-labelledby="query-setup-title">
@@ -87,7 +100,7 @@ function selectStage(stage) {
         ><p class="helper">
           {{
             connected
-              ? 'Load a local dataset and try again.'
+              ? 'Choose Import Dataset… in Dataset Loading to add your first dataset.'
               : 'Start the backend service and reconnect.'
           }}
         </p>

@@ -9,6 +9,7 @@ from algorithms.patterns.temporal_core import mine_temporal_cores
 from app.schemas.analysis import PatternQuery, SnapshotData
 from app.services.context import AnalysisScope
 from app.services.graphs import combine_snapshots, window_bounds
+from app.services.historical_core import historical_cores
 from app.services.statistics import graph_of
 from app.services.structures import COLORS, make_structure
 
@@ -22,24 +23,19 @@ _PATTERN_DETAILS = {
 }
 
 
-def historical_frames(scope: AnalysisScope, request: PatternQuery) -> list[SnapshotData]:
-    metadata = sorted(
-        (meta for meta in scope.manifest.snapshots if meta.kind == "history"),
-        key=lambda meta: meta.index,
-    )
+def mining_window(scope: AnalysisScope, request: PatternQuery, history_ids: tuple[str, ...]) -> list[str]:
     if request.start_snapshot_id is not None and request.end_snapshot_id is not None:
         start, end = window_bounds(scope, request.start_snapshot_id, request.end_snapshot_id)
         if start.kind != "history" or end.kind != "history":
             raise HTTPException(422, "Mining requires a range of historical snapshots.")
         if start.index > end.index:
             raise HTTPException(422, "The first snapshot to mine must be at or before the last snapshot.")
-        metadata = [meta for meta in metadata if start.index <= meta.index <= end.index]
-    if not metadata:
+        first = history_ids.index(start.snapshot_id)
+        last = history_ids.index(end.snapshot_id)
+        return list(history_ids[first : last + 1])
+    if not history_ids:
         raise HTTPException(404, "No historical snapshots are available to mine.")
-    return [
-        scope.repository.snapshot(scope.context.dataset_id, meta.snapshot_id)
-        for meta in metadata
-    ]
+    return list(history_ids)
 
 
 def project_snapshots(frames: list[SnapshotData]) -> TemporalSnapshots:
@@ -149,8 +145,14 @@ def temporal_core_window_comparison(
 
 
 def find_patterns(scope: AnalysisScope, request: PatternQuery) -> dict:
-    frames = historical_frames(scope, request)
-    snapshot_ids = [frame.snapshot_id for frame in frames]
+    history_ids = tuple(
+        meta.snapshot_id for meta in sorted(scope.manifest.snapshots, key=lambda meta: meta.index)
+        if meta.kind == "history"
+    )
+    snapshot_ids = mining_window(scope, request, history_ids)
+    if request.pattern == "historical_core":
+        return historical_cores(scope, request, history_ids, snapshot_ids)
+    frames = [scope.repository.snapshot(request.dataset_id, sid) for sid in snapshot_ids]
     snapshots = project_snapshots(frames)
     temporal_core = request.pattern == "temporal_core"
     if temporal_core:

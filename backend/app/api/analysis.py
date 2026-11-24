@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 from starlette.concurrency import run_in_threadpool
 
 from algorithms.link_prediction.data import MAX_FORECAST_HORIZON
-from app.repositories.datasets import DatasetRepository
+from app.services.snapshot_updates import request_repository
 from app.schemas.analysis import (
     AffinityQuery,
     AffinityResponse,
@@ -47,12 +47,17 @@ router = APIRouter(tags=["analysis"])
 
 
 def analysis_scope(request: Request, context: AnalysisContext) -> AnalysisScope:
-    return AnalysisScope(DatasetRepository(request.app.state.settings.data_dir), context)
+    return AnalysisScope(request_repository(request), context)
+
+
+def graph_scope(request: Request, dataset_id: str, dataset_version: str, cutoff: str | None):
+    fields = {"observed_until": cutoff} if cutoff is not None else {}
+    return analysis_scope(request, AnalysisContext(dataset_id=dataset_id, dataset_version=dataset_version, **fields))
 
 
 @router.get("/datasets/{dataset_id}/snapshots")
 def snapshot_catalog(dataset_id: str, request: Request) -> dict:
-    repository = DatasetRepository(request.app.state.settings.data_dir)
+    repository = request_repository(request)
     _, manifest = repository.locate(dataset_id)
     return manifest.model_dump()
 
@@ -65,14 +70,9 @@ def snapshot(
     snapshot_id: str,
     dataset_version: str,
     request: Request,
-    observed_until: str = "S12",
+    observed_until: str | None = None,
 ) -> dict:
-    context = AnalysisContext(
-        dataset_id=dataset_id,
-        dataset_version=dataset_version,
-        observed_until=observed_until,
-    )
-    return snapshot_graph(analysis_scope(request, context), snapshot_id)
+    return snapshot_graph(graph_scope(request, dataset_id, dataset_version, observed_until), snapshot_id)
 
 
 @router.get("/datasets/{dataset_id}/aggregate", response_model=AggregateResponse)
@@ -82,15 +82,10 @@ def aggregate(
     end_snapshot_id: str,
     dataset_version: str,
     request: Request,
-    observed_until: str = "S12",
+    observed_until: str | None = None,
 ) -> dict:
-    context = AnalysisContext(
-        dataset_id=dataset_id,
-        dataset_version=dataset_version,
-        observed_until=observed_until,
-    )
     return aggregate_graph(
-        analysis_scope(request, context), start_snapshot_id, end_snapshot_id
+        graph_scope(request, dataset_id, dataset_version, observed_until), start_snapshot_id, end_snapshot_id
     )
 
 
@@ -176,11 +171,11 @@ def prediction_models(
     dataset_id: str,
     dataset_version: str,
     request: Request,
-    observed_until: str = "S12",
+    observed_until: str | None = None,
     horizon: int = Query(default=1, ge=1, le=MAX_FORECAST_HORIZON),
 ) -> dict:
-    context = AnalysisContext(dataset_id=dataset_id, dataset_version=dataset_version, observed_until=observed_until)
-    return model_catalog(analysis_scope(request, context), request.app.state.settings.models_dir, horizon=horizon)
+    scope = graph_scope(request, dataset_id, dataset_version, observed_until)
+    return model_catalog(scope, request.app.state.settings.models_dir, horizon=horizon)
 
 
 @router.post("/link-prediction/predict", response_model=LinkPredictionResponse)

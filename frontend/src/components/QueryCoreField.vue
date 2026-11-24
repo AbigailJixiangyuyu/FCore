@@ -2,20 +2,19 @@
 import { computed, ref, useTemplateRef } from 'vue'
 
 import { useWorkbench } from '../composables/workbenchContext.js'
-import { PRESENT_SNAPSHOT_ID } from '../domain/timeline.js'
 
 const props = defineProps({
   id: { type: String, required: true },
   account: { type: String, required: true },
 })
 const k = defineModel({ type: Number })
-const { snapshot } = useWorkbench()
+const { snapshot, store } = useWorkbench()
 const maxK = 10000
 const input = useTemplateRef('input')
 const showCoreness = ref(false)
 const coreness = computed(function () {
   const frame = snapshot.value
-  if (frame?.snapshot_id !== PRESENT_SNAPSHOT_ID) return null
+  if (frame?.snapshot_id !== store.observedUntil) return null
   const numbers = frame.core_numbers
   return Object.hasOwn(numbers, props.account) ? numbers[props.account] : null
 })

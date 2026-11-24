@@ -4,6 +4,7 @@ import { test } from 'node:test'
 import { computeLayout } from '../src/graph/forceLayout.js'
 import { boxesOverlap, placeNodeLabels } from '../src/graph/labels.js'
 import {
+  boundsOf,
   normalizeReference,
   referenceFingerprint,
 } from '../src/graph/layoutReference.js'
@@ -146,6 +147,28 @@ test('Dept3 history layout is deterministic, nonoverlapping and does not mutate 
         Math.hypot(points[a].x - points[b].x, points[a].y - points[b].y) >= 12,
       )
     }
+})
+
+test('isolated vertices scatter inside the network and leave connected vertices in place', function () {
+  const connected = Array.from({ length: 24 }, (_, i) => `v${i}`)
+  const isolates = Array.from({ length: 8 }, (_, i) => `isolate${i}`)
+  const edges = connected.map((id, i) => [id, connected[(i + 1) % connected.length]])
+  const fixed = computeLayout(reference(connected, edges)).positions
+  const mixed = reference([...connected, ...isolates], edges)
+  const { positions } = computeLayout(mixed)
+  const bounds = boundsOf(fixed, 0)
+
+  for (const id of connected) assert.deepEqual(positions[id], fixed[id])
+  assert.deepEqual(computeLayout(mixed).positions, positions)
+  assert.equal(new Set(isolates.map(id => positions[id].y)).size, isolates.length)
+  for (const id of isolates) {
+    const point = positions[id]
+    assert.ok(point.x >= bounds.x[0] && point.x <= bounds.x[1])
+    assert.ok(point.y >= bounds.y[0] && point.y <= bounds.y[1])
+    for (const other of mixed.nodes.filter(other => other !== id)) {
+      assert.ok(Math.hypot(point.x - positions[other].x, point.y - positions[other].y) >= 12)
+    }
+  }
 })
 
 test('historical ranges preserve the same community coordinates while changing observed edges', function () {

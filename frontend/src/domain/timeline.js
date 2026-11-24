@@ -1,7 +1,3 @@
-// Shared index and identifier convention for the demo's fixed timeline.
-export const HISTORY_LENGTH = 11
-export const PRESENT_INDEX = HISTORY_LENGTH
-export const FUTURE_INDEX = PRESENT_INDEX + 1
 export const FORECAST_HORIZONS = [1, 2, 3]
 
 export function snapshotId(index) {
@@ -12,9 +8,6 @@ export function snapshotIndex(id) {
   return Number(id.slice(1)) - 1
 }
 
-export const PRESENT_SNAPSHOT_ID = snapshotId(PRESENT_INDEX)
-export const LAST_HISTORICAL_SNAPSHOT_ID = snapshotId(PRESENT_INDEX - 1)
-
-export function forecastSnapshotId(horizon) {
-  return snapshotId(PRESENT_INDEX + horizon)
+export function forecastSnapshotId(observedUntil, horizon) {
+  return snapshotId(snapshotIndex(observedUntil) + horizon)
 }

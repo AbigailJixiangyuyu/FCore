@@ -101,7 +101,7 @@ const option = computed(function () {
   <div v-if="witness" class="pattern-evidence">
     <div class="pattern-facts">
       <span title="Highest average internal degree over segments of at least ℓ snapshots">
-        Maximum ℓ-Segment Density (MSD) <strong>{{ msd }}</strong> · δ = {{ threshold }}
+        Maximum ℓ-Segment Density <strong>{{ msd }}</strong> · δ = {{ threshold }}
       </span>
     </div>
     <ChartCanvas

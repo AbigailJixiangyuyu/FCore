@@ -82,13 +82,13 @@ class DatasetRepository:
         raise HTTPException(404, "Dataset not found.")
 
     def validate_context(
-        self, dataset_id: str, version: str, cutoff: str
+        self, dataset_id: str, version: str, cutoff: str | None
     ) -> DatasetManifest:
         _, manifest = self.locate(dataset_id)
         if manifest.dataset_version != version:
             raise HTTPException(409, "The dataset version changed. Reload the dataset.")
-        if cutoff != manifest.observed_until:
-            raise HTTPException(422, "The observation cutoff is S12.")
+        if cutoff is not None and cutoff != manifest.observed_until:
+            raise HTTPException(422, f"The observation cutoff is {manifest.observed_until}.")
         return manifest
 
     def read(self, dataset_id: str, filename: str):

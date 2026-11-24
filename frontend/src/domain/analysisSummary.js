@@ -37,6 +37,7 @@ export function summarizeGraph({ nodes, edges, stats, core_numbers = {}, snapsho
 
   return {
     nodeCount: size,
+    snapshotCount,
     transactionCount: stats.transaction_count,
     edgeCount: edges.length,
     density: stats.density,
@@ -48,7 +49,7 @@ export function summarizeGraph({ nodes, edges, stats, core_numbers = {}, snapsho
     maxCore,
     maxCoreSize: coreNumbers.filter(core => core === maxCore).length,
     largestComponentSize: largestComponentSize(neighbors),
-    averageTransactionsPerSnapshot: snapshotCount > 1 ? stats.transaction_count / snapshotCount : null,
+    averageTransactionsPerSnapshot: snapshotCount > 1 && stats.transaction_count != null ? stats.transaction_count / snapshotCount : null,
   }
 }
 

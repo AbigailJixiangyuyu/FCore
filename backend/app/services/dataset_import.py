@@ -63,8 +63,8 @@ def defaults_for_windows(windows: list[list[dict]]) -> DatasetQueryDefaults:
     )
 
 
-def account_catalog(windows: list[list[dict]]) -> list[dict]:
-    accounts = sorted({node for window in windows for node in endpoints(window)})
+def account_catalog(account_ids: set[str]) -> list[dict]:
+    accounts = sorted(account_ids)
     catalog = []
     for index, account in enumerate(accounts):
         angle = math.tau * index / len(accounts)
@@ -119,7 +119,7 @@ def import_dataset(data_dir: Path, filename: str, content: bytes) -> DatasetMani
     )
     files = {
         "manifest.json": manifest.model_dump(),
-        "accounts.json": account_catalog(windows),
+        "accounts.json": account_catalog({node for window in windows for node in endpoints(window)}),
         "observed.json": [
             {"snapshot_id": snapshot_id(index), "present_accounts": sorted(endpoints(events))}
             for index, events in enumerate(windows)

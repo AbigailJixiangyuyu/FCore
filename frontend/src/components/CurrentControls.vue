@@ -3,7 +3,7 @@ import { Search } from '@element-plus/icons-vue'
 import { computed } from 'vue'
 import { useWorkbench } from '../composables/workbenchContext.js'
 import { currentAlgorithms } from '../domain/algorithms.js'
-import { PRESENT_INDEX, PRESENT_SNAPSHOT_ID, snapshotId } from '../domain/timeline.js'
+import { snapshotId } from '../domain/timeline.js'
 import AlgorithmPicker from './AlgorithmPicker.vue'
 import QueryAccountField from './QueryAccountField.vue'
 import QueryCoreField from './QueryCoreField.vue'
@@ -11,9 +11,7 @@ import QueryForm from './QueryForm.vue'
 import QueryState from './QueryState.vue'
 
 const { store, queryResult, queryResults, runQuery } = useWorkbench()
-const startSnapshots = Array.from({ length: PRESENT_INDEX + 1 }, function (_, index) {
-  return snapshotId(index)
-})
+const startSnapshots = computed(() => Array.from({ length: store.presentIndex + 1 }, (_, i) => snapshotId(i)))
 const usesParameters = computed(() => store.currentAlgorithm !== 'pkmc')
 const validParameters = computed(function () {
   if (!usesParameters.value) return true
@@ -38,7 +36,7 @@ const validParameters = computed(function () {
           <el-option v-for="id in startSnapshots" :key="id" :value="id" :label="id" />
         </el-select>
         <span aria-hidden="true">–</span>
-        <output aria-label="End snapshot">{{ PRESENT_SNAPSHOT_ID }}</output>
+        <output aria-label="End snapshot">{{ store.observedUntil }}</output>
       </div>
       <QueryAccountField v-model="store.draft.account" />
       <QueryCoreField

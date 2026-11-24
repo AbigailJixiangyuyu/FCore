@@ -26,7 +26,7 @@ def snapshot(scope: AnalysisScope, snapshot_id: str) -> dict:
     frame = scope.repository.snapshot(scope.context.dataset_id, snapshot_id)
     payload = graph_payload(scope, frame)
     return {
-        **scope.metadata("computed", "transaction-aggregation-v1"),
+        **scope.metadata("computed", "static-graph-v1" if frame.static_edges is not None else "transaction-aggregation-v1"),
         "snapshot_id": snapshot_id,
         **payload,
     }
@@ -50,6 +50,10 @@ def combine_snapshots(frames: list[SnapshotData]) -> SnapshotData:
             {account for frame in frames for account in frame.present_accounts}
         ),
         transactions=[t for frame in frames for t in frame.transactions],
+        static_edges=(
+            sorted({edge for frame in frames for edge in frame.static_edges or ()})
+            if any(frame.static_edges is not None for frame in frames) else None
+        ),
     )
 
 
@@ -79,11 +83,11 @@ def observed_window(
 def aggregate(scope: AnalysisScope, start_snapshot_id: str, end_snapshot_id: str) -> dict:
     start, end = window_bounds(scope, start_snapshot_id, end_snapshot_id)
     if start.kind != "history" or end.kind != "history":
-        raise HTTPException(422, "Aggregate queries support historical snapshots S01–S11.")
+        raise HTTPException(422, "Choose two historical snapshots for aggregation.")
     frame, snapshot_ids = observed_window(scope, start, end)
     payload = graph_payload(scope, frame)
     return {
-        **scope.metadata("computed", "historical-transaction-union-v1"),
+        **scope.metadata("computed", "historical-graph-union-v1" if frame.static_edges is not None else "historical-transaction-union-v1"),
         "start_snapshot_id": start_snapshot_id,
         "end_snapshot_id": end_snapshot_id,
         "snapshot_ids": snapshot_ids,

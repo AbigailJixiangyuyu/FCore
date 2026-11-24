@@ -16,7 +16,7 @@ def query_defaults(dataset_id: str | None, method: str | None) -> dict:
         return {}
     profile = QUERY_DEFAULTS.get(dataset_id) if isinstance(dataset_id, str) else None
     if profile is None:
-        if method == "temporal_core":
+        if method in ("historical_core", "temporal_core"):
             return {}  # Use the schema's k=1 for uploaded graphs.
         profile = QUERY_DEFAULTS["synthetic-small"]
     return dict(profile.get(method, {}))
@@ -30,7 +30,7 @@ def apply_query_defaults(value: Any, method: str) -> Any:
     if method == "burst":
         # Omitted accounts continue to request the global bursting core.
         defaults.pop("account", None)
-    if method == "temporal_core" and ("start_snapshot_id" in value or "end_snapshot_id" in value):
+    if method in ("historical_core", "temporal_core") and ("start_snapshot_id" in value or "end_snapshot_id" in value):
         # A submitted range replaces both configured bounds.
         defaults.pop("start_snapshot_id", None)
         defaults.pop("end_snapshot_id", None)
@@ -39,6 +39,8 @@ def apply_query_defaults(value: Any, method: str) -> Any:
         account = parameters.get("account")
         if isinstance(account, str):
             # Built-in query forms already normalize whitespace, but uploaded IDs are literal.
-            if not account.strip() or (isinstance(dataset_id, str) and dataset_id in QUERY_DEFAULTS):
+            version = value.get("dataset_version")
+            demo_update = isinstance(version, str) and version.startswith(f"{dataset_id}-demo-")
+            if not account.strip() or (isinstance(dataset_id, str) and dataset_id in QUERY_DEFAULTS and not demo_update):
                 parameters["account"] = account.strip()
     return parameters

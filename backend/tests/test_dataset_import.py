@@ -56,6 +56,13 @@ def test_import_registers_sorted_interactions_and_preserves_the_observation_cuto
         })
         assert query.status_code == 200, query.json()
         assert query.json()["structures"][0]["members"] == ["001", "Ab", "ab"]
+        historical = client.post("/api/patterns/mine", json={**context, "pattern": "historical_core"})
+        assert historical.status_code == 200, historical.text
+        community, = historical.json()["structures"]
+        assert community["members"] == ["001", "a,b"]
+        assert community["parameters"] == {
+            "pattern": "historical_core", "k": 1, "start_snapshot_id": "S01", "end_snapshot_id": "S11",
+        }
 
     repository = DatasetRepository(data_dir)
     assert len(list(data_dir.iterdir())) == 1

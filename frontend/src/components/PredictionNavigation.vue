@@ -1,6 +1,5 @@
 <script setup>
 import { useWorkbench } from '../composables/workbenchContext.js'
-import { FUTURE_INDEX, PRESENT_INDEX } from '../domain/timeline.js'
 
 const { store, selectTime } = useWorkbench()
 </script>
@@ -16,10 +15,10 @@ const { store, selectTime } = useWorkbench()
       v-if="store.stage === 'present'"
       type="primary"
       class="full"
-      @click="selectTime(FUTURE_INDEX)"
+      @click="selectTime(store.presentIndex + 1)"
       >Go to Future Prediction →</el-button
     >
-    <el-button v-else class="full" @click="selectTime(PRESENT_INDEX)"
+    <el-button v-else class="full" @click="selectTime(store.presentIndex)"
       >← Back to Current Search</el-button
     >
   </div>

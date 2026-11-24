@@ -1,5 +1,17 @@
 {
+  "ethereum-eth": {
+    "historical_core": { "k": 3, "start_snapshot_id": "S10", "end_snapshot_id": "S11" },
+    "local_core": { "account": "E025", "k": 2 },
+    "future_core": { "account": "E025", "k": 2 },
+    "density": { "threshold": 1 },
+    "periodic": { "account": "E025", "k": 2, "epsilon": 1 },
+    "durable": { "account": "E025", "k": 4 },
+    "burst": { "account": "E025", "l": 3, "delta": 3.0 },
+    "frequency": { "k": 3, "t": 4, "f": 1 },
+    "temporal_core": { "k": 3, "start_snapshot_id": "S10", "end_snapshot_id": "S11" }
+  },
   "email-eu-core-dept3": {
+    "historical_core": { "k": 7, "start_snapshot_id": "S10", "end_snapshot_id": "S11" },
     "local_core": { "account": "49", "k": 7 },
     "future_core": { "account": "49", "k": 4 },
     "density": { "threshold": 1 },
@@ -10,6 +22,7 @@
     "temporal_core": { "k": 7, "start_snapshot_id": "S10", "end_snapshot_id": "S11" }
   },
   "synthetic-small": {
+    "historical_core": { "k": 4, "start_snapshot_id": "S10", "end_snapshot_id": "S10" },
     "local_core": { "account": "a-001", "k": 4 },
     "future_core": { "account": "a-001", "k": 4 },
     "density": { "threshold": 1 },

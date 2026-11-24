@@ -90,7 +90,7 @@ export function useLinkPrediction(store, { context, ready }) {
   }
 
   return {
-    predictionModels, activePredictionModel, prediction, matchingPrediction, predictionMessage,
+    predictionModels, draftModel, activePredictionModel, prediction, matchingPrediction, predictionMessage,
     predictionRequest, canRunPrediction, needsModelCheck, runPrediction, recheckPredictionModel,
   }
 }

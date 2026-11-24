@@ -23,7 +23,7 @@ function selectRankedAccount(id) {
         size="small"
         :loading="rankingLoading"
       >
-        Anomaly Scores
+        Anomaly Vertices
       </el-button>
       <template #dropdown>
         <el-dropdown-menu>

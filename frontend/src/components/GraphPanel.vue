@@ -5,9 +5,8 @@ import { DEFAULT_GRAPH_ZOOM } from '../composables/useGraphCanvas.js'
 import { useGraphLayout } from '../composables/useGraphLayout.js'
 import { usePeriodicCommunity } from '../composables/workbench/usePeriodicCommunity.js'
 import { useWorkbench } from '../composables/workbenchContext.js'
-import { algorithmLabel, currentAlgorithms, structureAlgorithm } from '../domain/algorithms.js'
+import { algorithmLabel, structureAlgorithm } from '../domain/algorithms.js'
 import { formatCount } from '../domain/format.js'
-import { PRESENT_SNAPSHOT_ID } from '../domain/timeline.js'
 import {
   forecastNodeColors, futureScene, graphEdgeColor, locatedAccountColor, observedScene,
 } from '../graph/scene.js'
@@ -50,7 +49,10 @@ const future = computed(function () {
 })
 const overview = computed(function () {
   if (!store.analysisRunId) return true
-  return store.stage === 'history' && store.pattern === 'temporal_core' && !selected.value
+  if (store.stage !== 'history' || selected.value) return false
+  if (store.historyResultWindow === 'submitted')
+    return !store.viewingSubmittedHistoryWindow || !!patternResponse.value?.structures.length
+  return store.historyResultWindow === 'tightest'
 })
 const showPrediction = computed(() => future.value && !overview.value)
 const usesCurrentWindow = computed(function () {
@@ -63,9 +65,7 @@ const rangeLabel = computed(function () {
 const periodicStamp = computed(function () {
   const view = periodic.value
   if (!view || view.state === null) return ''
-  return view.state === 1
-    ? `${view.end} · Historical Communities · ${view.k}-core present`
-    : `${view.end} · ${view.k}-core absent`
+  return `${view.end}\n${view.k}-core ${view.state === 1 ? 'present' : 'absent'}`
 })
 const location = computed(function () {
   if (store.stage !== 'present') return null
@@ -111,8 +111,10 @@ const scene = computed(function () {
   }
   const frame = usesCurrentWindow.value ? currentWindow.value : snapshot.value
   let anchor = store.currentAnchor
-  if (store.stage === 'history')
+  if (store.stage === 'history') {
     anchor = store.pattern === 'burst' ? store.historyParameters.account : store.historyAnchor
+    if (store.historyResultWindow === 'submitted') anchor = null
+  }
   return observedScene(frame, layout.value, {
     structure,
     anchor,
@@ -121,8 +123,8 @@ const scene = computed(function () {
   })
 })
 const graphStamp = computed(function () {
-  const windowLabel = rangeLabel.value || PRESENT_SNAPSHOT_ID
-  if (standaloneLocation.value || (overview.value && future.value)) return `${PRESENT_SNAPSHOT_ID} · Observed graph`
+  const windowLabel = rangeLabel.value || store.observedUntil
+  if (standaloneLocation.value || (overview.value && future.value)) return `${store.observedUntil} · Observed graph`
   if (overview.value) return `${windowLabel} · Full graph`
   if (showPrediction.value) {
     const result = matchingPrediction.value
@@ -167,10 +169,7 @@ const legend = computed(function () {
   if (!overview.value && !standaloneLocation.value) {
     const structure = selected.value
     const algorithm = structureAlgorithm(structure)
-    let label = algorithm ? algorithmLabel(algorithm) : structure.label
-    if (algorithm === currentAlgorithms.pkmc) {
-      label = `${algorithm.name} · Maximum ${structure.parameters.max_core}-core`
-    }
+    const label = algorithm ? algorithmLabel(algorithm) : structure.label
     items.push({ label, color: structure.color })
   }
   const request = location.value

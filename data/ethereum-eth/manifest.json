@@ -1,0 +1,105 @@
+{
+  "dataset_id": "ethereum-eth",
+  "dataset_version": "ethereum-eth-v1-5881daf1a63b-undirected-v1",
+  "name": "Ethereum",
+  "synthetic": false,
+  "seed": 0,
+  "timestamp_unit": "seconds",
+  "timestamp_basis": "unix",
+  "snapshot_minutes": 10080,
+  "observed_until": "S12",
+  "snapshots": [
+    {
+      "snapshot_id": "S01",
+      "index": 0,
+      "starts_at": "2015-10-05T00:00:00+00:00",
+      "ends_at": "2015-10-12T00:00:00+00:00",
+      "kind": "history"
+    },
+    {
+      "snapshot_id": "S02",
+      "index": 1,
+      "starts_at": "2015-10-12T00:00:00+00:00",
+      "ends_at": "2015-10-19T00:00:00+00:00",
+      "kind": "history"
+    },
+    {
+      "snapshot_id": "S03",
+      "index": 2,
+      "starts_at": "2015-10-19T00:00:00+00:00",
+      "ends_at": "2015-10-26T00:00:00+00:00",
+      "kind": "history"
+    },
+    {
+      "snapshot_id": "S04",
+      "index": 3,
+      "starts_at": "2015-10-26T00:00:00+00:00",
+      "ends_at": "2015-11-02T00:00:00+00:00",
+      "kind": "history"
+    },
+    {
+      "snapshot_id": "S05",
+      "index": 4,
+      "starts_at": "2015-11-02T00:00:00+00:00",
+      "ends_at": "2015-11-09T00:00:00+00:00",
+      "kind": "history"
+    },
+    {
+      "snapshot_id": "S06",
+      "index": 5,
+      "starts_at": "2015-11-09T00:00:00+00:00",
+      "ends_at": "2015-11-16T00:00:00+00:00",
+      "kind": "history"
+    },
+    {
+      "snapshot_id": "S07",
+      "index": 6,
+      "starts_at": "2015-11-16T00:00:00+00:00",
+      "ends_at": "2015-11-23T00:00:00+00:00",
+      "kind": "history"
+    },
+    {
+      "snapshot_id": "S08",
+      "index": 7,
+      "starts_at": "2015-11-23T00:00:00+00:00",
+      "ends_at": "2015-11-30T00:00:00+00:00",
+      "kind": "history"
+    },
+    {
+      "snapshot_id": "S09",
+      "index": 8,
+      "starts_at": "2015-11-30T00:00:00+00:00",
+      "ends_at": "2015-12-07T00:00:00+00:00",
+      "kind": "history"
+    },
+    {
+      "snapshot_id": "S10",
+      "index": 9,
+      "starts_at": "2015-12-07T00:00:00+00:00",
+      "ends_at": "2015-12-14T00:00:00+00:00",
+      "kind": "history"
+    },
+    {
+      "snapshot_id": "S11",
+      "index": 10,
+      "starts_at": "2015-12-14T00:00:00+00:00",
+      "ends_at": "2015-12-21T00:00:00+00:00",
+      "kind": "history"
+    },
+    {
+      "snapshot_id": "S12",
+      "index": 11,
+      "starts_at": "2015-12-21T00:00:00+00:00",
+      "ends_at": "2015-12-28T00:00:00+00:00",
+      "kind": "present"
+    },
+    {
+      "snapshot_id": "S13",
+      "index": 12,
+      "starts_at": "2015-12-28T00:00:00+00:00",
+      "ends_at": "2016-01-04T00:00:00+00:00",
+      "kind": "future"
+    }
+  ],
+  "query_defaults": null
+}

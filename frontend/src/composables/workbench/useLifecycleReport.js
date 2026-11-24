@@ -2,6 +2,7 @@ import { computed, onScopeDispose, ref, watch } from 'vue'
 
 import { matchesContext } from '../../api/analysis.js'
 import { postJsonLines } from '../../api/client.js'
+import { readPaperReport, writePaperReport } from '../../domain/paperReport.js'
 import { forecastEvidence, reportStages, structureEvidence } from '../../domain/reportEvidence.js'
 
 export function useLifecycleReport(workbench) {
@@ -29,27 +30,49 @@ export function useLifecycleReport(workbench) {
     requestKind.value = null
   }
 
-  function resetDiscussion() {
+  function resetDiscussion(draft = '') {
     turns.value = []
     pendingTurn.value = null
-    question.value = ''
+    question.value = draft
     replyError.value = ''
   }
 
-  function resetReport() {
+  function resetReport(draft = '') {
     completedReport.value = null
     draftReport.value = null
     error.value = ''
-    resetDiscussion()
+    resetDiscussion(draft)
   }
   onScopeDispose(cancel)
-  watch(context, (next) => {
-    if (!next || matchesContext(next, activeContext)) return
-    cancel()
-    slots.value = {}
-    resetReport()
-    activeContext = next
+  const paperView = computed(() => workbench.viewLayout?.value === 'paper')
+  watch([context, paperView], ([next, paper], previous) => {
+    const changed = !matchesContext(next, activeContext)
+    if (changed) {
+      cancel()
+      slots.value = {}
+      resetReport()
+      activeContext = next
+    }
+    if (!paper || !next || (!changed && previous?.[1])) return
+    const saved = readPaperReport(next)
+    if (saved) {
+      cancel()
+      resetReport(saved.question)
+      slots.value = saved.slots
+      completedReport.value = saved.report
+      turns.value = saved.turns
+    }
   }, { immediate: true, flush: 'sync' })
+
+  // Save completed replies atomically. A follow-up interrupted by a reload returns to the input.
+  watch([paperView, slots, completedReport, turns, question, () => pendingTurn.value?.question], () => {
+    if (paperView.value && activeContext) {
+      writePaperReport(activeContext, {
+        slots: slots.value, report: completedReport.value, turns: turns.value,
+        question: question.value || pendingTurn.value?.question || '',
+      })
+    }
+  })
 
   const candidate = computed(() => {
     if (!context.value || !store.analysisRunId) return null
@@ -73,7 +96,7 @@ export function useLifecycleReport(workbench) {
     if (!canSubmit.value) return
     cancel()
     slots.value = { ...slots.value, [stage.value]: candidate.value }
-    resetReport()
+    resetReport(report.value ? '' : question.value)
   }
 
   function ask() {

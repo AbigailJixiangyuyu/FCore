@@ -6,8 +6,8 @@
 
 - 参考范围固定 S01—S11，复用后端聚合接口的无向边。节点保留全部账户。S12／S13 的交互、交易次数权重、模型分数和查询结果不参与坐标计算。
 - 节点和边排序，种子 `20261116`；每个非平凡连通分量使用网格加微小扰动初始化。ForceAtlas2 固定 500 次，`linLogMode=true, adjustSizes=true, edgeWeightInfluence=0, scalingRatio=10, gravity=1, slowDown=1, barnesHutOptimize=false`。
-- 每个分量等比缩放，Noverlap 最多 500 次，`size=4, margin=2, ratio=1, gridSize=10, speed=3`；分量按成员数及 ID 确定性排序后按包围盒排列，孤立节点在外围紧凑排列。分量布局是连接关系的呈现，不按算法结果人为拉开社区。
-- 布局版本 `history-fa2-linlog-500-noverlap-v1`。独立 Vite 模块 Worker 一次完成，缓存键包含数据集、数据版本、布局版本、规范化参考拓扑的 SHA-256；仅保留最近 8 份。任务取消、完成、失败或组件销毁均终止 Worker。
+- 每个分量等比缩放，Noverlap 最多 500 次，使用 `size=4, margin=2, ratio=1, gridSize=10, speed=3`。分量按成员数及 ID 排序后按包围盒排列。孤立节点使用同一随机种子散布在主图空隙中，与其他节点留出间距，并优先避开历史连线。整张图都没有边时也使用二维散点布局。
+- 布局版本 `history-fa2-linlog-500-noverlap-v3`。独立 Vite 模块 Worker 一次完成，缓存键包含数据集、数据版本、布局版本、规范化参考拓扑的 SHA-256，仅保留最近 8 份。任务取消、完成、失败或组件销毁均终止 Worker。
 
 ## 坐标和显示范围
 

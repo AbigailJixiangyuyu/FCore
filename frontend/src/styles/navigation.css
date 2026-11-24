@@ -41,6 +41,21 @@
 .snapshot-granularity span {
   color: var(--muted);
 }
+.dataset-update-details {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  gap: 4px 12px;
+  margin: 0;
+}
+.dataset-update-details dt {
+  color: var(--muted);
+}
+.dataset-update-details dd {
+  margin: 0;
+  text-align: right;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
 .time-axis {
   display: grid;
   grid-template-columns: minmax(0, 1fr) repeat(2, 60px);
@@ -52,6 +67,12 @@
 .historical-timeline {
   min-width: 0;
   padding-inline: 12px;
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.historical-timeline .history-track,
+.historical-timeline .history-ticks {
+  min-width: calc(var(--history-length) * 28px);
 }
 .history-caption {
   display: flex;

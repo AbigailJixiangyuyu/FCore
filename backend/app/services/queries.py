@@ -27,15 +27,13 @@ def query_structures(
     if local_query and local_query.start_snapshot_id is not None:
         start_snapshot_id = local_query.start_snapshot_id
     start, end = window_bounds(scope, start_snapshot_id, request.snapshot_id)
-    if end.snapshot_id != scope.manifest.observed_until or (
-        use_pkmc and end.snapshot_id != "S12"
-    ):
-        raise HTTPException(422, "The current query range must end at S12.")
+    if end.snapshot_id != scope.manifest.observed_until:
+        raise HTTPException(422, f"The current query range must end at {scope.manifest.observed_until}.")
     use_tccs = False
     if local_query:
         spans_snapshots = start.snapshot_id != end.snapshot_id
         if spans_snapshots and local_query.algorithm == "parallel":
-            raise HTTPException(422, "Parallel core decomposition runs on S12 only.")
+            raise HTTPException(422, f"Parallel core decomposition runs on {end.snapshot_id} only.")
         use_tccs = spans_snapshots or local_query.algorithm == "tccs"
 
     numbers = None
@@ -56,7 +54,7 @@ def query_structures(
             parameters["algorithm"] = local_query.algorithm
         components = local_core(graph, local_query.account, local_query.k, numbers=numbers)
         prefix, method = "L", PARALLEL_CORE_METHOD
-        description = "Decompose the undirected S12 graph in parallel and return the k-core component containing q."
+        description = f"Decompose the undirected {end.snapshot_id} graph in parallel and return the k-core component containing q."
         if use_tccs:
             parameters["start_snapshot_id"] = start.snapshot_id
             method = "tccs-online-v1"
@@ -76,7 +74,7 @@ def query_structures(
             components = [members] if members else []
             parameters = {"algorithm": "pkmc", "max_core": maximum}
             method = PKMC_METHOD
-            description = "Run PKMC on the undirected S12 graph and return the entire highest nonempty core."
+            description = f"Run PKMC on the undirected {end.snapshot_id} graph and return the entire highest nonempty core."
         else:
             maximum, components = maximum_core(graph)
             parameters = {"max_core": maximum}

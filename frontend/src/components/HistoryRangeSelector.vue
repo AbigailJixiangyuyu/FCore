@@ -3,14 +3,14 @@ import { computed, onBeforeUnmount, ref, watch } from 'vue'
 
 import { useWorkbench } from '../composables/workbenchContext.js'
 import { formatCount } from '../domain/format.js'
-import { HISTORY_LENGTH, LAST_HISTORICAL_SNAPSHOT_ID, snapshotId } from '../domain/timeline.js'
+import { snapshotId } from '../domain/timeline.js'
 
-defineProps({
+const props = defineProps({
   snapshots: { type: Array, required: true },
 })
 
 const { store, selectHistoryRange } = useWorkbench()
-const lastIndex = HISTORY_LENGTH - 1
+const lastIndex = computed(() => props.snapshots.length - 1)
 const boundaries = ['start', 'end']
 const preview = ref(null)
 const committedRange = computed(() =>
@@ -21,12 +21,12 @@ const selectionStyle = computed(() => {
   if (!selection.value) return {}
   const [start, end] = selection.value
   return {
-    left: `${(start / HISTORY_LENGTH) * 100}%`,
-    right: `${((lastIndex - end) / HISTORY_LENGTH) * 100}%`,
+    left: `${(start / props.snapshots.length) * 100}%`,
+    right: `${((lastIndex.value - end) / props.snapshots.length) * 100}%`,
   }
 })
 const caption = computed(() => {
-  if (!selection.value) return `History · S01–${LAST_HISTORICAL_SNAPSHOT_ID}`
+  if (!selection.value) return `History · S01–${snapshotId(lastIndex.value)}`
   const [start, end] = selection.value
   const range = start === end ? snapshotId(start) : `${snapshotId(start)}—${snapshotId(end)}`
   return `History · ${range} · ${formatCount(end - start + 1, 'snapshot')}`
@@ -40,7 +40,7 @@ function clamp(value, min, max) {
 }
 
 function shiftRange([start, end], step) {
-  const shift = clamp(step, -start, lastIndex - end)
+  const shift = clamp(step, -start, lastIndex.value - end)
   return [start + shift, end + shift]
 }
 
@@ -66,7 +66,7 @@ function beginDrag(event) {
     originX: event.clientX,
     lastX: event.clientX,
     left: bounds.left,
-    cellWidth: bounds.width / HISTORY_LENGTH,
+    cellWidth: bounds.width / props.snapshots.length,
     range: committedRange.value,
   }
   const control = handle ?? selectedRange
@@ -84,8 +84,8 @@ function moveDrag(event) {
   if (!preview.value && Math.abs(delta) < 4) return
 
   if (mode === 'draw') {
-    const first = clamp(Math.floor((originX - left) / cellWidth), 0, lastIndex)
-    const last = clamp(Math.floor((event.clientX - left) / cellWidth), 0, lastIndex)
+    const first = clamp(Math.floor((originX - left) / cellWidth), 0, lastIndex.value)
+    const last = clamp(Math.floor((event.clientX - left) / cellWidth), 0, lastIndex.value)
     preview.value = [Math.min(first, last), Math.max(first, last)]
     return
   }
@@ -93,7 +93,7 @@ function moveDrag(event) {
   const [start, end] = range
   const step = Math.round(delta / cellWidth)
   if (mode === 'start') preview.value = [clamp(start + step, 0, end), end]
-  else if (mode === 'end') preview.value = [start, clamp(end + step, start, lastIndex)]
+  else if (mode === 'end') preview.value = [start, clamp(end + step, start, lastIndex.value)]
   else preview.value = shiftRange(range, step)
 }
 
@@ -154,7 +154,7 @@ function adjustBoundary(event, boundary) {
   const isStart = boundary === 'start'
   const current = isStart ? start : end
   const min = isStart ? 0 : start
-  const max = isStart ? end : lastIndex
+  const max = isStart ? end : lastIndex.value
   let next
   switch (event.key) {
     case 'ArrowLeft':
@@ -187,7 +187,7 @@ onBeforeUnmount(cancelDrag)
     class="historical-timeline"
     role="group"
     aria-label="Historical snapshots"
-    :style="{ '--history-length': HISTORY_LENGTH }"
+    :style="{ '--history-length': props.snapshots.length }"
     @keydown="shiftSelection"
   >
     <div class="history-caption">

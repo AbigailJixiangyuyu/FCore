@@ -1,8 +1,15 @@
 export const historyAlgorithms = {
+  historical_core: {
+    name: 'PHC-Query',
+    topic: 'Historical k-Core Query',
+    paperTitle: 'Querying historical K-cores in large temporal graphs',
+    resultWindow: 'submitted',
+  },
   temporal_core: {
     name: 'OTCD',
     topic: 'Scalable Time-Range k-Core Query',
     paperTitle: 'Scalable Time-Range k-Core Query on Temporal Graphs',
+    resultWindow: 'tightest',
   },
   burst: {
     name: 'MBC-B',
@@ -58,7 +65,7 @@ export const predictionAlgorithms = {
 }
 
 export function algorithmLabel({ name, topic }) {
-  return topic ? `${name} · ${topic}` : name
+  return topic ?? name
 }
 
 export function structureAlgorithm({ origin, parameters, method }) {

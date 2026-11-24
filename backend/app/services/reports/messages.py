@@ -25,17 +25,23 @@ indicate more unusual current interactions. Connect a named member's score to it
 and predicted membership when supported. If scoring evidence is unavailable, state which
 conclusions the evidence can support. Missing forecast scores leave future membership unknown."""
 
-REPORT_PROMPT = """Write a concise English analysis for a graph analyst in short plain-text paragraphs.
-Use initial_prompt, when provided, to focus the report on the analyst's question. Connect the
-historical pattern, observed membership changes, current anomaly scores and predicted retention
-or turnover. Highlight specific members whose history, current score and forecast merit attention.
+REPORT_PROMPT = """Write a concise English Markdown report for a graph analyst. Open with one sentence stating the
+main finding. After a blank line, give exactly three bullet points in this order:
+- **Historical pattern**: explain the historical method's finding.
+- **Current changes and unusual members**: connect observed turnover to current SLADE evidence.
+- **Predicted changes**: explain expected retention or turnover for the target snapshot.
+Lead each point with its conclusion, then support it with specific counts, vertices or snapshots.
+Place each evidence ID immediately after the claim it supports. Use initial_prompt, when supplied,
+to focus the analysis. Keep each point short.
 
 """ + EVIDENCE_GUIDANCE
 
 FOLLOW_UP_PROMPT = """Answer the latest question about the lifecycle report in the language it uses.
 Use earlier replies to resolve references. Use the supplied evidence in the first user message for
 factual claims. Explain what information is missing when the question goes beyond that evidence.
-Respond in plain text.
+Answer a question about a single value or vertex directly. For multiple findings or comparisons,
+use a Markdown list with one finding per point. Bold only key conclusions. Place evidence IDs
+immediately after the claims they support.
 
 """ + EVIDENCE_GUIDANCE
 

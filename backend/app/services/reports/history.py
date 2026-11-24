@@ -8,7 +8,7 @@ from app.schemas.analysis import Structure
 
 _METHODS = {
     "periodic": "TD", "durable": "ONCE", "burst": "MBC-B",
-    "frequency": "OL", "temporal_core": "OTCD",
+    "frequency": "OL", "temporal_core": "OTCD", "historical_core": "PHC-Query",
 }
 
 
@@ -29,7 +29,13 @@ def submitted_history_evidence(
         "analysis_window": window(snapshot_ids[0], snapshot_ids[-1]),
         "member_count": len(history.members),
     }
-    if pattern == "periodic":
+    if pattern == "historical_core":
+        record.update(
+            internal_edges=history.metrics["internal_edges"],
+            min_internal_degree=history.metrics["min_degree"],
+            members_in_a_k_core_by_window_end=dict(zip(snapshot_ids, evidence["qualifying_member_counts"])),
+        )
+    elif pattern == "periodic":
         record.update(
             period_snapshots=evidence["period"],
             cycles=evidence["frequency"],

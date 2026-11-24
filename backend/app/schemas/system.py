@@ -37,8 +37,16 @@ class DatasetSummary(BaseModel):
     timestamp_basis: Literal["unix", "relative"] = "unix"
     snapshot_minutes: int = 10
     observed_until: str = ""
+    has_demo_updates: bool = False
     query_defaults: DatasetQueryDefaults | None = None
 
 
 class DatasetsResponse(BaseModel):
     datasets: list[DatasetSummary] = Field(default_factory=list)
+
+
+class SnapshotAppendResult(BaseModel):
+    dataset: DatasetSummary
+    next_snapshot_id: str
+    node_count: int
+    edge_count: int

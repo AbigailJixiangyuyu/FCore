@@ -1,16 +1,13 @@
 import { defineStore } from 'pinia'
 import queryDefaults from '../../../config/query-defaults.json'
 import { currentAlgorithms, historyAlgorithms } from '../domain/algorithms.js'
-import {
-  FUTURE_INDEX, LAST_HISTORICAL_SNAPSHOT_ID, PRESENT_INDEX, PRESENT_SNAPSHOT_ID,
-  forecastSnapshotId, snapshotId, snapshotIndex,
-} from '../domain/timeline.js'
+import { forecastSnapshotId, snapshotId, snapshotIndex } from '../domain/timeline.js'
 
-export const DEFAULT_DATASET_ID = 'email-eu-core-dept3'
+export const DEFAULT_DATASET_ID = 'ethereum-eth'
 let nextAnalysisRunId = 0
 
-function historyDefaults(defaults) {
-  const window = { start_snapshot_id: snapshotId(0), end_snapshot_id: LAST_HISTORICAL_SNAPSHOT_ID }
+function historyDefaults(defaults, presentIndex) {
+  const window = { start_snapshot_id: snapshotId(0), end_snapshot_id: snapshotId(presentIndex - 1) }
   return Object.fromEntries(
     Object.keys(historyAlgorithms).map(pattern => [
       pattern, { ...window, ...defaults[pattern] },
@@ -18,44 +15,51 @@ function historyDefaults(defaults) {
   )
 }
 
-function currentDefaults(defaults) {
+function currentDefaults(defaults, observedUntil) {
   return {
     parallel: { ...defaults.local_core },
-    tccs: { ...defaults.local_core, start_snapshot_id: PRESENT_SNAPSHOT_ID },
+    tccs: { ...defaults.local_core, start_snapshot_id: observedUntil },
     pkmc: {},
   }
 }
 
-function queryAccount(account, datasetId) {
-  return queryDefaults[datasetId] ? account.trim() : account
+function queryAccount(account, state) {
+  return state.literalAccountIds ? account : account.trim()
 }
 
-function initialState(datasetId = DEFAULT_DATASET_ID, suggested) {
+function initialState(datasetId = DEFAULT_DATASET_ID, suggested, observedUntil = 'S12', updated = false) {
+  const presentIndex = snapshotIndex(observedUntil)
   const defaults = queryDefaults[datasetId] || {
-    ...queryDefaults[DEFAULT_DATASET_ID],
+    ...queryDefaults['email-eu-core-dept3'], // Fallback parameters for uploaded CSVs.
+    historical_core: { k: 1 },
     temporal_core: { k: 1 },
   }
   const account = suggested?.current_account ?? defaults.local_core.account
-  const historyAccount = suggested?.history_account ?? account
-  const profile = suggested ? {
+  const historyAccount = suggested?.history_account ?? (queryDefaults[datasetId] ? defaults.periodic.account : account)
+  let profile = defaults
+  if (suggested) profile = {
     ...defaults,
     local_core: { account, k: suggested.current_k },
+  }
+  if (suggested && !queryDefaults[datasetId]) Object.assign(profile, {
     periodic: { ...defaults.periodic, account: historyAccount, k: 1 },
     durable: { ...defaults.durable, account: historyAccount, k: 1 },
     burst: { ...defaults.burst, account: historyAccount },
     future_core: { account: historyAccount, k: 1 },
-  } : defaults
+  })
   return {
     datasetId,
-    timeIndex: PRESENT_INDEX,
+    observedUntil,
+    literalAccountIds: updated || !queryDefaults[datasetId],
+    timeIndex: presentIndex,
     historyStartIndex: 0,
-    historyEndIndex: PRESENT_INDEX - 1,
+    historyEndIndex: presentIndex - 1,
     pattern: Object.keys(historyAlgorithms)[0],
-    historyDrafts: historyDefaults(profile),
-    historySubmitted: historyDefaults(profile),
+    historyDrafts: historyDefaults(profile, presentIndex),
+    historySubmitted: historyDefaults(profile, presentIndex),
     currentAlgorithm: Object.keys(currentAlgorithms)[0],
-    currentDrafts: currentDefaults(profile),
-    currentSubmitted: currentDefaults(profile),
+    currentDrafts: currentDefaults(profile, observedUntil),
+    currentSubmitted: currentDefaults(profile, observedUntil),
     analysisRunId: null,
     querySelection: '',
     graphLocation: null,
@@ -71,13 +75,14 @@ function initialState(datasetId = DEFAULT_DATASET_ID, suggested) {
 export const useWorkbenchStore = defineStore('workbench', {
   state: initialState,
   getters: {
+    presentIndex: state => snapshotIndex(state.observedUntil),
     anomalyAccount: function (state) {
       const location = state.graphLocation
       return location?.source === 'anomaly' ? location.accountId : ''
     },
     stage: function (state) {
-      if (state.timeIndex < PRESENT_INDEX) return 'history'
-      if (state.timeIndex === PRESENT_INDEX) return 'present'
+      if (state.timeIndex < this.presentIndex) return 'history'
+      if (state.timeIndex === this.presentIndex) return 'present'
       return 'future'
     },
     historyRange: function (state) {
@@ -95,10 +100,16 @@ export const useWorkbenchStore = defineStore('workbench', {
     historyUsesAccount: function (state) {
       return 'account' in state.historyDrafts[state.pattern]
     },
+    historyResultWindow: state => historyAlgorithms[state.pattern].resultWindow,
+    viewingSubmittedHistoryWindow: function () {
+      const { start_snapshot_id, end_snapshot_id } = this.historyParameters
+      return this.historyRange.start_snapshot_id === start_snapshot_id &&
+        this.historyRange.end_snapshot_id === end_snapshot_id
+    },
     historyDraftParameters: function (state) {
       const parameters = { ...state.historyDrafts[state.pattern] }
       if ('account' in parameters)
-        parameters.account = queryAccount(parameters.account, state.datasetId)
+        parameters.account = queryAccount(parameters.account, state)
       return parameters
     },
     historyParameters: function (state) {
@@ -154,19 +165,19 @@ export const useWorkbenchStore = defineStore('workbench', {
     draftParameters: function () {
       const parameters = { ...this.draft }
       if ('account' in parameters)
-        parameters.account = queryAccount(parameters.account, this.datasetId)
+        parameters.account = queryAccount(parameters.account, this)
       return parameters
     },
     currentParameters: function (state) {
       if (state.currentAlgorithm === 'pkmc')
-        return { snapshot_id: PRESENT_SNAPSHOT_ID, algorithm: 'pkmc' }
+        return { snapshot_id: state.observedUntil, algorithm: 'pkmc' }
       if (state.currentAlgorithm === 'tccs')
         return { ...this.submitted, algorithm: 'tccs' }
       return this.submitted
     },
     currentWindowLabel: function () {
       const start = this.submitted.start_snapshot_id
-      return start ? `${start}—${PRESENT_SNAPSHOT_ID}` : ''
+      return start ? `${start}—${this.observedUntil}` : ''
     },
     hasPendingParameters: function () {
       return (
@@ -174,10 +185,10 @@ export const useWorkbenchStore = defineStore('workbench', {
       )
     },
     futureDraftParameters: function (state) {
-      return { ...state.futureDraft, account: queryAccount(state.futureDraft.account, state.datasetId) }
+      return { ...state.futureDraft, account: queryAccount(state.futureDraft.account, state) }
     },
     futureSnapshotId: function (state) {
-      return forecastSnapshotId(state.futureSubmitted.horizon)
+      return forecastSnapshotId(state.observedUntil, state.futureSubmitted.horizon)
     },
     futureParameters: function (state) {
       return {
@@ -213,12 +224,12 @@ export const useWorkbenchStore = defineStore('workbench', {
       this.clearAnalysis()
       this[field] = algorithm
     },
-    selectDataset: function (datasetId, suggested) {
-      this.$patch(initialState(datasetId, suggested))
+    selectDataset: function (dataset) {
+      this.$patch(initialState(dataset.dataset_id, dataset.query_defaults, dataset.observed_until, dataset.has_demo_updates))
     },
     selectTime: function (index) {
-      const timeIndex = Math.max(0, Math.min(FUTURE_INDEX, Math.round(index)))
-      if (timeIndex < PRESENT_INDEX) {
+      const timeIndex = Math.max(0, Math.min(this.presentIndex + 1, Math.round(index)))
+      if (timeIndex < this.presentIndex) {
         this.selectHistoryRange(this.historyStartIndex, timeIndex)
       } else {
         if (timeIndex !== this.timeIndex) this.clearAnalysis()
@@ -226,10 +237,10 @@ export const useWorkbenchStore = defineStore('workbench', {
       }
     },
     selectHistoryRange: function (start, end) {
-      const historyEndIndex = Math.max(0, Math.min(PRESENT_INDEX - 1, Math.round(end)))
+      const historyEndIndex = Math.max(0, Math.min(this.presentIndex - 1, Math.round(end)))
       const historyStartIndex = Math.max(0, Math.min(historyEndIndex, Math.round(start)))
       if (this.stage !== 'history') this.clearAnalysis()
-      if (this.pattern === 'temporal_core' && (
+      if (this.historyResultWindow && (
         historyStartIndex !== this.historyStartIndex || historyEndIndex !== this.historyEndIndex
       )) this.historySelection = ''
       this.$patch({ historyStartIndex, historyEndIndex, timeIndex: historyEndIndex })

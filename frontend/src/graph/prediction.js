@@ -9,7 +9,7 @@ export function matchesCommunityPrediction(response, context, parameters, model)
     response.account === parameters.account &&
     response.k === parameters.k &&
     response.threshold === parameters.threshold &&
-    response.target_snapshot === forecastSnapshotId(parameters.horizon) &&
+    response.target_snapshot === forecastSnapshotId(context.observed_until, parameters.horizon) &&
     (withoutModel || response.model_version === model.model_version)
   )
 }

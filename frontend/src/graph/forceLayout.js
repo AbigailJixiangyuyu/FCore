@@ -98,6 +98,60 @@ function layoutComponent(members, graph, random) {
   return { positions, bounds: boundsOf(positions, 12) }
 }
 
+function scatterIsolates(isolates, positions, edges, random) {
+  if (!isolates.length) return
+  const cellSize = 2
+  const cellAt = (x, y) => `${Math.floor(x / cellSize)},${Math.floor(y / cellSize)}`
+  const occupied = new Set()
+  function reserveSpace(x, y, margin) {
+    const lastCol = Math.floor((x + margin) / cellSize)
+    const lastRow = Math.floor((y + margin) / cellSize)
+    for (let col = Math.floor((x - margin) / cellSize); col <= lastCol; col++) {
+      const dx = Math.max(col * cellSize - x, x - (col + 1) * cellSize, 0)
+      for (let row = Math.floor((y - margin) / cellSize); row <= lastRow; row++) {
+        const dy = Math.max(row * cellSize - y, y - (row + 1) * cellSize, 0)
+        if (dx * dx + dy * dy <= margin * margin) occupied.add(`${col},${row}`)
+      }
+    }
+  }
+  const connected = Object.values(positions)
+  for (const point of connected) reserveSpace(point.x, point.y, 12)
+
+  // Reserve cells along transfers so an isolated vertex appears in open space.
+  for (const [u, v] of edges) {
+    const a = positions[u]
+    const dx = positions[v].x - a.x
+    const dy = positions[v].y - a.y
+    const steps = Math.ceil(Math.hypot(dx, dy) / cellSize)
+    for (let i = 1; i < steps; i++) {
+      reserveSpace(a.x + dx * i / steps, a.y + dy * i / steps, 2.5)
+    }
+  }
+
+  const { x, y } = boundsOf(positions, 0)
+  const center = { x: (x[0] + x[1]) / 2, y: (y[0] + y[1]) / 2 }
+  // Give narrow graphs and graphs made entirely of isolates a two-dimensional area.
+  const minimumSpan = 32 * Math.sqrt(isolates.length)
+  const width = Math.max(minimumSpan, (x[1] - x[0]) * 0.85)
+  const height = Math.max(minimumSpan, (y[1] - y[0]) * 0.85)
+  for (const [id] of isolates) {
+    let scale = 0.72
+    for (let attempt = 0; ; attempt++) {
+      // Search the interior first, then widen the search if it is already full.
+      if (attempt > 0 && attempt % 128 === 0) scale *= 1.4
+      const point = {
+        x: center.x + width * scale * (random() - 0.5),
+        y: center.y + height * scale * (random() - 0.5),
+      }
+      const cell = cellAt(point.x, point.y)
+      if (occupied.has(cell)) continue
+      positions[id] = point
+      reserveSpace(point.x, point.y, 12)
+      break
+    }
+  }
+}
+
 export function computeLayout(reference) {
   const graph = new UndirectedGraph()
   for (const id of reference.nodes) graph.addNode(id)
@@ -149,13 +203,6 @@ export function computeLayout(reference) {
   const isolated = components.filter(function (members) {
     return members.length === 1
   })
-  const columns = Math.max(1, Math.floor(shelfWidth / 20))
-  const isolatedY = blocks.length ? cursorY + rowHeight + 16 : 0
-  isolated.forEach(function ([id], index) {
-    positions[id] = {
-      x: 12 + (index % columns) * 20,
-      y: isolatedY + Math.floor(index / columns) * 20,
-    }
-  })
+  scatterIsolates(isolated, positions, reference.edges, random)
   return { positions, bounds: boundsOf(positions), version: LAYOUT_VERSION }
 }

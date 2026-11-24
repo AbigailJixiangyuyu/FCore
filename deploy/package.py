@@ -11,8 +11,12 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-DATASETS = ("email-eu-core-dept3", "synthetic-small")
+DATASETS = ("ethereum-eth", "email-eu-core-dept3", "synthetic-small")
 MODELS = (
+    ("ethereum-eth", "slade", "current.json"),
+    ("ethereum-eth", "zebra", "current.json"),
+    ("ethereum-eth", "zebra", "current-h2.json"),
+    ("ethereum-eth", "zebra", "current-h3.json"),
     ("email-eu-core-dept3", "slade", "current.json"),
     ("email-eu-core-dept3", "zebra", "current.json"),
     ("email-eu-core-dept3", "zebra", "current-h2.json"),

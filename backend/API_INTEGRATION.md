@@ -27,13 +27,23 @@
 GET /api/datasets/synthetic-small/snapshots/S12?dataset_version=synthetic-small-v3-undirected-v1
 ```
 
-普通快照接口只读取 S01—S12。请求 S13 返回 404，未来画布使用预测社区接口返回的成员和预测边。
+普通快照接口读取至清单的 `observed_until`。原始数据集截止 S12，此时请求 S13 返回 404。
 
 ### 上传数据集
 
 `POST /api/datasets/import` 接收 `multipart/form-data`，字段 `file` 为单个 UTF-8 `.csv` 文件，固定列为 `u,v,t`，`t` 使用 Unix 秒。两个端点顺序不限，重复交互按行保留。成功返回 HTTP 201 及与数据集列表一致的清单摘要，前端刷新列表并切换。格式错误返回 422，行内容错误的 `detail` 包含 CSV 行号和原因。
 
 导入生成 S01—S12 的等宽观测快照及 S13 的预测窗口。清单中的 `query_defaults` 提供新数据集的 `current_account`、`current_k` 和可空的 `history_account`。页面按此提交新数据集的 `account`、`k`。快照存储与时间口径见下方说明。 [上传格式与分片规则](../data/README.md#从工作台新增)
+
+### 追加演示快照
+
+`POST /api/datasets/{dataset_id}/snapshots` 接收 `multipart/form-data`。上传字段为 `file`（单个 `u,v` CSV）、`dataset_version`、`observed_until` 和 `operation_id`（本次上传的 UUID）。通过请求头 `X-FCore-Session` 携带页面生成的随机 UUID。在同一页面后续的清单、图和分析请求中复用该头。
+
+成功返回 201，`dataset` 包含新版本及观察截止，`next_snapshot_id`、`node_count`、`edge_count` 分别给出下一快照编号和本次图规模。原样重试同一次操作返回原回执。版本冲突或复用操作编号提交不同内容返回 409。CSV 格式错误返回 422 并给出行号。
+
+静态快照通过 `static-graph-v1` 返回无向边。缺失的逐笔次数在边和统计中以 `null` 表示。清单中的 `has_demo_updates` 标识已追加的演示版本，SLADE 返回 `not_evaluated`，Zebra 模型目录返回 `not_ready`。清单的 `kind` 和 `observed_until` 决定各窗口的用途。
+
+当前 Docker 和开发启动方式都使用单个 API 工作进程。每个页面有独立的内存视图，关闭或刷新时可通过 `DELETE /api/demo-session` 释放。进程重启也会释放所有视图。[静态图格式](../data/README.md#演示中追加一片)
 
 ### Email Dept3 数据包
 
@@ -105,7 +115,7 @@ Content-Type: application/json
 | --- | --- | --- |
 | `/api/queries/max-core` | 可选 `snapshot_id`、`algorithm="pkmc"` | PKMC 返回完整最高阶核。省略算法时按原协议返回最高阶核的各个连通分量，方法为 `maximum-core-v1` |
 | `/api/queries/density` | `snapshot_id`、`threshold ∈ [0,1]`（默认 1） | 保留兼容，Core 分量与闭一跳邻域候选筛选 |
-| `/api/patterns/mine` | 按 `pattern` 区分的参数、可选起止快照 | 在所选区间的逐快照数据上运行 TD＋FT/AC、ONCE、MBC-B、在线频率感知核或 OTCD |
+| `/api/patterns/mine` | 按 `pattern` 区分的参数、可选起止快照 | 运行 PHC-Query、OTCD、MBC-B、TD＋FT/AC、ONCE 或在线频率感知核 |
 | `/api/anomalies/discover` | 可选 `snapshot_id`（默认 S12）、`top_r`（默认 10） | S12 返回 SLADE 实际账户评分；历史直接请求返回未评估状态 |
 
 `Structure` 包含来源 `origin`、已提交条件 `parameters`、`members`、`snapshot_id`、版本与截止、`membership_hash`、方法标识、统计与可选证据。时间证据和兼容成对预测接口使用服务端返回的完整对象。
@@ -120,10 +130,11 @@ S01—S11 直接请求为 `not_evaluated`、空 accounts；S12 返回 `ok`，空
 
 ### 历史挖掘参数与输出
 
-`POST /api/patterns/mine` 以 `pattern` 区分五种请求。
+`POST /api/patterns/mine` 以 `pattern` 区分六种请求。
 
 | pattern | Email Dept3 默认值 | 合成数据默认值 | 方法版本 |
 | --- | --- | --- | --- |
+| `historical_core` | `S10—S11, k=7` | `S10, k=4` | `phc-query-v1` |
 | `periodic` | `account="49", k=4, epsilon=1` | `account="a-001", k=4, epsilon=1` | `lpc-td-ftac-v1` |
 | `durable` | `account="49", k=3` | `account="a-001", k=4` | `tdc-once-v1` |
 | `burst` | `l=3, delta=5.60`（界面提交 `account="76"`） | `l=3, delta=5`（界面提交 `account="a-014"`） | `mbc-exact-segments-v1` |
@@ -132,7 +143,7 @@ S01—S11 直接请求为 `not_evaluated`、空 accounts；S12 返回 `ok`，空
 
 前后端共用 `demo/config/query-defaults.json`。查询账户和爆发阈值按数据集设置，爆发最小长度默认为 3 个快照。Dept3 默认持久社区有 76 人，在 S01—S06 形成，稳定至 S10，共持续 4 个快照。各方法的默认结果见 [默认配置说明](../config/README.md)。
 
-五种方法均可同时提交 `start_snapshot_id` 和 `end_snapshot_id`，首尾均包含。省略两端时，内置数据集的时域核查询使用上表的范围，其余查询使用 S01—S11。仅填一端、逆序或选择 S12／S13 均返回 422，未知快照返回 404。
+六种方法均可同时提交 `start_snapshot_id` 和 `end_snapshot_id`，首尾均包含。省略两端时，内置数据集的 PHC-Query 和 OTCD 使用各自的默认窗口，其他方法使用 S01—S11。仅填一端、逆序或选择 S12／S13 均返回 422，未知快照返回 404。
 
 周期、持久与爆发查询中，提交的 `account` 须非空且存在于所选历史区间的账户并集。内置数据集去除账户首尾空白，导入数据集使用原始 ID。爆发查询仅在最大爆发核包含该节点时返回结果，省略 `account` 仍返回全局爆发核。k 为正整数，epsilon 在 `[0,1]`，l 为不超过区间快照数且不少于 2 的整数，delta 为正有限数。频率感知核不接受 account，t 为不超过区间快照数的正整数，f 为 `[0,1]` 内的有限数。其他方法的字段及未知字段均返回 422。仅发送 `{公共上下文, pattern}` 使用该方法的默认参数。无数据集为 404，版本冲突为 409，本地历史文件或帧缺失为 404。
 
@@ -140,6 +151,7 @@ S01—S11 直接请求为 `not_evaluated`、空 accounts；S12 返回 `ok`，空
 
 结构 `parameters` 保存归一化后的完整提交条件，哈希还包含算法方法版本；`evidence` 保留以下算法原始量，并补充 `analysis_snapshot_ids` 和对应位置的快照 ID：
 
+- PHC-Query 只接收历史窗口和正整数 `k`。每个连通社区返回一个结构，窗口中的每条不同无向连接贡献一个邻居。`metrics` 统计完整提交窗口。`evidence.qualifying_member_counts` 与 `analysis_snapshot_ids` 对齐，逐项给出固定起点、延长终点时，该结果成员中已属于某个 `k`-core 的人数。Ethereum 默认 S10–S11、`k=3`，上传数据默认完整历史、`k=1`。[PHC-Query 说明](algorithms/patterns/HISTORICAL_CORE.md)
 - 周期：`kcore_series`、`period`、`frequency`、`start_index`、`end_index`，后两者分别对应 `start_index_snapshot_id`、`end_index_snapshot_id`，另含谱筛选信息。
 - 持久证据包含 `formation_start`、`formation_end`、`stable_end` 和 `duration`，各位置带有对应的 `_snapshot_id`。持续时间为结束稳定和形成时的位置差，保留零时长有效解。`member_count_series` 固定窗口起点为 `formation_start`，按终点顺序记录各次查询的社区成员数，对应 `analysis_snapshot_ids[formation_start:]`。没有社区的窗口记为 0。
 - 爆发：`nodes[]` 中的 `account`、`degree_sequence`、`numerator`、`denominator`、`witness_start`、`witness_end`，并补 `max_average_degree` 和见证位置对应的 `_snapshot_id`。不同成员可有不同见证区间。
@@ -290,7 +302,7 @@ DeepSeek 以 Thinking 模式分析证据，再流式生成英文正文。单次�
 ## 6. 替换正式方法的位置
 
 - `algorithms/core/queries.py`：Core、连通分量与密度候选。
-- `algorithms/patterns/` 实现周期、持久、爆发、频率感知核和时域核查询。
+- `algorithms/patterns/` 实现固定窗口历史核、时域核、周期、持久、爆发和频率感知核查询。
 - `app/services/patterns.py`：历史逐快照投影、参数分发和结果证据映射。
 - `app/services/analysis.py` 的 `patterns()`：统一结构、参考统计和来源元数据。
 - `algorithms/anomaly/`：SLADE 原始模型、事件准备、CUDA 配置和版本权重；`app/services/anomalies.py` 负责数据与请求适配。

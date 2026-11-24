@@ -12,12 +12,12 @@ def list_capabilities(
         Capability(
             id="patterns",
             name="Historical Community Mining",
-            description="Find periodic and durable communities, bursting and frequency-aware cores, and time-range k-cores.",
+            description="Query historical k-cores in a fixed window or across subwindows, and mine bursting, periodic, durable, and frequency-aware cores.",
         ),
         Capability(
             id="local_core",
             name="Parallel Core Decomposition",
-            description="Find the connected component of the S12 k-core containing the query node.",
+            description="Find the current k-core component containing the query node.",
         ),
         Capability(
             id="max_core",

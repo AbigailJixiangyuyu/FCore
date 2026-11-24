@@ -26,10 +26,12 @@ def make_structure(
     method: str,
     color: str,
     description: str = "",
-    snapshot_id: str = "S12",
+    snapshot_id: str | None = None,
     evidence: dict | None = None,
     metrics_frame: SnapshotData | None = None,
+    metrics: dict | None = None,
 ) -> Structure:
+    snapshot_id = snapshot_id or scope.manifest.observed_until
     members = sorted(set(members))
     fingerprint = [
         scope.context.dataset_id,
@@ -47,8 +49,10 @@ def make_structure(
     membership_hash = hashlib.sha256(
         json.dumps(fingerprint, sort_keys=True).encode()
     ).hexdigest()[:24]
-    if metrics_frame is None:
-        metrics_frame = scope.repository.snapshot(scope.context.dataset_id, snapshot_id)
+    if metrics is None:
+        if metrics_frame is None:
+            metrics_frame = scope.repository.snapshot(scope.context.dataset_id, snapshot_id)
+        metrics = selection_metrics(metrics_frame, members, pattern_qualified_pairs(evidence))
     label = f"Community {identifier}"
     if origin == "pattern":
         label = f"Subgraph {identifier}"
@@ -67,8 +71,6 @@ def make_structure(
         result_kind=result_kind,
         method=method,
         description=description,
-        metrics=selection_metrics(
-            metrics_frame, members, pattern_qualified_pairs(evidence)
-        ),
+        metrics=metrics,
         evidence=evidence,
     )

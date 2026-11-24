@@ -8,7 +8,7 @@ import QueryCoreField from './QueryCoreField.vue'
 import QueryForm from './QueryForm.vue'
 import QueryState from './QueryState.vue'
 const {
-  store, predictionModels, prediction, canRunPrediction, needsModelCheck, runPrediction, recheckPredictionModel,
+  store, predictionModels, draftModel, prediction, canRunPrediction, needsModelCheck, runPrediction, recheckPredictionModel,
 } = useWorkbench()
 const { zebra } = predictionAlgorithms
 </script>
@@ -20,6 +20,7 @@ const { zebra } = predictionAlgorithms
       {{ zebra.topic }} ({{ zebra.name }})<span class="visually-hidden">. {{ zebra.paperTitle }}</span>
     </p>
     <QueryState :query="predictionModels" />
+    <p v-if="draftModel && draftModel.status !== 'ready'" class="helper">{{ draftModel.message }}</p>
   </section>
   <QueryForm v-slot="{ clearError }" @submit="runPrediction">
     <h3>Parameters Configuration</h3>
@@ -35,7 +36,7 @@ const { zebra } = predictionAlgorithms
           v-for="horizon in FORECAST_HORIZONS"
           :key="horizon"
           :value="horizon"
-          :label="forecastSnapshotId(horizon)"
+          :label="forecastSnapshotId(store.observedUntil, horizon)"
         />
       </el-select>
     </div>

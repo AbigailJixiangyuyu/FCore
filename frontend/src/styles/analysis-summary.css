@@ -394,7 +394,7 @@
 }
 
 .report-error { color: #9c482b; }
-.report-error + .report-text { margin-top: 6px; }
+.report-error + .report-answer { margin-top: 6px; }
 .report-turn {
   display: flex;
   flex-direction: column;
@@ -417,16 +417,34 @@
   margin: 0 0 5px auto;
 }
 .report-answer { background: #f3f5f8; }
+.report-answer :where(h1, h2, h3, h4, h5, h6, ul, ol, pre, blockquote) {
+  margin: 0;
+  font-size: inherit;
+}
+.report-answer :is(ul, ol) { padding-inline-start: 1.5em; }
+.report-answer ul { list-style: disc; }
+.report-answer ol { list-style: decimal; }
+.report-answer > * + *,
+.report-answer li + li { margin-top: 0.3em; }
+.report-answer pre { white-space: pre-wrap; }
 .report-reply-error {
   display: flex;
   align-items: center;
   gap: 6px;
 }
-.report-update { margin-left: auto; }
+.report-evidence-bar {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 7px;
+  padding-bottom: 7px;
+  border-bottom: 1px solid var(--line);
+}
 .report-composer {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
+  align-items: center;
   column-gap: 4px;
   margin-top: 7px;
   padding: 3px 4px;
@@ -435,9 +453,7 @@
 }
 .report-composer:focus-within { border-color: var(--el-color-primary); }
 .report-evidence {
-  display: grid;
-  grid-column: 1 / -1;
-  grid-template-columns: repeat(2, minmax(0, 1fr)) minmax(0, 1.25fr);
+  display: flex;
   gap: 4px;
   margin: 0;
   padding: 0;
@@ -445,6 +461,9 @@
 }
 .report-evidence li {
   display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
   align-items: center;
   gap: 3px;
   padding: 2px 3px;
@@ -454,6 +473,7 @@
   line-height: 16px;
   white-space: nowrap;
 }
+.report-evidence li:first-child { flex-shrink: 0; }
 .report-evidence li.submitted {
   border-style: solid;
   background: #f2f6fc;
@@ -480,7 +500,10 @@
   outline: none;
 }
 .report-composer .el-textarea__inner::placeholder { color: var(--muted); }
-.report-composer .el-button { min-width: 86px; }
+.report-composer .el-button {
+  min-width: 86px;
+  margin-top: 0;
+}
 
 .summary-empty {
   color: var(--muted);

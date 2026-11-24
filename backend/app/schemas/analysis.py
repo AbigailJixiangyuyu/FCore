@@ -23,7 +23,7 @@ class AnalysisContext(BaseModel):
 
 
 class SnapshotQuery(AnalysisContext):
-    snapshot_id: str = "S12"
+    snapshot_id: str = Field(default_factory=lambda data: data["observed_until"])
 
 
 class MaxCoreQuery(SnapshotQuery):
@@ -104,12 +104,18 @@ class TemporalCorePatternQuery(PatternContext):
     k: int = Field(default=1, ge=1, strict=True)
 
 
+class HistoricalCorePatternQuery(PatternContext):
+    pattern: Literal["historical_core"]
+    k: int = Field(default=1, ge=1, strict=True)
+
+
 PatternQuery = Annotated[
     PeriodicPatternQuery
     | DurablePatternQuery
     | BurstPatternQuery
     | FrequencyPatternQuery
-    | TemporalCorePatternQuery,
+    | TemporalCorePatternQuery
+    | HistoricalCorePatternQuery,
     Field(discriminator="pattern"),
 ]
 
@@ -181,6 +187,8 @@ class SnapshotData(BaseModel):
     snapshot_id: str
     present_accounts: list[str]
     transactions: list[Transaction]
+    # None marks a fully counted event snapshot. An empty list is a valid static graph.
+    static_edges: list[tuple[str, str]] | None = None
 
     @model_validator(mode="after")
     def validate_accounts(self) -> "SnapshotData":
@@ -189,6 +197,8 @@ class SnapshotData(BaseModel):
             raise ValueError("Snapshot node IDs must be unique.")
         if any(t.u not in present or t.v not in present for t in self.transactions):
             raise ValueError("Both endpoints of each interaction must appear in the snapshot.")
+        if self.static_edges and any(u not in present or v not in present for u, v in self.static_edges):
+            raise ValueError("Both endpoints of each static edge must appear in the snapshot.")
         return self
 
 
@@ -210,6 +220,7 @@ class DatasetManifest(BaseModel):
     timestamp_basis: Literal["unix", "relative"] = "unix"
     snapshot_minutes: int
     observed_until: str
+    has_demo_updates: bool = False
     snapshots: list[SnapshotMeta]
     query_defaults: DatasetQueryDefaults | None = None
 
@@ -267,7 +278,7 @@ class InteractionEdge(BaseModel):
     id: str
     u: str
     v: str
-    transaction_count: int = Field(ge=1)
+    transaction_count: int | None = Field(ge=1)
 
 
 class GraphPayload(BaseModel):

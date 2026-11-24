@@ -65,7 +65,7 @@ p.helper {
   margin-top: 7px;
 }
 .workbench {
-  --workspace-offset: 403px;
+  --workspace-height: clamp(340px, calc(100dvh - 403px), 650px);
   width: min(1920px, 100%);
   margin: auto;
   padding: 0 20px;
@@ -102,7 +102,7 @@ p.helper {
   grid-template-columns: 320px minmax(0, 1fr) 348px;
   gap: 12px;
   margin-top: 8px;
-  height: clamp(340px, calc(100dvh - var(--workspace-offset)), 650px);
+  height: var(--workspace-height);
 }
 .control-panel,
 .anomaly-panel {

@@ -353,7 +353,7 @@ def test_tccs_window_selection_and_replay(dept3, monkeypatch):
 
 @pytest.mark.parametrize(
     "dataset_id,order,node_count,edge_count",
-    [(DATASET, 7, 30, 145), ("synthetic-small", 4, 5, 10)],
+    [(DATASET, 7, 30, 145), ("synthetic-small", 4, 5, 10), ("ethereum-eth", 2, 27, 50)],
 )
 def test_pkmc_s12_lookup_and_structure_replay(
     dept3, monkeypatch, dataset_id, order, node_count, edge_count

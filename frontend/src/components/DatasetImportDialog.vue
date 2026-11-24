@@ -4,18 +4,23 @@ import { ElDialog } from 'element-plus'
 import { shallowRef, useTemplateRef } from 'vue'
 import 'element-plus/es/components/dialog/style/css'
 
-import { importDataset } from '../api/system.js'
+import { newRequestId } from '../api/client.js'
+import { appendSnapshot, importDataset } from '../api/system.js'
 import { useWorkbench } from '../composables/workbenchContext.js'
 
 const open = defineModel({ type: Boolean, required: true })
-const { system, selectDataset } = useWorkbench()
+const props = defineProps({ append: Boolean, nextSnapshot: String })
+const { system, dataset, selectDataset } = useWorkbench()
 const file = shallowRef(null)
+let operationId
 const fileInput = useTemplateRef('file-input')
 const { isPending, error, reset, mutate } = useMutation({
   mutationFn: async function (chosenFile) {
-    const dataset = await importDataset(chosenFile)
-    await system.refreshDatasets()
-    return dataset
+    const updated = props.append
+      ? (await appendSnapshot(dataset.value, chosenFile, operationId)).dataset
+      : await importDataset(chosenFile)
+    await system.updateDataset(updated)
+    return updated
   },
   onSuccess: function (dataset) {
     selectDataset(dataset)
@@ -25,6 +30,7 @@ const { isPending, error, reset, mutate } = useMutation({
 
 function chooseFile(event) {
   file.value = event.target.files[0] || null
+  operationId = newRequestId()
   reset()
 }
 
@@ -37,7 +43,7 @@ function clearFile() {
 <template>
   <ElDialog
     v-model="open"
-    title="Data Updates"
+    :title="append ? 'Append Snapshot' : 'Import Dataset'"
     width="450px"
     append-to-body
     destroy-on-close
@@ -47,12 +53,27 @@ function clearFile() {
     @closed="clearFile"
   >
     <div class="dataset-import">
-      <p>Import a new dataset from a UTF-8 CSV file with the header <code>u,v,t</code>.</p>
-      <pre>u,v,t
+      <template v-if="append">
+        <dl class="dataset-update-details">
+          <dt>Dataset</dt><dd>{{ dataset?.name }}</dd>
+          <dt>Next snapshot</dt><dd>{{ nextSnapshot }}</dd>
+        </dl>
+        <p>Upload the complete undirected graph for {{ nextSnapshot }} as a UTF-8 CSV.</p>
+        <pre>u,v
+001,002
+002,003
+003,001
+004,004</pre>
+        <p>List each edge once. A row such as <code>004,004</code> includes an isolated vertex. Refresh the page to restore the original dataset.</p>
+      </template>
+      <template v-else>
+        <p>Import a new dataset from a UTF-8 CSV file with the header <code>u,v,t</code>.</p>
+        <pre>u,v,t
 001,002,1767232805
 001,002,1767232805
 002,001,1767232806.125</pre>
-      <p>Enter the two endpoints of an undirected edge as <code>u</code> and <code>v</code>, in either order. Use Unix seconds for <code>t</code>. Fractional seconds are allowed. Divide millisecond timestamps by 1,000 before uploading.</p>
+        <p>Enter the two endpoints of an undirected edge as <code>u</code> and <code>v</code>, in either order. Use Unix seconds for <code>t</code>. Fractional seconds are allowed. Divide millisecond timestamps by 1,000 before uploading.</p>
+      </template>
       <div class="dataset-file-picker">
         <input ref="file-input" type="file" accept=".csv" hidden :disabled="isPending" @change="chooseFile" />
         <el-button :disabled="isPending" @click="fileInput?.click()">Choose CSV</el-button>
@@ -63,7 +84,7 @@ function clearFile() {
     <template #footer>
       <el-button :disabled="isPending" @click="open = false">Cancel</el-button>
       <el-button type="primary" :disabled="!file" :loading="isPending" @click="mutate(file)">
-        Import Dataset
+        {{ append ? 'Append Snapshot' : 'Import Dataset' }}
       </el-button>
     </template>
   </ElDialog>

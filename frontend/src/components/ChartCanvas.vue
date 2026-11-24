@@ -1,5 +1,6 @@
 <script setup>
 import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useWorkbench } from '../composables/workbenchContext.js'
 
 const props = defineProps({
   option: { type: Object, required: true },
@@ -8,11 +9,23 @@ const props = defineProps({
   interactive: { type: Boolean, default: false },
 })
 const emit = defineEmits(['select-index'])
+const { viewLayout } = useWorkbench()
 const container = ref(null)
 let chart = null
 let observer = null
 let disposed = false
 const failure = ref('')
+
+function chartTheme() {
+  const { fontFamily, fontSize } = getComputedStyle(container.value)
+  const textStyle = { fontFamily, fontSize: Number.parseFloat(fontSize), fontWeight: 'normal' }
+  return {
+    textStyle,
+    categoryAxis: { axisLabel: textStyle },
+    valueAxis: { axisLabel: textStyle },
+    tooltip: { textStyle, renderMode: 'html', confine: true, className: 'chart-tooltip' },
+  }
+}
 
 function renderOption(option) {
   if (!chart) return
@@ -37,14 +50,7 @@ onMounted(async function () {
   try {
     const { echarts } = await import('../charts/runtime.js')
     if (disposed) return
-    const { fontFamily, fontSize } = getComputedStyle(container.value)
-    const textStyle = { fontFamily, fontSize: Number.parseFloat(fontSize), fontWeight: 'normal' }
-    chart = echarts.init(container.value, {
-      textStyle,
-      categoryAxis: { axisLabel: textStyle },
-      valueAxis: { axisLabel: textStyle },
-      tooltip: { textStyle, renderMode: 'html', confine: true, className: 'chart-tooltip' },
-    }, { locale: 'EN' })
+    chart = echarts.init(container.value, chartTheme(), { locale: 'EN' })
     renderOption(props.option)
     chart.getZr().on('click', function (event) {
       if (
@@ -63,6 +69,7 @@ onMounted(async function () {
     failure.value = `Could not load chart. ${error.message}`
   }
 })
+watch(viewLayout, () => chart?.setTheme(chartTheme()), { flush: 'post' })
 watch(
   function () {
     return props.option

@@ -4,7 +4,6 @@ import { computed } from 'vue'
 
 import { useWorkbench } from '../composables/workbenchContext.js'
 import { historyAlgorithms } from '../domain/algorithms.js'
-import { HISTORY_LENGTH } from '../domain/timeline.js'
 import AlgorithmPicker from './AlgorithmPicker.vue'
 import HistoryRangeFields from './HistoryRangeFields.vue'
 import QueryAccountField from './QueryAccountField.vue'
@@ -21,6 +20,7 @@ const requiredSnapshots = computed(function () {
 
 <template>
   <AlgorithmPicker
+    class="history-models"
     :model-value="store.pattern"
     :algorithms="historyAlgorithms"
     label="Historical Mining Model Selection"
@@ -60,7 +60,7 @@ const requiredSnapshots = computed(function () {
           id="history-t-input"
           v-model="store.historyDraft.t"
           :min="1"
-          :max="HISTORY_LENGTH"
+          :max="store.presentIndex"
           :step="1"
           :precision="0"
           :controls="false"
@@ -74,14 +74,14 @@ const requiredSnapshots = computed(function () {
           id="history-length-input"
           v-model="store.historyDraft.l"
           :min="2"
-          :max="HISTORY_LENGTH"
+          :max="store.presentIndex"
           :step="1"
           :precision="0"
           :controls="false"
         />
       </div>
       <div class="compact-field number-field">
-        <label for="history-delta-input" title="Threshold for maximum ℓ-segment density">MSD threshold δ</label>
+        <label for="history-delta-input" title="Threshold for maximum ℓ-segment density">Threshold δ</label>
         <el-input-number
           id="history-delta-input"
           v-model="store.historyDraft.delta"

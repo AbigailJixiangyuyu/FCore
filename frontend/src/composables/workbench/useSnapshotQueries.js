@@ -2,8 +2,7 @@ import { useQuery } from '@tanstack/vue-query'
 import { computed, toValue, watch } from 'vue'
 
 import { getAggregate, getCatalog, getSnapshot, matchesContext } from '../../api/analysis.js'
-import { PRESENT_SNAPSHOT_ID } from '../../domain/timeline.js'
-import { HISTORY_LAYOUT_RANGE } from '../../graph/layoutReference.js'
+import { snapshotId } from '../../domain/timeline.js'
 import { DEFAULT_DATASET_ID } from '../../stores/workbench.js'
 import { useSystemStatus } from '../useSystemStatus.js'
 
@@ -23,7 +22,8 @@ export function useSnapshotQuery({ context, snapshotId, enabled, staleTime }) {
 export function useSnapshotQueries(store) {
   const system = useSystemStatus()
   function selectDataset(item) {
-    if (item.dataset_id !== store.datasetId) store.selectDataset(item.dataset_id, item.query_defaults)
+    if (item.dataset_id !== store.datasetId || item.observed_until !== store.observedUntil)
+      store.selectDataset(item)
   }
 
   const connected = computed(function () {
@@ -33,11 +33,9 @@ export function useSnapshotQueries(store) {
     system.datasets,
     function (datasets) {
       if (!datasets.length) return
-      if (
-        !datasets.some(function (item) {
-          return item.dataset_id === store.datasetId
-        })
-      ) {
+      const active = datasets.find(item => item.dataset_id === store.datasetId)
+      if (active) selectDataset(active)
+      else {
         const fallback = datasets.find(function (item) {
           return item.dataset_id === DEFAULT_DATASET_ID
         }) || datasets[0]
@@ -71,10 +69,10 @@ export function useSnapshotQueries(store) {
     },
     enabled: ready,
   })
-  const present = useSnapshotQuery({ context, snapshotId: PRESENT_SNAPSHOT_ID, enabled: ready })
+  const present = useSnapshotQuery({ context, snapshotId: () => store.observedUntil, enabled: ready })
   const layoutReference = useQuery({
     queryKey: computed(function () {
-      return ['aggregate', context.value, HISTORY_LAYOUT_RANGE]
+      return ['aggregate', context.value, { start_snapshot_id: snapshotId(0), end_snapshot_id: snapshotId(store.presentIndex - 1) }]
     }),
     queryFn: function ({ signal, queryKey: [, requestContext, range] }) {
       return getAggregate(requestContext, range, { signal })
@@ -103,7 +101,7 @@ export function useSnapshotQueries(store) {
     const query = snapshotQuery.value
     const frame = query.data.value
     if (!query.isSuccess.value || !matchesContext(frame, context.value)) return null
-    if (store.stage !== 'history') return frame.snapshot_id === PRESENT_SNAPSHOT_ID ? frame : null
+    if (store.stage !== 'history') return frame.snapshot_id === store.observedUntil ? frame : null
     const { start_snapshot_id, end_snapshot_id } = store.historyRange
     return frame.start_snapshot_id === start_snapshot_id && frame.end_snapshot_id === end_snapshot_id
       ? frame : null

@@ -1,5 +1,5 @@
 <script setup>
-
+import { algorithmLabel } from '../domain/algorithms.js'
 
 defineProps({
   algorithms: { type: Object, required: true },
@@ -18,7 +18,7 @@ const selected = defineModel({ type: String, required: true })
         :value="id"
         :title="algorithm.paperTitle"
       >
-        {{ algorithm.topic ?? algorithm.name }}<span class="visually-hidden">. {{ algorithm.paperTitle }}</span>
+        {{ algorithmLabel(algorithm) }}<span class="visually-hidden">. {{ algorithm.paperTitle }}</span>
       </el-radio>
     </el-radio-group>
   </section>

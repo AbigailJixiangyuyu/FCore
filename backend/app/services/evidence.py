@@ -44,7 +44,8 @@ def evidence_series(
                     if metrics["present_count"]
                     else None,
                     "present_count": metrics["present_count"],
-                    "status": "ok" if metrics["present_count"] else "absent",
+                    "status": ("absent" if not metrics["present_count"] else
+                               "unavailable" if metrics[request.metric] is None else "ok"),
                 }
             )
         series.append(

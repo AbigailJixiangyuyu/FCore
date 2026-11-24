@@ -1,11 +1,10 @@
 <script setup>
 import { useWorkbench } from '../composables/workbenchContext.js'
-import { HISTORY_LENGTH, snapshotId } from '../domain/timeline.js'
+import { computed } from 'vue'
+import { snapshotIndex, snapshotId } from '../domain/timeline.js'
 
 const { store } = useWorkbench()
-const snapshots = Array.from({ length: HISTORY_LENGTH }, function (_, index) {
-  return snapshotId(index)
-})
+const snapshots = computed(() => Array.from({ length: store.presentIndex }, (_, i) => snapshotId(i)))
 </script>
 
 <template>
@@ -20,7 +19,7 @@ const snapshots = Array.from({ length: HISTORY_LENGTH }, function (_, index) {
         :key="snapshot"
         :value="snapshot"
         :label="snapshot"
-        :disabled="snapshot > store.historyDraft.end_snapshot_id"
+        :disabled="snapshotIndex(snapshot) > snapshotIndex(store.historyDraft.end_snapshot_id)"
       />
     </el-select>
     <span aria-hidden="true">–</span>
@@ -33,7 +32,7 @@ const snapshots = Array.from({ length: HISTORY_LENGTH }, function (_, index) {
         :key="snapshot"
         :value="snapshot"
         :label="snapshot"
-        :disabled="snapshot < store.historyDraft.start_snapshot_id"
+        :disabled="snapshotIndex(snapshot) < snapshotIndex(store.historyDraft.start_snapshot_id)"
       />
     </el-select>
   </div>

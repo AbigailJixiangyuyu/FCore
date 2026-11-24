@@ -1,10 +1,52 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { effectScope, reactive, ref } from 'vue'
+import { effectScope, nextTick, reactive, ref } from 'vue'
 import { useLifecycleReport } from '../src/composables/workbench/useLifecycleReport.js'
 import { evidenceMethodName } from '../src/domain/reportEvidence.js'
 
 const encoder = new TextEncoder()
+
+test('paper refresh restores submitted evidence, Markdown, turns and drafts for the matching dataset only', async t => {
+  const records = new Map()
+  globalThis.window = { localStorage: { getItem: key => records.get(key) ?? null, setItem: (key, value) => records.set(key, value) } }
+  t.after(() => { delete globalThis.window })
+  const { context, workbench, createReport, selectCurrent, selectFuture, fetch, openStream, textLine } = setupReport(t)
+  workbench.viewLayout = ref('paper')
+  const original = createReport()
+  original.submit()
+  await nextTick()
+  assert.deepEqual(createReport().slots.value, original.slots.value)
+  selectCurrent()
+  original.submit()
+  selectFuture()
+  original.submit()
+  for (const [question, answer] of [['Summarize', '**N001** remained.'], ['Why?', 'It belongs to all three groups.']]) {
+    original.question.value = question
+    const request = original.ask()
+    const stream = openStream()
+    for (const event of [{ type: 'start', model: 'test', node_labels: { N001: '49' } }, { type: 'delta', content: answer }, { type: 'done' }]) {
+      stream.enqueue(textLine(event))
+    }
+    stream.close()
+    await request
+  }
+  original.question.value = 'Which members left?'
+  await nextTick()
+  const restored = createReport()
+  assert.deepEqual(restored.report.value, original.report.value)
+  assert.deepEqual(restored.turns.value, original.turns.value)
+  assert.equal(restored.question.value, original.question.value)
+  assert.equal(restored.canSend.value, true)
+  assert.equal(fetch.mock.callCount(), 2)
+  workbench.viewLayout.value = 'video'
+  assert.equal(createReport().report.value, null)
+  workbench.viewLayout.value = 'paper'
+  context.value = { ...context.value, dataset_version: 'v2' }
+  assert.deepEqual(restored.slots.value, {})
+  assert.equal(restored.report.value, null)
+  context.value = { ...context.value, dataset_version: 'v1' }
+  assert.equal(restored.report.value.initial_prompt, 'Summarize')
+})
 
 function setupReport(t) {
   let finish
@@ -49,6 +91,8 @@ test('the first message sends only after all three evidence submissions and repl
   assert.equal(report.question.value, '')
   assert.equal(report.ready.value, false)
   assert.equal(report.canSend.value, false)
+  const firstQuestion = 'Compare the current and future communities.'
+  report.question.value = firstQuestion
   await report.ask()
   report.submit()
   assert.deepEqual(Object.keys(report.slots.value), ['history'])
@@ -67,9 +111,8 @@ test('the first message sends only after all three evidence submissions and repl
   assert.deepEqual(Object.values(report.slots.value).map(evidenceMethodName), ['OTCD', 'PKMC', 'Zebra'])
   assert.equal(report.slots.value.future.window, 'S13')
   assert.equal(fetch.mock.callCount(), 0)
-  assert.equal(report.question.value, '')
+  assert.equal(report.question.value, firstQuestion)
   assert.equal(report.canSend.value, true)
-  report.question.value = 'Compare the current and future communities.'
   const generation = report.ask()
   await report.ask()
   assert.equal(fetch.mock.callCount(), 1)
@@ -131,7 +174,7 @@ test('follow-ups carry completed turns and a fresh page starts with an empty rep
   const slots = discussion.slots.value
   const question = 'Compare the historical and current communities.'
   const initialReport = {
-    model: 'test', content: 'N001 belongs to the overlap of 13 members.', node_labels: { N001: 'q' },
+    model: 'test', content: '- **N001** belongs to the overlap of 13 members. 〔C01〕', node_labels: { N001: 'q' },
     initial_prompt: question,
   }
   const start = { type: 'start', model: initialReport.model, node_labels: initialReport.node_labels }

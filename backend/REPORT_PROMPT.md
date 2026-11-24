@@ -11,15 +11,19 @@ FCore 以用户提交的历史社区为基线，比较当前社区新增和退�
 | 1 | `system` | 固定的英文提示词，规定分析对象、证据引用方式、语言及输出格式。完整原文见下节。 |
 | 2 | `user` | 一个序列化为文本的 JSON 对象。`evidence` 是四条证据，`membership_groups` 是成员在三个阶段的归属。用户填写的首问放在可选字段 `initial_prompt`，留空时省略该字段。 |
 
-界面中的 **Ask FCore** 是输入框占位文字。直接点击 **Send** 会生成全周期报告。填写首问时，模型围绕该问题组织同一组证据。首份报告使用英文纯文本短段落。请求启用 Thinking 和流式输出，页面随正文到达逐段显示。[前端提交逻辑](../frontend/src/composables/workbench/useLifecycleReport.js) · [上游请求与流式响应](app/services/reports/provider.py)
+界面中的 **Ask FCore** 是输入框占位文字。直接点击 **Send** 会生成英文全周期报告。填写首问时，模型围绕该问题组织同一组证据。首句概括主要发现，随后用三个 Markdown 列表项解释历史规律、当前变化与异常成员、未来预计变化。每项给出结论及支持它的数字、顶点或快照，相关判断后紧跟证据编号。请求启用 Thinking 和流式输出，页面随正文到达更新排版。[前端提交逻辑](../frontend/src/composables/workbench/useLifecycleReport.js) · [上游请求与流式响应](app/services/reports/provider.py)
 
 ## 首份报告的系统提示词原文
 
 ```text
-Write a concise English analysis for a graph analyst in short plain-text paragraphs.
-Use initial_prompt, when provided, to focus the report on the analyst's question. Connect the
-historical pattern, observed membership changes, current anomaly scores and predicted retention
-or turnover. Highlight specific members whose history, current score and forecast merit attention.
+Write a concise English Markdown report for a graph analyst. Open with one sentence stating the
+main finding. After a blank line, give exactly three bullet points in this order:
+- **Historical pattern**: explain the historical method's finding.
+- **Current changes and unusual members**: connect observed turnover to current SLADE evidence.
+- **Predicted changes**: explain expected retention or turnover for the target snapshot.
+Lead each point with its conclusion, then support it with specific counts, vertices or snapshots.
+Place each evidence ID immediately after the claim it supports. Use initial_prompt, when supplied,
+to focus the analysis. Keep each point short.
 
 Use only the three submitted community results. Cite evidence using its ID,
 such as 〔H01〕, 〔C01〕, 〔C02〕 or 〔P01〕. Each stage has its own method, window and, where applicable,
@@ -53,6 +57,7 @@ conclusions the evidence can support. Missing forecast scores leave future membe
 
 | 历史方法 | 〔H01〕提供的指标 |
 | --- | --- |
+| PHC-Query（历史固定窗口核） | 所选连通社区的内部边数、最小内部度，以及从同一起点延长窗口时，已进入相应阶数核的成员人数。 |
 | TD（周期） | 周期长度、重复次数、周期所在区间，以及社区实际出现的快照。 |
 | ONCE（持久） | 形成窗口、稳定截止快照、形成结束后继续稳定的快照数。 |
 | MBC-B（爆发） | 代表成员的最大平均内部度及对应窗口，另给出最多成员共有的窗口和人数。代表成员优先取查询点，其不在结果中时取最大平均内部度最高的成员。报告将代表成员的窗口归于该成员。 |
@@ -196,11 +201,13 @@ conclusions the evidence can support. Missing forecast scores leave future membe
 
 每次追问发送的消息依次为 `system`（追问规则）、`user`（同一组证据及原首问）、`assistant`（首份报告原文）、按时间排列的每轮已完成问答，最后是 `user`（本轮问题）。更新任何一个阶段的已提交证据后，下一次 **Send** 会基于新组合重新生成首份报告。[前端会话管理](../frontend/src/composables/workbench/useLifecycleReport.js) · [报告接口说明](API_INTEGRATION.md#全周期联合报告)
 
-追问的系统提示词以以下四行开头，随后复用首份提示词中从 “Use only the three submitted community results” 起的所有规则。模型用本轮问题的语言回答，借助上文理解指代，并在证据不足时说明缺少什么。[原文](app/services/reports/messages.py)
+追问使用提问者的语言。单个数值或顶点问题直接回答，多个发现或比较分点展开。前端保存回复的原始 Markdown 供后续追问，显示时还原节点 ID。以下提示词之后复用从 “Use only the three submitted community results” 起的证据规则。[原文](app/services/reports/messages.py)
 
 ```text
 Answer the latest question about the lifecycle report in the language it uses.
 Use earlier replies to resolve references. Use the supplied evidence in the first user message for
 factual claims. Explain what information is missing when the question goes beyond that evidence.
-Respond in plain text.
+Answer a question about a single value or vertex directly. For multiple findings or comparisons,
+use a Markdown list with one finding per point. Bold only key conclusions. Place evidence IDs
+immediately after the claims they support.
 ```

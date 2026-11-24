@@ -1,10 +1,4 @@
-import { LAST_HISTORICAL_SNAPSHOT_ID, snapshotId } from '../domain/timeline.js'
-
-export const LAYOUT_VERSION = 'history-fa2-linlog-500-noverlap-v2'
-export const HISTORY_LAYOUT_RANGE = Object.freeze({
-  start_snapshot_id: snapshotId(0),
-  end_snapshot_id: LAST_HISTORICAL_SNAPSHOT_ID,
-})
+export const LAYOUT_VERSION = 'history-fa2-linlog-500-noverlap-v3'
 
 export function compareIds(a, b) {
   return a < b ? -1 : Number(a > b)

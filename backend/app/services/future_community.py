@@ -44,6 +44,8 @@ def forecast_community(
     scope: AnalysisScope, request: FutureCommunityQuery, models_dir: Path
 ) -> dict:
     repository, manifest = scope.repository, scope.manifest
+    if manifest.has_demo_updates:
+        raise HTTPException(503, "Zebra is unavailable for this static graph update.")
     dataset_id, account, k = manifest.dataset_id, request.account, request.k
     threshold = request.threshold
     if not any(node["id"] == account for node in repository.accounts(dataset_id)):

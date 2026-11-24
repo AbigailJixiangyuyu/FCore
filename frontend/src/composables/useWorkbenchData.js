@@ -1,6 +1,5 @@
 import { watch } from 'vue'
 
-import { PRESENT_INDEX } from '../domain/timeline.js'
 import { useWorkbenchStore } from '../stores/workbench.js'
 import { useAnomalyQuery } from './workbench/useAnomalyQuery.js'
 import { useEvidenceQuery } from './workbench/useEvidenceQuery.js'
@@ -24,7 +23,7 @@ export function useWorkbenchData() {
   }
 
   function selectTime(index) {
-    if (index < PRESENT_INDEX) prepareHistorySelection()
+    if (index < store.presentIndex) prepareHistorySelection()
     store.selectTime(index)
   }
 

@@ -5,7 +5,6 @@ import { computed } from 'vue'
 import { useWorkbench } from '../../composables/workbenchContext.js'
 import { summarizeGraph } from '../../domain/analysisSummary.js'
 import { formatCount, formatNumber } from '../../domain/format.js'
-import { PRESENT_SNAPSHOT_ID } from '../../domain/timeline.js'
 import QueryState from '../QueryState.vue'
 
 const { store, snapshot, snapshotQuery, currentWindow } =
@@ -16,8 +15,8 @@ const stats = computed(function () {
 })
 const scope = computed(function () {
   if (store.stage === 'history') return store.historyRangeLabel
-  if (store.stage === 'future') return `${PRESENT_SNAPSHOT_ID} · Observed`
-  return currentWindow.value ? store.currentWindowLabel : PRESENT_SNAPSHOT_ID
+  if (store.stage === 'future') return `${store.observedUntil} · Observed`
+  return currentWindow.value ? store.currentWindowLabel : store.observedUntil
 })
 const counts = computed(function () {
   if (!stats.value) return []
@@ -83,7 +82,7 @@ const largestComponent = computed(function () {
           <dt>Largest Component</dt>
           <dd>{{ largestComponent }}</dd>
         </div>
-        <div v-if="stats.averageTransactionsPerSnapshot !== null" title="Total interactions divided by the number of snapshots in the range">
+        <div v-if="stats.snapshotCount > 1" title="Total interactions divided by the number of snapshots in the range">
           <dt>Interactions / Snapshot</dt>
           <dd>{{ formatNumber(stats.averageTransactionsPerSnapshot, 2) }}</dd>
         </div>

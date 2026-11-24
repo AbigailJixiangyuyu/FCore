@@ -2,7 +2,7 @@
 
 Vite＋Vue 3＋JavaScript＋Element Plus 前端，uv＋Python 3.10＋FastAPI 后端。
 
-默认展示 Email Dept3 真实邮件网络（89 个节点），保留可复现的 26 账户合成交易数据。`demo-ui` 的交互已迁移为浅色紧凑分析工作台。顶部统一滑轨控制历史 S01—S11、当前 S12 和未来 S13。历史拖动 start、end 查看区间聚合图。当前在 02 选择并行核分解、时序核连通分量（TCCS）或全局最大核（PKMC）。TCCS 支持以 S12 为终点的回溯窗口，默认 S12—S12。未来页独立选择查询节点 q、核心阶数 k 和预测模型。
+默认展示 **Ethereum** 真实金融交易网络。89 个以太坊地址在 13 个连续自然周内发生了 15,869 笔内部 ETH 转账。数据集菜单还可选择 EmailDept3 和合成样例。顶部时间轴控制历史 S01—S11、当前 S12 和未来预测，当前搜索支持并行核分解、时序核连通分量（TCCS）和全局最大核（PKMC）。[金融样本来源与复现](data/ethereum-eth/README.md)
 
 快照、Core 查询、历史周期／持久／爆发／频率感知核挖掘、交易聚合和固定成员时间证据实际计算。CSV 读入时统一两个端点的顺序。同一对节点在图上只有一条无向边，逐笔交互保留各自的时间并累加次数。密度查询仅保留旧接口。04 使用 SLADE 展示账户评分。未来模块使用 Zebra 为历史候选顶点对评分，再用超过概率阈值的边求目标快照中包含 q 的 k-core 社区。目标可选 S13、S14 或 S15。
 
@@ -30,12 +30,12 @@ npm --prefix frontend ci
 初始化环境后，在 `demo/` 下执行：
 
 ```powershell
-uv run --directory backend python -m scripts.train_slade --dataset email-eu-core-dept3
+uv run --directory backend python -m scripts.train_slade --dataset ethereum-eth
 ```
 
-Dept3 使用 S01—S11 的 9,525 条交互训练 10 轮，冻结参数后处理 S12 的 1,208 条交互。当前模型为 `slade-d73301cecdf93996`，在 RTX 5060 Laptop GPU 的 cuda:0 上训练 24.879 秒，损失从 9.47120 降至 9.30169。S12 有 88 个账户可评分，另 1 个没有交互历史的账户单列。合成样例的无向模型为 `slade-bf2fec907f9ca6f5`。
+Ethereum 用 S01—S11 的 13,609 笔转账训练 10 轮，再处理 S12 的 1,159 笔转账。S12 截止时有 75 个地址可评分。EmailDept3 使用其独立模型 `slade-d73301cecdf93996`，合成样例使用 `slade-bf2fec907f9ca6f5`。
 
-权重、配置、训练指纹与最终参数重放得到的 S11 预热状态存入 `models/email-eu-core-dept3/slade/`；保存、重新加载并核对 S12 评分后，才切换当前模型。模型使用 cuda:0，缺少 CUDA 时明确报错。将命令的 `--dataset` 改为 `synthetic-small` 可重建独立的合成模型，其历史／当前分别为 4,263／183 条交互。训练与检测均不读取 S13。
+权重、配置、训练指纹与最终参数重放得到的 S11 预热状态存入 `models/{dataset_id}/slade/`。训练脚本重新加载权重并核对 S12 评分后切换当前模型。训练使用 cuda:0，服务支持通过 `FCORE_DEVICE=cpu` 推理。金融样本的 S13 作为独立后续观测保存。
 
 每个检测请求独立恢复记忆，不读取 S13，不受金额、core 或场景注释影响。模型缺失／损坏或 CUDA 不可用时，04 显示错误与重试，结构查询仍可使用；数据／模型指纹冲突返回 409。配置和复现边界见 [SLADE 说明](backend/algorithms/anomaly/README.md)。合成数据只验证流程，不能据此宣称真实金融异常效果。
 
@@ -156,13 +156,14 @@ demo/
 | GET | `/api/capabilities` | 实际计算标记 `ready`；演示模块标记 `demo`；没有数据时标记 `unavailable` |
 | GET | `/api/datasets` | 读取本地数据集清单，附带版本、时间戳单位、快照粒度和合成数据标识 |
 | POST | `/api/datasets/import` | 通过表单字段 `file` 上传单个 `u,v,t` CSV，返回新数据集清单摘要 |
+| POST | `/api/datasets/{id}/snapshots` | **Data Updates** 上传一张 `u,v` 静态图作为下一快照。当前页面可连续追加，刷新恢复原数据。[格式与示例](data/README.md#演示中追加一片) |
 | GET | `/api/datasets/{id}/snapshots` | 13 个位置的时间元信息，观察截止 S12 |
 | GET | `/api/datasets/{id}/snapshots/{sid}` | S01—S12 的完整快照；需要 `dataset_version` 参数；S13 返回 404 |
 | GET | `/api/datasets/{id}/aggregate` | S01—S11 的包含两端区间聚合图；需要起止快照和数据版本 |
 | POST | `/api/queries/local-core` | 在 S12 执行并行核分解，或用 TCCS 查询截至 S12 的回溯窗口。返回包含 `q` 的 k-core 连通分量 |
 | POST | `/api/queries/max-core` | 传入 `algorithm="pkmc"` 查询 S12 的完整最高阶核 |
 | POST | `/api/queries/density` | 原型候选范围内的密度筛选，`demo_heuristic` |
-| POST | `/api/patterns/mine` | 在提交区间内逐快照运行 TD＋FT/AC、ONCE、MBC-B、在线频率感知核及 OTCD |
+| POST | `/api/patterns/mine` | 按固定窗口查询历史核（PHC-Query）、查询子窗口时域核（OTCD），或挖掘爆发、周期、持久、频率感知核 |
 | POST | `/api/anomalies/discover` | 可指定 `snapshot_id`，默认 S12；S12 返回 SLADE 账户评分，默认 Top-10；历史直接请求返回 `not_evaluated` |
 | POST | `/api/evidence/series` | 固定成员的内部连接数或交易次数，`computed` |
 | GET | `/api/datasets/{id}/link-prediction/models` | 所选预测步长的 Zebra 模型状态 |
@@ -173,7 +174,7 @@ demo/
 
 计算请求携带 `dataset_id`、`dataset_version`、`observed_until` 及相应参数。接入流程、结构传递和错误状态见 [接口接入说明](backend/API_INTEGRATION.md)，完整字段定义可查 `/docs`。结果包含 `request_id`、`result_kind`、`method`、`elapsed_ms`。SLADE 和 Zebra 返回实际 `model_version`，无模型模块为 null。Top-10 是展示范围，不表示这些账户已被判定异常。
 
-页面先读取服务、模块和数据集，优先选择 `email-eu-core-dept3`，加载 S12 的 89 个节点。点击「开始查询」后执行默认 `q=49、k=7` 查询，03 展示返回的 30 个成员及内部边。周期／持久也默认使用 `q=49`。前端与 API 共同读取 [查询默认配置](config/README.md)，省略字段采用各数据集经过验证的严格非空参数，明确提交的字段优先。默认数据集缺失时选择清单中可用数据，合成数据使用其对应的 `q=a-001`。每个分析面板都有加载、空结果、失败及重试状态。切换浏览器焦点或网络恢复不自动重新请求。
+页面优先选择 `ethereum-eth`。S12 初始展示 89 个地址，点击 **Run Query** 执行 `q=E025, k=2` 的查询，结果含 27 个地址、50 条内部边。切换到 EmailDept3 时恢复该数据集的 `q=49, k=7`，合成样例使用 `q=a-001`。前端与 API 共用各数据集的默认值。[查询配置](config/README.md)
 
 ## Email Dept3 真实数据准备
 
@@ -201,7 +202,7 @@ uv run --directory backend python -m scripts.generate_sample
 
 此命令只覆写该合成样例的 13 个 CSV 和 5 个配置 JSON，不用于导入真实交易。
 
-1. 在 02 进入 History，选择算法并设置 Range，然后点击 Run Query。五种方法都使用范围内的逐快照数据。时域核查询成功后，01 和 03 定位到首项结果的最紧区间，05 可以选择其他结果。
+1. 进入 Historical Mining，选择算法和窗口，再点击 Run Query。PHC-Query 展示提交窗口中的连通社区，OTCD 将图定位到结果的最紧区间。可在 Result Analysis 中切换结果。
 2. 回到 S12，在 02 选择算法。并行核分解与 TCCS 接收 `q` 和 `k`，TCCS 还可设置起始快照。PKMC 选中即计算 S12 的完整最高阶核。03 高亮实际查到的成员和内部边。
 3. 在 04 检查独立加载的异常排名，点击账户以红橙色和尺寸在 03 定位；02 的查询结构与 05 时间轨迹保持原选择。历史视图同样显示当前 S12 的分析结果，点击异常先返回 S12 定位。
 4. 进入 Future，在 02 选择 Target snapshot，填写 q、k 后点击 Run Prediction。Zebra 使用截至 S12 的观测为 S01—S11 历史社区成员并集中的顶点对评分，再在预测图上求包含 q 的 k-core。01 的单个 Future 格显示已提交的编号。更改目标后再次提交才会切换预测。拖动阈值会即时更新已提交目标的预测社区。
@@ -217,6 +218,8 @@ PKMC 用 Python 同步执行邻居 h 指数更新。根据定理 1，当相邻�
 合成数据历史默认参数：周期 `q=a-001、k=4、ε=1`，持久 `q=a-001、k=4`，爆发 `l=3、δ=5`。`synthetic-small-v3` 中周期返回 5 个账户、周期 3／重复 3 次；持久返回同一组 5 个账户、持续 5 个时间步／稳定至 S06；爆发返回 6 个账户、见证区间 S07—S09／MSD 为 5。参数草稿不会影响已提交结果。算法契约、来源和周期复现限制见 [历史算法说明](backend/algorithms/patterns/README.md)。
 
 频率感知核在 Dept3 用 `k=6、t=4、f=0.8` 得到 7 个账户、21 条达标无向边；在合成样例用 `k=5、t=3、f=1` 得到 6 个账户、15 条。查询无需账户，对同一对账户在每个快照只计一次活跃。03 和 05 都从同一组达标边读取实际连线和交互次数。见 [频率感知核说明](backend/algorithms/patterns/FREQUENCY.md)。
+
+Historical Mining 的首项 **Historical k-Core Query** 在用户提交的固定快照窗口上运行 PHC-Query。选择窗口和 `k` 后点击 **Run Query**，每个连通社区可以单独查看和提交历史证据。Ethereum 默认 S10—S11、`k=3`，返回 12 个地址和 24 条内部边。[PHC-Query 算法与结果说明](backend/algorithms/patterns/HISTORICAL_CORE.md)
 
 时域核以一个快照为时间单位，搜索所选范围内每个连续子区间产生的不同 `k`-core。Dept3 默认查询 S10—S11，得到 18 个节点的 7-core。合成样例默认查询 S10，得到 5 个节点的 4-core。点击 05 的结果可查看其最紧区间和结构。手动移动时间轴后，可浏览其他范围的完整聚合图并从列表返回核。[时域核算法说明](backend/algorithms/patterns/TEMPORAL_CORE.md)
 
@@ -253,7 +256,7 @@ npm --prefix frontend install <package>
 .\test.ps1 -Full  # 完整验证
 ```
 
-日常回归检查服务启动、数据导入与聚合、五种历史算法、S12 查询与时间证据、评分公式及预测时间隔离。它使用已安装的项目依赖，不训练模型、不执行 CUDA 运算，也不调用 WSL。两个入口都运行全部前端用例，无需启动服务。
+日常回归检查服务启动、数据导入与聚合、六种历史算法、S12 查询与时间证据、评分公式及预测时间隔离。它使用已安装的项目依赖，不训练模型、不执行 CUDA 运算，也不调用 WSL。两个入口都运行全部前端用例，无需启动服务。
 
 修改模型或原生适配器时运行完整验证。它额外用小样本在 GPU 上训练、保存并通过接口加载 SLADE 和 Zebra，并将 WSL 求出的 Dept3 核数与串行结果对照。WSL 对照需先[构建原生程序](backend/algorithms/core/README.md)。改动页面或准备演示时，另运行 `npm --prefix frontend run build`，并按上述四步在浏览器联调。主要演示尺寸为 1440×900，页面最小宽度为 1280px，图需要支持 WebGL 2 的浏览器。
 
@@ -262,18 +265,18 @@ SLADE GPU 训练、Python 3.10 环境、历史算法及工作台联动的验证�
 ## Zebra GPU 链接预测
 
 ```powershell
-uv run --directory backend python -m scripts.train_zebra --dataset email-eu-core-dept3
+uv run --directory backend python -m scripts.train_zebra --dataset ethereum-eth
 ```
 
 使用现有 Python 3.10、GPU PyTorch 和 NumPy；以现有库版本为准适配代码，不安装 Zebra 原仓库的依赖清单、不更改锁文件。训练及推理使用 cuda:0；SANTA 字典操作在主机执行。
 
 用截至 S01—S08 的历史分别预测 S02—S09，S10 选择模型、S11 温度校准、S12 独立回测。冻结参数后读入真实 S12 并预测 S13。无序顶点对在下一快照发生至少一次交互即为正例，已有连接也参与。全图编码后按所选社区提取成对概率。截至观察截止无交互历史的账户列为未评分。训练、回测和页面预测均不读取 S13。
 
-模型、S11 预热状态和报告保存到 `models/email-eu-core-dept3/zebra/`。恢复核对成功后才激活 `current.json`。算法依据、原文与适配差异见 [Zebra 说明](backend/algorithms/link_prediction/README.md)。
+模型、S11 预热状态和报告保存到 `models/{dataset_id}/zebra/`。恢复核对成功后激活 `current.json`。[Zebra 说明](backend/algorithms/link_prediction/README.md) · [Ethereum 各预测窗口的训练命令](data/ethereum-eth/README.md)
 
 Dept3 无向基础模型 `zebra-4361fbd78cb2a8ba` 采用第 24 轮，训练耗时 275.339 秒。S12 回测 AP=0.2492、ROC-AUC=0.7864、Brier=0.0700、对数损失=0.2483。校准版本与回测结果见下文及 [验收记录](VALIDATION.md)。
 
-当前页面使用无向校准版本 `zebra-a55d8f6ef5de5b56`。校准层使用基础模型分数和最近三个快照的成对交互特征。校准标签为 S11，S12 回测 Brier 分数为 0.0515，对数损失为 0.1941。重新训练基础模型后，可在 `demo/` 中运行 `uv run --no-sync --directory backend python -m scripts.calibrate_links --dataset email-eu-core-dept3`，生成并验证校准版本。UnderGS 代码和产物保留作[离线对照](backend/algorithms/link_prediction/undergs/README.md)。
+EmailDept3 使用无向校准版本 `zebra-a55d8f6ef5de5b56`。校准层使用基础模型分数和最近三个快照的成对交互特征。校准标签为 S11，S12 回测 Brier 分数为 0.0515，对数损失为 0.1941。重新训练基础模型后，可在 `demo/` 中运行 `uv run --no-sync --directory backend python -m scripts.calibrate_links --dataset email-eu-core-dept3`，生成并验证校准版本。UnderGS 代码和产物保留作[离线对照](backend/algorithms/link_prediction/undergs/README.md)。
 
 S13、S14 和 S15 对应提前 1、2 和 3 个快照的预测。S14、S15 复用 Zebra 历史编码器，各自训练并校准预测头。[训练命令与回测](backend/algorithms/link_prediction/README.md#多步预测)
 

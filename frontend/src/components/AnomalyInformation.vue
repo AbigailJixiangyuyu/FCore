@@ -23,7 +23,7 @@ watch(selectedAccount, async function (account) {
   <QueryState :query="anomalyQuery" />
   <template v-if="anomalyResponse">
     <div class="result-title">
-      <h3>Top 10 Anomaly Scores</h3>
+      <h3>Top 10 Vertices by Anomaly Score</h3>
     </div>
     <el-empty
       v-if="!anomalyResults.length"
