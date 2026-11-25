@@ -9,7 +9,6 @@ import FutureControls from '../components/FutureControls.vue'
 import GraphPanel from '../components/GraphPanel.vue'
 import HistoryControls from '../components/HistoryControls.vue'
 import PredictionNavigation from '../components/PredictionNavigation.vue'
-import QueryState from '../components/QueryState.vue'
 import SnapshotNavigation from '../components/SnapshotNavigation.vue'
 import { useWorkbenchData } from '../composables/useWorkbenchData.js'
 import { workbenchKey } from '../composables/workbenchContext.js'
@@ -22,15 +21,15 @@ function syncLayout() {
   layout.value = hash === 'paper' || hash === 'video' ? hash : DEFAULT_LAYOUT
 }
 
+syncLayout()
 onMounted(() => {
-  syncLayout()
   window.addEventListener('hashchange', syncLayout)
 })
 onBeforeUnmount(() => window.removeEventListener('hashchange', syncLayout))
 
-const workbench = useWorkbenchData()
+const workbench = useWorkbenchData(layout)
 provide(workbenchKey, { ...workbench, viewLayout: layout })
-const { store, system, connected, catalog, selectTime } = workbench
+const { store, system, connected, ready, selectTime } = workbench
 const datasets = system.datasets
 const stages = [
   { id: 'history', label: 'Historical Mining' },
@@ -46,9 +45,8 @@ function selectStage(stage) {
 
 <template>
   <main class="workbench" :data-layout="layout">
-    <SnapshotNavigation v-if="connected" />
-    <template v-if="connected && datasets.length">
-      <QueryState v-if="catalog.isError.value" :query="catalog" />
+    <SnapshotNavigation v-if="system.connectionState.value !== 'error'" />
+    <template v-if="system.connectionState.value === 'checking' || (connected && datasets.length)">
       <div class="workspace">
         <aside class="panel control-panel" aria-labelledby="query-setup-title">
           <div class="sidebar-heading">
@@ -59,20 +57,23 @@ function selectStage(stage) {
           </div>
           <div class="control-stages">
             <el-radio-group
-              :model-value="store.stage"
+              :model-value="store.stage ?? ''"
+              :disabled="!ready"
               class="full-segment"
               aria-label="Temporal Community Search &amp; Prediction"
               @update:model-value="selectStage"
             >
-              <el-radio-button v-for="stage in stages" :key="stage.id" :value="stage.id" :title="stage.label">
+              <el-radio-button v-for="stage in stages" :key="stage.id" :value="stage.id" :disabled="stage.id === 'history' && !store.presentIndex" :title="stage.label">
                 {{ stage.label }}
               </el-radio-button>
             </el-radio-group>
           </div>
           <div class="sidebar-content">
-            <HistoryControls v-if="store.stage === 'history'" /><CurrentControls
-              v-else-if="store.stage === 'present'"
-            /><FutureControls v-else />
+            <template v-if="ready">
+              <HistoryControls v-if="store.stage === 'history'" />
+              <CurrentControls v-else-if="store.stage === 'present'" />
+              <FutureControls v-else-if="store.stage === 'future'" />
+            </template>
           </div>
         </aside>
         <GraphPanel />
@@ -84,9 +85,9 @@ function selectStage(stage) {
             </h2>
           </div>
           <div class="sidebar-content">
-            <AnomalyInformation />
+            <AnomalyInformation v-if="ready" />
           </div>
-          <PredictionNavigation />
+          <PredictionNavigation v-if="ready" />
         </aside>
       </div>
       <AnalysisSummaryPanel />
@@ -100,7 +101,7 @@ function selectStage(stage) {
         ><p class="helper">
           {{
             connected
-              ? 'Choose Import Dataset… in Dataset Loading to add your first dataset.'
+              ? 'Choose Import Dataset… in Datasets Loading to add your first dataset.'
               : 'Start the backend service and reconnect.'
           }}
         </p>

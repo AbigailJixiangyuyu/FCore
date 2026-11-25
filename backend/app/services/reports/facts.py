@@ -1,21 +1,11 @@
 """Compare the members of the verified, submitted communities."""
 
 from collections import defaultdict
-from dataclasses import dataclass, field
 from statistics import mean, median
 
 from app.schemas.analysis import Structure
 
 from .history import submitted_history_evidence, window
-
-
-@dataclass
-class ReportFacts:
-    values: dict = field(default_factory=dict)
-    aliases: dict[str, str] = field(default_factory=dict, repr=False)
-
-    def alias(self, account: str) -> str:
-        return self.aliases.setdefault(account, f"N{len(self.aliases) + 1:03}")
 
 
 def _membership_change(earlier: set[str], later: set[str]) -> dict:
@@ -29,17 +19,17 @@ def _membership_change(earlier: set[str], later: set[str]) -> dict:
     }
 
 
-def _membership_groups(facts: ReportFacts, stages: dict[str, set[str]]) -> list[dict]:
+def _membership_groups(stages: dict[str, set[str]]) -> list[dict]:
     """List each account once so follow-ups can identify any member of the submitted results."""
     groups = defaultdict(list)
     for account in sorted(set().union(*stages.values())):
         present_in = tuple(stage for stage, members in stages.items() if account in members)
-        groups[present_in].append(facts.alias(account))
+        groups[present_in].append(account)
     return [{"stages": list(stages_present), "nodes": nodes} for stages_present, nodes in groups.items()]
 
 
 def _current_risk(
-    facts: ReportFacts, snapshot: str, historical: set[str] | None, current: set[str],
+    snapshot: str, historical: set[str] | None, current: set[str],
     predicted: set[str] | None, scores: dict | None,
 ) -> dict:
     rows = [] if scores is None else [row for row in scores["accounts"] if row["account_id"] in current]
@@ -65,7 +55,7 @@ def _current_risk(
             break
         account = row["account_id"]
         member = {
-            "node": facts.alias(account),
+            "node": account,
             "score": round(row["score"], 4),
             "community_rank": rank,
             "global_rank": row["rank"],
@@ -91,22 +81,21 @@ _CURRENT_METHODS = {
 }
 
 
-def _add_query_parameters(facts: ReportFacts, record: dict, parameters: dict) -> None:
+def _add_query_parameters(record: dict, parameters: dict) -> None:
     if parameters.get("account") is not None:
-        record["query_node"] = facts.alias(parameters["account"])
+        record["query_node"] = parameters["account"]
     if "k" in parameters:
         record["k"] = parameters["k"]
 
 
 def collect_facts(history: Structure | None, current: Structure | None,
-                  scores: dict | None, forecast: dict | None) -> ReportFacts:
-    facts = ReportFacts()
+                  scores: dict | None, forecast: dict | None) -> dict:
     records = []
     stages = {}
     if history is not None:
         stages["history"] = set(history.members)
-        record = submitted_history_evidence(history, facts.alias)
-        _add_query_parameters(facts, record, history.parameters)
+        record = submitted_history_evidence(history)
+        _add_query_parameters(record, history.parameters)
         records.append(record)
 
     if current is not None:
@@ -122,7 +111,7 @@ def collect_facts(history: Structure | None, current: Structure | None,
             record["change_from_history"] = _membership_change(stages["history"], stages["current"])
         if "max_core" in current.parameters:
             record["maximum_core_order"] = current.parameters["max_core"]
-        _add_query_parameters(facts, record, current.parameters)
+        _add_query_parameters(record, current.parameters)
         records.append(record)
 
     if forecast is not None:
@@ -130,7 +119,7 @@ def collect_facts(history: Structure | None, current: Structure | None,
             "id": "P01", "topic": "submitted predicted community",
             "method": forecast["model"].title(), "target_snapshot": forecast["target_snapshot"],
         }
-        _add_query_parameters(facts, prediction, forecast)
+        _add_query_parameters(prediction, forecast)
         if forecast["scored_pair_count"]:
             members = set(forecast["members"])
             prediction["predicted_member_count"] = len(members)
@@ -144,9 +133,8 @@ def collect_facts(history: Structure | None, current: Structure | None,
             prediction["evidence_gap"] = "No candidate pair could be scored for this prediction."
 
     if current is not None:
-        records.append(_current_risk(facts, current.observed_until, stages.get("history"),
+        records.append(_current_risk(current.observed_until, stages.get("history"),
                                      stages["current"], stages.get("predicted"), scores))
     if forecast is not None:
         records.append(prediction)
-    facts.values = {"evidence": records, "membership_groups": _membership_groups(facts, stages)}
-    return facts
+    return {"evidence": records, "membership_groups": _membership_groups(stages)}

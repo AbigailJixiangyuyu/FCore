@@ -7,9 +7,9 @@ import { useLinkPrediction } from './workbench/useLinkPrediction.js'
 import { useSnapshotQueries } from './workbench/useSnapshotQueries.js'
 import { useStructureQueries } from './workbench/useStructureQueries.js'
 
-export function useWorkbenchData() {
+export function useWorkbenchData(layout) {
   const store = useWorkbenchStore()
-  const snapshots = useSnapshotQueries(store)
+  const snapshots = useSnapshotQueries(store, layout)
   const { matchHistoryAccount, ...structures } = useStructureQueries(store, snapshots)
   const anomalies = useAnomalyQuery(store, snapshots, selectTime)
   const evidence = useEvidenceQuery(store, snapshots, structures.selected)

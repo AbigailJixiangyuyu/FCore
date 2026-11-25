@@ -98,8 +98,9 @@ p.helper {
   white-space: nowrap;
 }
 .workspace {
+  --query-panel-width: 344px;
   display: grid;
-  grid-template-columns: 320px minmax(0, 1fr) 348px;
+  grid-template-columns: var(--query-panel-width) minmax(0, 1fr) 348px;
   gap: 12px;
   margin-top: 8px;
   height: var(--workspace-height);
@@ -198,7 +199,7 @@ p.helper {
     padding: 0 14px;
   }
   .workspace {
-    grid-template-columns: 302px minmax(0, 1fr) 320px;
+    grid-template-columns: var(--query-panel-width) minmax(0, 1fr) 320px;
     gap: 10px;
   }
 }

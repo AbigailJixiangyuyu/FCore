@@ -24,7 +24,7 @@ def test_dept3_catalog_and_observed_snapshots(dept3):
     dept3_entry = next(item for item in catalog if item["dataset_id"] == DATASET)
     assert dept3_entry["timestamp_basis"] == "relative" and not dept3_entry["synthetic"]
     snapshots = client.get(f"/api/datasets/{DATASET}/snapshots").json()["snapshots"]
-    assert [item["kind"] for item in snapshots] == ["history"] * 11 + ["present", "future"]
+    assert [item["kind"] for item in snapshots] == ["history"] * 69 + ["present", "future"]
     endpoint = f"/api/datasets/{DATASET}/snapshots"
     response = client.get(f"{endpoint}/S12", params=context)
     assert response.status_code == 200
@@ -330,6 +330,10 @@ def test_tccs_window_selection_and_replay(dept3, monkeypatch):
     assert multi.status_code == 200, multi.text
     window = multi.json()["window_graph"]
     assert window["snapshot_ids"] == ["S10", "S11", "S12"]
+    coreness = client.get(f"/api/datasets/{DATASET}/window-coreness", params=window_request)
+    assert coreness.status_code == 200, coreness.text
+    assert coreness.json()["core_numbers"] == window["core_numbers"]
+    assert window["core_numbers"]["49"] > single.json()["window_graph"]["core_numbers"]["49"]
     structure, = multi.json()["structures"]
     assert structure["parameters"] == {"account": "49", "k": 7, "algorithm": "tccs", "start_snapshot_id": "S10"}
     assert len(structure["members"]) == 52

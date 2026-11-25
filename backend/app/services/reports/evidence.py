@@ -12,7 +12,7 @@ from app.services.future_community import forecast_community
 from app.services.parallel_core import ParallelCoreCache
 from app.services.selection import resolve_structure
 
-from .facts import ReportFacts, collect_facts
+from .facts import collect_facts
 
 
 def _structure(scope: AnalysisScope, reference: StructureReference, cache: ParallelCoreCache, stage: str) -> Structure:
@@ -26,7 +26,7 @@ def _structure(scope: AnalysisScope, reference: StructureReference, cache: Paral
 
 def verify_evidence(
     scope: AnalysisScope, request: ReportRequest, cache: ParallelCoreCache, models_dir: Path
-) -> ReportFacts:
+) -> dict:
     context = request.model_dump(include={"dataset_id", "dataset_version", "observed_until"})
     for stage in ("history", "current", "future"):
         ref = getattr(request, stage)
@@ -48,7 +48,13 @@ def verify_evidence(
             raise HTTPException(409, "The SLADE model changed. Submit Current evidence again.")
 
     forecast = _verified_forecast(scope, request.future, models_dir) if request.future else None
-    return collect_facts(history, current, scores, forecast)
+    facts = collect_facts(history, current, scores, forecast)
+    if scope.manifest.granularity != "original":
+        facts["snapshot_interval_days"] = scope.manifest.snapshot_minutes // 1440
+        first = scope.manifest.snapshots[0]
+        facts["first_window"] = {"snapshot": first.snapshot_id, "start": first.starts_at, "end": first.ends_at,
+                                 "timestamp_basis": scope.manifest.timestamp_basis}
+    return facts
 
 
 def _verified_forecast(scope: AnalysisScope, ref: FutureEvidence, models_dir: Path) -> dict:

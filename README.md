@@ -280,3 +280,16 @@ EmailDept3 使用无向校准版本 `zebra-a55d8f6ef5de5b56`。校准层使用�
 
 S13、S14 和 S15 对应提前 1、2 和 3 个快照的预测。S14、S15 复用 Zebra 历史编码器，各自训练并校准预测头。[训练命令与回测](backend/algorithms/link_prediction/README.md#多步预测)
 
+
+## Weekly and monthly views
+
+For EmailDept3, **Temporal Granularity** offers **Weekly (7 days)** by default and **Monthly (30 days)**. The 13 files in the source package supply the observed events for both views. All stages share the selected interval and observation cutoff. Historical queries in a resliced view initially cover the latest eleven historical snapshots or the available history if shorter. In paper mode the chosen dataset, granularity and matching report can be restored on refresh.
+
+EmailDept3 supports SLADE and Zebra in both new views. Ethereum uses its original models for weekly windows. Its monthly view has two historical snapshots, sufficient to train SLADE but insufficient to train, select and calibrate Zebra. The synthetic sample fits into a single weekly or monthly current window.
+
+To reproduce a new view's models from the project root, run the following commands. Repeat the Zebra command with `--horizon 2` and then `--horizon 3` after training horizon 1. The corresponding active files are included by the Linux deployment packager.
+
+```powershell
+uv run --directory backend python -m scripts.train_slade --dataset email-eu-core-dept3 --granularity weekly
+uv run --directory backend python -m scripts.train_zebra --dataset email-eu-core-dept3 --granularity weekly --horizon 1
+```

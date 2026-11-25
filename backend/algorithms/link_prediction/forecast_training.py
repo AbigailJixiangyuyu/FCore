@@ -39,8 +39,8 @@ def _examples(model, windows, horizon):
 
 
 def fit_forecast_head(model: Zebra, windows, horizon: int, progress=None):
-    if len(windows) != 11 or not 2 <= horizon <= MAX_FORECAST_HORIZON:
-        raise ValueError("Training a longer forecast requires 11 historical snapshots and horizon 2 or 3")
+    if len(windows) < horizon + 3 or not 2 <= horizon <= MAX_FORECAST_HORIZON:
+        raise ValueError("Training a longer forecast requires enough history for training, validation and calibration at horizon 2 or 3")
     model.eval().requires_grad_(False)
     model.decoder.requires_grad_(True)
     state, examples = _examples(model, windows, horizon)

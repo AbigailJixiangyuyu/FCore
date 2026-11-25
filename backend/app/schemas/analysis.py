@@ -218,6 +218,7 @@ class DatasetManifest(BaseModel):
     seed: int
     timestamp_unit: Literal["seconds"] = "seconds"
     timestamp_basis: Literal["unix", "relative"] = "unix"
+    granularity: Literal["original", "weekly", "monthly"] = "original"
     snapshot_minutes: int
     observed_until: str
     has_demo_updates: bool = False

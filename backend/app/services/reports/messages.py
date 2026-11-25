@@ -1,11 +1,8 @@
 """Build a DeepSeek conversation from verified lifecycle evidence."""
 
 import json
-import re
 
 from app.schemas.reports import ReportFollowUpRequest
-
-from .facts import ReportFacts
 
 EVIDENCE_GUIDANCE = """Use only the submitted stages and cite only evidence IDs present in the supplied facts. Cite evidence using its ID,
 such as 〔H01〕, 〔C01〕, 〔C02〕 or 〔P01〕. Each stage has its own method, window and, where applicable,
@@ -16,7 +13,8 @@ Use the historical method's actual finding. Periodic presence refers to the list
 A burst witness describes an individual member's window. Compare the submitted selections in
 chronological order when a comparison is supplied. Give the number retained, added and exited and use net
 change alongside turnover. Retention is the share of the earlier selection that appears in the
-later one. Use the membership groups and node aliases to identify members shared across stages.
+later one. Use the membership groups to identify members shared across stages. Quote node IDs
+exactly as supplied, including leading zeros. Use inline code for IDs that contain Markdown punctuation.
 Describe every future membership or change as predicted for the specified target snapshot.
 
 Use SLADE scores only for scored members of the current selection. Describe coverage, mean,
@@ -35,8 +33,8 @@ to focus the analysis. Keep each point short.
 """ + EVIDENCE_GUIDANCE
 
 
-def _report_outline(facts: ReportFacts) -> str:
-    ids = {row["id"] for row in facts.values.get("evidence", [])}
+def _report_outline(facts: dict) -> str:
+    ids = {row["id"] for row in facts.get("evidence", [])}
     points = []
     if "H01" in ids:
         points.append("- **Historical pattern**: describe the submitted community and the method's finding.")
@@ -66,28 +64,13 @@ immediately after the claims they support.
 """ + EVIDENCE_GUIDANCE
 
 
-def _node_mentions(aliases: dict[str, str]) -> re.Pattern[str]:
-    accounts = "|".join(re.escape(account) for account in sorted(aliases, key=len, reverse=True))
-    return re.compile(
-        rf"((?:(?i:\b(?:vertex|node|account)\b)|顶点|节点|账户)\s*[:：]?\s*`?)"
-        rf"({accounts})(?![A-Za-z0-9_-]|\.[A-Za-z0-9_])",
-    )
-
-
 def report_messages(
-    facts: ReportFacts, follow_up: ReportFollowUpRequest | None = None,
+    facts: dict, follow_up: ReportFollowUpRequest | None = None,
     *, initial_prompt: str | None = None,
 ) -> list[dict[str, str]]:
-    mentions = _node_mentions(facts.aliases) if facts.aliases else None
-
-    def with_aliases(text: str) -> str:
-        if mentions is None:
-            return text
-        return mentions.sub(lambda match: match[1] + facts.aliases[match[2]], text)
-
-    supplied = {**facts.values}
+    supplied = facts.copy()
     if initial_prompt is not None:
-        supplied["initial_prompt"] = with_aliases(initial_prompt)
+        supplied["initial_prompt"] = initial_prompt
     messages = [
         {"role": "system", "content": FOLLOW_UP_PROMPT if follow_up else REPORT_PROMPT.format(outline=_report_outline(facts))},
         {"role": "user", "content": json.dumps(supplied, ensure_ascii=False)},
@@ -98,8 +81,8 @@ def report_messages(
     messages.append({"role": "assistant", "content": follow_up.report_content})
     for turn in follow_up.turns:
         messages.extend((
-            {"role": "user", "content": with_aliases(turn.question)},
+            {"role": "user", "content": turn.question},
             {"role": "assistant", "content": turn.answer},
         ))
-    messages.append({"role": "user", "content": with_aliases(follow_up.question)})
+    messages.append({"role": "user", "content": follow_up.question})
     return messages

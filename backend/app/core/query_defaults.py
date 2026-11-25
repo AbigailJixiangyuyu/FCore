@@ -30,7 +30,7 @@ def apply_query_defaults(value: Any, method: str) -> Any:
     if method == "burst":
         # Omitted accounts continue to request the global bursting core.
         defaults.pop("account", None)
-    if method in ("historical_core", "temporal_core") and ("start_snapshot_id" in value or "end_snapshot_id" in value):
+    if method in ("historical_core", "temporal_core") and ("start_snapshot_id" in value or "end_snapshot_id" in value or ":" in str(value.get("dataset_version", ""))):
         # A submitted range replaces both configured bounds.
         defaults.pop("start_snapshot_id", None)
         defaults.pop("end_snapshot_id", None)

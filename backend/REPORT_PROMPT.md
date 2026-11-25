@@ -40,7 +40,7 @@
 
 **怎样对齐查询。** 各阶段保留各自适用的查询点 `q`（JSON 中为 `query_node`）和核阶数 `k`。例如，PKMC 的 `maximum_core_order` 是算法求得的值。若所提交阶段的查询条件不同，能够直接说明的是所选社区重合多少、哪些成员进出。相似度 ε、连边阈值等输入参数用于后端复核。报告对未来的判断以所提交阈值下的那一次预测为依据。
 
-**怎样定位成员。** `membership_groups` 按 `history`、`current`、`predicted` 的实际组合列出节点，每个节点出现一次。同一份报告对同一节点使用同一代号，例如 `N002`。首问和追问中“节点 12”这类带节点标记的 ID 会映射到相应代号，页面显示回复时再还原原始 ID。[节点代号与提问处理](app/services/reports/messages.py) · [页面显示](../frontend/src/components/analysis-summary/AnalysisReport.vue)
+**怎样定位成员。** `membership_groups` 按 `history`、`current`、`predicted` 的实际组合列出节点，每个节点出现一次。证据中的查询点、成员和评分记录使用图中的原始节点 ID。分析者可以在首问或追问里直接使用 `E025`、`E031` 等编号，模型收到提问原文。[成员证据](app/services/reports/facts.py) · [对话消息](app/services/reports/messages.py)
 
 **怎样处理证据不足。** SLADE 均值和中位数只计入有分数的当前成员。当前查询使用回溯窗口时，SLADE 的评分时刻仍为 S12。评分越高表示该节点在当前时刻的交互越偏离模型学到的模式。整组缺少评分时，〔C02〕给出覆盖人数及 `evidence_gap`。未来有候选对获评分、预测社区为空时，预计成员数为 0，此时较早比较阶段的全部成员计入预计退出。若候选对均无法评分，〔P01〕给出 `evidence_gap`，未来成员归属和变化记为未知。[证据组装](app/services/reports/facts.py)
 
@@ -90,7 +90,7 @@
       "scored_members_in_global_top_10": 0,
       "highest_scoring_members": [
         {
-          "node": "N002",
+          "node": "12",
           "score": 0.246,
           "community_rank": 1,
           "global_rank": 27,
@@ -98,7 +98,7 @@
           "in_submitted_prediction": false
         },
         {
-          "node": "N003",
+          "node": "30",
           "score": 0.2338,
           "community_rank": 2,
           "global_rank": 34,
@@ -106,7 +106,7 @@
           "in_submitted_prediction": true
         },
         {
-          "node": "N004",
+          "node": "85",
           "score": 0.2311,
           "community_rank": 3,
           "global_rank": 39,
@@ -123,38 +123,38 @@
       "predicted_member_count": 23,
       "change_from_current": {"retained": 16, "added": 7, "exited": 14, "net_change": -7, "retention_rate": 0.5333},
       "members_in_all_three": 11,
-      "query_node": "N001",
+      "query_node": "49",
       "k": 4
     }
   ],
   "membership_groups": [
     {
       "stages": ["current"],
-      "nodes": ["N005", "N006", "N002", "N007", "N016", "N018", "N021", "N022", "N031", "N039", "N004", "N040"]
+      "nodes": ["1", "11", "12", "13", "33", "39", "44", "45", "64", "83", "85", "87"]
     },
     {
       "stages": ["history", "current", "predicted"],
-      "nodes": ["N008", "N009", "N013", "N014", "N017", "N024", "N001", "N026", "N029", "N035", "N036"]
+      "nodes": ["14", "16", "24", "25", "35", "48", "49", "54", "60", "73", "76"]
     },
     {
       "stages": ["predicted"],
-      "nodes": ["N010", "N015", "N023", "N032", "N034"]
+      "nodes": ["18", "26", "46", "66", "71"]
     },
     {
       "stages": ["history"],
-      "nodes": ["N011", "N027", "N033"]
+      "nodes": ["2", "57", "67"]
     },
     {
       "stages": ["current", "predicted"],
-      "nodes": ["N012", "N003", "N019", "N028", "N030"]
+      "nodes": ["23", "30", "4", "58", "63"]
     },
     {
       "stages": ["history", "current"],
-      "nodes": ["N020", "N038"]
+      "nodes": ["43", "80"]
     },
     {
       "stages": ["history", "predicted"],
-      "nodes": ["N025", "N037"]
+      "nodes": ["52", "77"]
     }
   ],
   "initial_prompt": "Which new members warrant attention, and are they predicted to stay?"
@@ -166,14 +166,14 @@
 这次首问涉及的两名新增成员，在未来预测中有不同去向。
 
 - 历史社区有 18 名成员，当前社区有 30 名。13 人保留、17 人新增、5 人退出，净增 12 人。历史成员留存率为 13/18，即 72.22%。〔H01〕〔C01〕
-- 当前 30 人均有 SLADE 分数。节点 12（`N002`）是当前新增成员，分数 0.2460，居社区第 1、全图第 27。节点 30（`N003`）也是新增成员，居社区第 2。前者预计退出，后者预计保留。〔C02〕〔P01〕
+- 当前 30 人均有 SLADE 分数。节点 12 是当前新增成员，分数 0.2460，居社区第 1、全图第 27。节点 30 也是新增成员，居社区第 2。前者预计退出，后者预计保留。〔C02〕〔P01〕
 - S13 预计有 23 名成员，其中 16 人来自当前社区，另有 7 人预计新增、14 人预计退出。共有 11 人出现在历史、当前及预测三个结果中。〔P01〕
 
 ## 后续追问如何延续上下文
 
 每次追问发送的消息依次为 `system`（追问规则）、`user`（同一组证据及原首问）、`assistant`（首份报告原文）、按时间排列的每轮已完成问答，最后是 `user`（本轮问题）。更新任何一个阶段的已提交证据后，下一次 **Send** 会基于新组合重新生成首份报告。[前端会话管理](../frontend/src/composables/workbench/useLifecycleReport.js) · [报告接口说明](API_INTEGRATION.md#全周期联合报告)
 
-追问使用提问者的语言。单个数值或顶点问题直接回答，多个发现或比较分点展开。前端保存回复的原始 Markdown 供后续追问，显示时还原节点 ID。以下提示词之后复用从 “Use only the submitted stages” 起的证据规则。[原文](app/services/reports/messages.py)
+追问使用提问者的语言。单个数值或顶点问题直接回答，多个发现或比较分点展开。前端保存回复的原始 Markdown 供后续追问。以下提示词之后复用从 “Use only the submitted stages” 起的证据规则。[原文](app/services/reports/messages.py)
 
 ```text
 Answer the latest question about the lifecycle report in the language it uses.

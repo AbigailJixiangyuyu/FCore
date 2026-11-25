@@ -12,7 +12,7 @@ from app.core.config import Settings
 from app.schemas.analysis import Structure
 from app.services import link_prediction
 from app.services.reports import evidence
-from app.services.reports.facts import ReportFacts, collect_facts
+from app.services.reports.facts import collect_facts
 from app.services.reports.provider import ReportClient
 
 
@@ -78,13 +78,14 @@ def test_report_verifies_submitted_results_before_one_provider_call(submitted_re
     client = TestClient(application)
     calls = []
     first = "The submitted selections share 13 of the 18 historical members.〔C01〕"
-    second = "\n\nNode N001 has a current SLADE score of 0.1234."
+    second = "\n\nNode 49 has a current SLADE score of 0.1234."
 
     def completion(request):
         calls.append(request)
         payload = json.loads(request.content)
         assert payload["stream"] is True and "response_format" not in payload
         assert payload["thinking"] == {"type": "enabled"}
+        assert payload["reasoning_effort"] == "high" and payload["max_tokens"] == 8192
         facts = json.loads(payload["messages"][1]["content"])
         records = {row["id"]: row for row in facts["evidence"]}
         assert set(records) == {"H01", "C01", "C02", "P01"}
@@ -100,6 +101,7 @@ def test_report_verifies_submitted_results_before_one_provider_call(submitted_re
         assert risk["mean"] == risk["median"] == round((0.4321 + 0.1234) / 2, 4)
         assert risk["scored_members_in_global_top_10"] == 1
         top, other = risk["highest_scoring_members"]
+        assert top["node"] == "12" and p["query_node"] == forecast["account"]
         assert (top["global_rank"], top["in_submitted_history"], top["in_submitted_prediction"]) == (8, False, False)
         assert other["node"] == p["query_node"] and other["in_submitted_prediction"]
         for field in ("threshold", "epsilon", "prediction_status", "forecast_outcome", "history_length"):
@@ -128,12 +130,11 @@ def test_report_verifies_submitted_results_before_one_provider_call(submitted_re
     assert report.headers["content-type"] == "application/jsonl"
     assert report.headers["x-accel-buffering"] == "no"
     events = [json.loads(line) for line in report.iter_lines()]
-    labels = events[0]["node_labels"]
-    assert events[0]["type"] == "start" and labels["N001"] == forecast["account"]
+    assert events[0] == {"type": "start", "model": "deepseek-flash"}
     supplied = json.loads(json.loads(calls[0].content)["messages"][1]["content"])
     groups = supplied["membership_groups"]
     for stage, expected in (("history", history.members), ("current", current.members), ("predicted", forecast["members"])):
-        assert {labels[node] for g in groups if stage in g["stages"] for node in g["nodes"]} == set(expected)
+        assert {node for g in groups if stage in g["stages"] for node in g["nodes"]} == set(expected)
     assert events[1:] == [
         {"type": "thinking", "content": "Thinking about the evidence."},
         {"type": "thinking", "content": "Checking the overlap."},
@@ -193,7 +194,7 @@ def test_disjoint_selections_empty_prediction_and_missing_scores(submitted_repor
     for members, scored_pairs in ((["f"], 1), ([], 1), ([], 0)):
         result = {**forecast, "members": members, "scored_pair_count": scored_pairs}
         facts = collect_facts(history, current, None, result)
-        records = {row["id"]: row for row in facts.values["evidence"]}
+        records = {row["id"]: row for row in facts["evidence"]}
         assert records["C01"]["change_from_history"] == {
             "retained": 0, "added": 1, "exited": 1, "net_change": 0, "retention_rate": 0.0,
         }
@@ -216,7 +217,7 @@ def test_follow_ups_send_the_original_report_and_prior_turns(submitted_report):
     application, body, forecast, _, _ = submitted_report
     client = TestClient(application)
     calls = []
-    report_content = "The two selections share 13 members, including N001."
+    report_content = f"The two selections share 13 members, including {forecast['account']}."
     answers = ["13 人属于同一组。", "其中 3 人预计仍在 S13。"]
     initial_prompt = f"Compare vertex {forecast['account']} across the three stages."
 
@@ -225,7 +226,7 @@ def test_follow_ups_send_the_original_report_and_prior_turns(submitted_report):
         assert payload["stream"] and payload["thinking"] == {"type": "enabled"}
         messages = payload["messages"]
         supplied = json.loads(messages[1]["content"])
-        assert supplied["initial_prompt"] == "Compare vertex N001 across the three stages."
+        assert supplied["initial_prompt"] == initial_prompt
         answer = (report_content, *answers)[len(calls)]
         calls.append(messages)
         return httpx.Response(
@@ -264,7 +265,7 @@ def test_follow_ups_send_the_original_report_and_prior_turns(submitted_report):
     assert calls[0][1] == calls[1][1] == calls[2][1]
     assert calls[2][2:] == [
         {"role": "assistant", "content": report_content},
-        {"role": "user", "content": "节点N001所在的这一组有 13 人吗？"},
+        {"role": "user", "content": question},
         {"role": "assistant", "content": answers[0]},
         {"role": "user", "content": next_question},
     ]
@@ -315,9 +316,6 @@ def test_provider_errors_never_return_upstream_diagnostics(tmp_path, monkeypatch
     monkeypatch.setenv("LLM_MODEL", " ")
     assert ReportClient.from_env(tmp_path / ".env").model == "deepseek-flash"
 
-    facts = ReportFacts()
-    facts.values["node"] = facts.alias("private@example.org")
-    assert "private@" not in json.dumps(facts.values)
     with pytest.raises(HTTPException, match="LLM_API_KEY"):
         ReportClient("https://provider.invalid", "", "test").check_ready()
 
@@ -326,7 +324,7 @@ def test_provider_errors_never_return_upstream_diagnostics(tmp_path, monkeypatch
 
     async def read_events(transport):
         client = ReportClient("https://provider.invalid", "secret", "test", transport)
-        async with client.stream(facts) as events:
+        async with client.stream({"evidence": [], "membership_groups": []}) as events:
             return [event async for event in events]
 
     for handler, code, hint in [
@@ -348,3 +346,41 @@ def test_provider_errors_never_return_upstream_diagnostics(tmp_path, monkeypatch
     ))))
     assert events[1] == {"type": "delta", "content": "Already received."}
     assert events[-1]["type"] == "error" and "private upstream" not in events[-1]["detail"]
+
+
+@pytest.mark.parametrize("outcome", ["answer", "length", "rate_limit"])
+def test_reasoning_exhaustion_retries_once_with_the_same_conversation(submitted_report, outcome):
+    application, body, _, _, _ = submitted_report
+    requests = []
+    end = 'data: {"choices":[{"delta":{}, "finish_reason":"length"}]}\n\n' + "data: [DONE]\n\n"
+    answer = "The forecast retains all current members."
+
+    def completion(request):
+        requests.append(json.loads(request.content))
+        if len(requests) == 1:
+            stream = provider_delta(reasoning_content="Checking membership.") + end
+        elif outcome == "rate_limit":
+            return httpx.Response(429, text="private upstream detail")
+        elif outcome == "length":
+            stream = end
+        else:
+            stream = provider_delta(content=answer) + "data: [DONE]\n\n"
+        return httpx.Response(200, headers={"Content-Type": "text/event-stream"}, text=stream)
+
+    application.state.report_client = ReportClient("https://provider.invalid", "test", "test", httpx.MockTransport(completion))
+    response = TestClient(application).post("/api/reports/follow-up", json={
+        **body, "report_content": "Original report.", "question": "Who is predicted to leave?",
+        "turns": [{"question": "Which snapshot?", "answer": "S13."}],
+    })
+    assert response.status_code == 200
+    first, retry = requests
+    assert first["thinking"] == {"type": "enabled"} and first["reasoning_effort"] == "high"
+    assert first["max_tokens"] == 8192
+    assert retry == {**{k: v for k, v in first.items() if k != "reasoning_effort"}, "thinking": {"type": "disabled"}}
+    events = [json.loads(line) for line in response.iter_lines()]
+    assert [event["type"] for event in events[:2]] == ["start", "thinking"]
+    if outcome == "answer":
+        assert events[2:] == [{"type": "delta", "content": answer}, {"type": "done"}]
+    else:
+        hint = "rate-limiting" if outcome == "rate_limit" else "output limit"
+        assert len(events) == 3 and events[-1]["type"] == "error" and hint in events[-1]["detail"]

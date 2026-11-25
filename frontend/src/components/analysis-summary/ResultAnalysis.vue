@@ -22,7 +22,7 @@ defineProps({
 })
 
 const {
-  store, selected, patternResult, patternResponse, queryResult, metric, evidenceResult,
+  store, ready, selected, patternResult, patternResponse, queryResult, metric, evidenceResult,
   historyResults, selectHistoryResult, selectTime, selectHistoryRange,
   snapshot, currentWindow, anomalyQuery, anomalyResponse,
   matchingPrediction, predictionRequest, predictionMessage,
@@ -106,7 +106,7 @@ function locateMember(accountId) {
         />
       </span>
     </div>
-    <template v-if="store.stage === 'future'">
+    <template v-if="ready && store.stage === 'future'">
       <FutureCommunityAnalysis
         v-if="matchingPrediction"
         :key="matchingPrediction.request_id"
@@ -126,14 +126,14 @@ function locateMember(accountId) {
       @select="selectHistoryResult"
     />
     <template v-else-if="!selected">
-      <p v-if="!store.analysisRunId" class="summary-empty">
+      <p v-if="ready && !store.analysisRunId" class="summary-empty">
         Run a query to see the community.
       </p>
       <QueryState
         v-else-if="query.isFetching.value || query.isError.value"
         :query="query"
       />
-      <p v-else class="summary-empty">{{ patternResponse?.message || 'No matching community.' }}</p>
+      <p v-else-if="ready" class="summary-empty">{{ patternResponse?.message || 'No matching community.' }}</p>
     </template>
     <template v-else-if="store.stage === 'history'">
       <div class="summary-line">

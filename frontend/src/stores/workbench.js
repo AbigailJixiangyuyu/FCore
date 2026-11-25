@@ -6,11 +6,11 @@ import { forecastSnapshotId, snapshotId, snapshotIndex } from '../domain/timelin
 export const DEFAULT_DATASET_ID = 'ethereum-eth'
 let nextAnalysisRunId = 0
 
-function historyDefaults(defaults, presentIndex) {
-  const window = { start_snapshot_id: snapshotId(0), end_snapshot_id: snapshotId(presentIndex - 1) }
+function historyDefaults(defaults, presentIndex, resliced) {
+  const window = { start_snapshot_id: snapshotId(resliced ? Math.max(0, presentIndex - 11) : 0), end_snapshot_id: snapshotId(Math.max(0, presentIndex - 1)) }
   return Object.fromEntries(
     Object.keys(historyAlgorithms).map(pattern => [
-      pattern, { ...window, ...defaults[pattern] },
+      pattern, resliced ? { ...defaults[pattern], ...window } : { ...window, ...defaults[pattern] },
     ]),
   )
 }
@@ -27,7 +27,7 @@ function queryAccount(account, state) {
   return state.literalAccountIds ? account : account.trim()
 }
 
-function initialState(datasetId = DEFAULT_DATASET_ID, suggested, observedUntil = 'S12', updated = false) {
+function initialState(datasetId = DEFAULT_DATASET_ID, suggested, observedUntil = 'S12', updated = false, resliced = false) {
   const presentIndex = snapshotIndex(observedUntil)
   const defaults = queryDefaults[datasetId] || {
     ...queryDefaults['email-eu-core-dept3'], // Fallback parameters for uploaded CSVs.
@@ -51,12 +51,12 @@ function initialState(datasetId = DEFAULT_DATASET_ID, suggested, observedUntil =
     datasetId,
     observedUntil,
     literalAccountIds: updated || !queryDefaults[datasetId],
-    timeIndex: presentIndex,
-    historyStartIndex: 0,
+    timeIndex: null,
+    historyStartIndex: resliced ? Math.max(0, presentIndex - 11) : 0,
     historyEndIndex: presentIndex - 1,
     pattern: Object.keys(historyAlgorithms)[0],
-    historyDrafts: historyDefaults(profile, presentIndex),
-    historySubmitted: historyDefaults(profile, presentIndex),
+    historyDrafts: historyDefaults(profile, presentIndex, resliced),
+    historySubmitted: historyDefaults(profile, presentIndex, resliced),
     currentAlgorithm: Object.keys(currentAlgorithms)[0],
     currentDrafts: currentDefaults(profile, observedUntil),
     currentSubmitted: currentDefaults(profile, observedUntil),
@@ -73,7 +73,7 @@ function initialState(datasetId = DEFAULT_DATASET_ID, suggested, observedUntil =
 }
 
 export const useWorkbenchStore = defineStore('workbench', {
-  state: initialState,
+  state: () => ({ ...initialState(), datasetId: null }),
   getters: {
     presentIndex: state => snapshotIndex(state.observedUntil),
     anomalyAccount: function (state) {
@@ -81,6 +81,7 @@ export const useWorkbenchStore = defineStore('workbench', {
       return location?.source === 'anomaly' ? location.accountId : ''
     },
     stage: function (state) {
+      if (state.timeIndex === null) return null
       if (state.timeIndex < this.presentIndex) return 'history'
       if (state.timeIndex === this.presentIndex) return 'present'
       return 'future'
@@ -225,7 +226,7 @@ export const useWorkbenchStore = defineStore('workbench', {
       this[field] = algorithm
     },
     selectDataset: function (dataset) {
-      this.$patch(initialState(dataset.dataset_id, dataset.query_defaults, dataset.observed_until, dataset.has_demo_updates))
+      this.$patch(initialState(dataset.dataset_id, dataset.query_defaults, dataset.observed_until, dataset.has_demo_updates, !!dataset.granularity && dataset.granularity !== 'original'))
     },
     selectTime: function (index) {
       const timeIndex = Math.max(0, Math.min(this.presentIndex + 1, Math.round(index)))
@@ -278,6 +279,7 @@ export const useWorkbenchStore = defineStore('workbench', {
         this.currentAnchor = structure.members[0] || ''
     },
     focusAccount: function (account) {
+      if (!this.stage) return
       this.graphLocation = null
       if (this.stage === 'history') {
         this.historyAnchor = account

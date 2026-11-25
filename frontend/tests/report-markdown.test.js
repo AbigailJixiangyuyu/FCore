@@ -12,9 +12,8 @@ test('streamed Markdown resolves split emphasis, lists and citations', () => {
 })
 
 test('node IDs and model HTML remain text in formatted replies', () => {
-  const labels = { N003: '**x**<tag>&' }
-  const html = renderReportMarkdown('**N003** and `N003` <img src=x> 〔C02〕', labels)
-  assert.match(html, /<strong>\*\*x\*\*&lt;tag&gt;&amp;<\/strong>/)
+  const html = renderReportMarkdown('**E025** and `**x**<tag>&` <img src=x> 〔C02〕')
+  assert.match(html, /<strong>E025<\/strong>/)
   assert.match(html, /<code>\*\*x\*\*&lt;tag&gt;&amp;<\/code>/)
   assert.match(html, /&lt;img src=x&gt; 〔C02〕/)
 })

@@ -3,12 +3,14 @@
 from time import perf_counter
 from uuid import uuid4
 
+from app.repositories.granularity import for_version
 from app.repositories.datasets import DatasetRepository
 from app.schemas.analysis import AnalysisContext, AnalysisResult, SnapshotQuery
 
 
 class AnalysisScope:
     def __init__(self, repository: DatasetRepository, context: AnalysisContext):
+        repository = for_version(repository, context.dataset_id, context.dataset_version)
         self.repository = repository
         self.context = context
         cutoff_was_supplied = "observed_until" in context.model_fields_set

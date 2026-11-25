@@ -1,22 +1,19 @@
 <script setup>
 import { computed, ref, useTemplateRef } from 'vue'
 
-import { useWorkbench } from '../composables/workbenchContext.js'
-
 const props = defineProps({
   id: { type: String, required: true },
   account: { type: String, required: true },
+  coreNumbers: { type: Object, default: null },
+  disabled: Boolean,
 })
 const k = defineModel({ type: Number })
-const { snapshot, store } = useWorkbench()
 const maxK = 10000
 const input = useTemplateRef('input')
 const showCoreness = ref(false)
 const coreness = computed(function () {
-  const frame = snapshot.value
-  if (frame?.snapshot_id !== store.observedUntil) return null
-  const numbers = frame.core_numbers
-  return Object.hasOwn(numbers, props.account) ? numbers[props.account] : null
+  const numbers = props.coreNumbers
+  return numbers && Object.hasOwn(numbers, props.account) ? numbers[props.account] : null
 })
 const canUseCoreness = computed(() => coreness.value !== null && coreness.value <= maxK)
 
@@ -60,6 +57,7 @@ function useCoreness() {
         :step="1"
         :precision="0"
         :controls="false"
+        :disabled="disabled"
         @click="showCoreness = true"
       />
       <el-button

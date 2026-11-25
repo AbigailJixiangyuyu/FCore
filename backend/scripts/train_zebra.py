@@ -20,6 +20,7 @@ from algorithms.link_prediction.model import ZebraConfig
 from algorithms.link_prediction.runtime import runtime_info
 from algorithms.link_prediction.training import replay, train
 from app.core.config import Settings
+from app.repositories.granularity import MINUTES, model_directory, view_repository
 from app.repositories.datasets import DatasetRepository
 
 
@@ -27,11 +28,14 @@ def main():
     parser = argparse.ArgumentParser(description="Train and calibrate Zebra on the GPU, with S12 held out for evaluation.")
     parser.add_argument("--dataset", default="email-eu-core-dept3")
     parser.add_argument("--horizon", type=int, choices=range(1, MAX_FORECAST_HORIZON + 1), default=1)
+    parser.add_argument("--granularity", choices=["original", *MINUTES])
     arguments = parser.parse_args()
     horizon = arguments.horizon
     settings = Settings()
     repository = DatasetRepository(settings.data_dir)
+    repository = view_repository(repository, arguments.dataset, arguments.granularity)
     _, manifest = repository.locate(arguments.dataset)
+    models_dir = model_directory(settings.models_dir, manifest)
     windows, metadata = prepare_history(repository, manifest)
     runtime = runtime_info()
     print(json.dumps(runtime, ensure_ascii=False), flush=True)
@@ -45,7 +49,7 @@ def main():
     if horizon == 1:
         model, state, temperature, report = train(windows, ZebraConfig(), progress)
     else:
-        model, _, _, base = load_artifact(settings.models_dir, manifest.dataset_id, metadata)
+        model, _, _, base = load_artifact(models_dir, manifest.dataset_id, metadata)
         state, temperature, report = fit_forecast_head(model, windows, horizon, progress)
         report["source_model_version"] = base["model_version"]
         probability_calibration = fit_probability_calibration(ZEBRA, model, windows, horizon=horizon)
@@ -64,11 +68,11 @@ def main():
         probability_calibration=probability_calibration,
     )
     artifact = save_artifact(
-        settings.models_dir, model, state, temperature, metadata, report,
+        models_dir, model, state, temperature, metadata, report,
         probability_calibration=probability_calibration, horizon=horizon,
     )
     restored, restored_state, restored_temperature, restored_artifact = load_artifact(
-        settings.models_dir, manifest.dataset_id, metadata, artifact["model_version"],
+        models_dir, manifest.dataset_id, metadata, artifact["model_version"],
         horizon=horizon,
     )
     torch.testing.assert_close(state.memory, restored_state.memory, rtol=0, atol=0)
@@ -91,7 +95,7 @@ def main():
         torch.testing.assert_close(expected_probabilities, actual_probabilities, rtol=0, atol=0)
     if model.device.type != "cuda" or state.memory.device.type != "cuda":
         raise RuntimeError("Zebra model and memory must be on GPU")
-    activate_artifact(settings.models_dir, manifest.dataset_id, artifact, horizon=horizon)
+    activate_artifact(models_dir, manifest.dataset_id, artifact, horizon=horizon)
     print(json.dumps({
         "model_version": artifact["model_version"], "best_epoch": report["best_epoch"],
         "forecast_horizon": horizon, "backtest_input_cutoff": report["backtest_input_cutoff"],

@@ -8,10 +8,12 @@ import { evidenceMethodName, reportStages } from '../../domain/reportEvidence.js
 
 const ReportAnswer = defineAsyncComponent(() => import('./ReportAnswer.vue'))
 
+const workbench = useWorkbench()
 const {
   stage, slots, ready, canSubmit, submit, generating, report, error,
   busy, canAsk, canSend, answering, question, ask, retry, turns, pendingTurn, replyError,
-} = useLifecycleReport(useWorkbench())
+} = useLifecycleReport(workbench)
+const setupReady = workbench.ready
 const reportArea = ref(null)
 const reportText = computed(() => report.value?.content ?? '')
 
@@ -70,18 +72,18 @@ function onQuestionKeydown(event) {
     <div ref="reportArea" class="report-content" role="log" aria-label="Report and discussion" :aria-busy="busy">
       <p v-if="report?.initial_prompt" class="report-text report-question report-opening">{{ report.initial_prompt }}</p>
       <p v-if="error" class="report-error" role="alert">{{ error }}</p>
-      <ReportAnswer v-if="reportText || report?.thinking" :content="reportText" :thinking="report.thinking" :thinking-duration-ms="report.thinkingDurationMs" :node-labels="report.node_labels" />
+      <ReportAnswer v-if="reportText || report?.thinking" :content="reportText" :thinking="report.thinking" :thinking-duration-ms="report.thinkingDurationMs" />
       <p v-else-if="generating" class="report-status">
         Generating report<span class="report-status-dots" aria-hidden="true">...</span>
       </p>
       <template v-if="!generating">
         <div v-for="(turn, index) in turns" :key="index" class="report-turn">
           <p class="report-text report-question">{{ turn.question }}</p>
-          <ReportAnswer :content="turn.answer" :thinking="turn.thinking" :thinking-duration-ms="turn.thinkingDurationMs" :node-labels="report.node_labels" />
+          <ReportAnswer :content="turn.answer" :thinking="turn.thinking" :thinking-duration-ms="turn.thinkingDurationMs" />
         </div>
         <div v-if="pendingTurn" class="report-turn">
           <p class="report-text report-question">{{ pendingTurn.question }}</p>
-          <ReportAnswer v-if="pendingTurn.answer || pendingTurn.thinking" :content="pendingTurn.answer" :thinking="pendingTurn.thinking" :thinking-duration-ms="pendingTurn.thinkingDurationMs" :node-labels="report.node_labels" />
+          <ReportAnswer v-if="pendingTurn.answer || pendingTurn.thinking" :content="pendingTurn.answer" :thinking="pendingTurn.thinking" :thinking-duration-ms="pendingTurn.thinkingDurationMs" />
           <p v-else-if="answering" class="report-status">Thinking…</p>
           <div v-if="replyError" class="report-reply-error">
             <p class="report-error" role="alert">{{ replyError }}</p>
@@ -95,6 +97,7 @@ function onQuestionKeydown(event) {
         :model-value="generating ? '' : question" type="textarea" :autosize="{ minRows: 1, maxRows: 3 }" resize="none"
         :aria-label="canAsk ? 'Follow-up question' : 'Optional question for the report'"
         :readonly="generating"
+        :disabled="!setupReady"
         :placeholder="canAsk ? 'Ask about this report…' : 'Ask FCore'"
         @update:model-value="question = $event"
         @keydown="onQuestionKeydown"

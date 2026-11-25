@@ -1,10 +1,8 @@
 """Describe the pattern witnessed by the submitted historical result."""
 
 from collections import Counter
-from collections.abc import Callable
 
 from app.schemas.analysis import Structure
-
 
 _METHODS = {
     "periodic": "TD", "durable": "ONCE", "burst": "MBC-B",
@@ -16,9 +14,7 @@ def window(start: str, end: str) -> str:
     return start if start == end else f"{start}–{end}"
 
 
-def submitted_history_evidence(
-    history: Structure, alias: Callable[[str], str],
-) -> dict:
+def submitted_history_evidence(history: Structure) -> dict:
     parameters, evidence = history.parameters, history.evidence
     snapshot_ids = evidence["analysis_snapshot_ids"]
     pattern = parameters["pattern"]
@@ -60,7 +56,7 @@ def submitted_history_evidence(
         windows = Counter(window(row["witness_start_snapshot_id"], row["witness_end_snapshot_id"]) for row in witnesses)
         most_members = max(windows.values())
         record.update(
-            witness_node=alias(witness["account"]),
+            witness_node=witness["account"],
             witness_max_average_degree=round(witness["max_average_degree"], 2),
             burst_witness_window=window(witness["witness_start_snapshot_id"], witness["witness_end_snapshot_id"]),
             most_common_member_witness_windows=sorted(name for name, count in windows.items() if count == most_members),

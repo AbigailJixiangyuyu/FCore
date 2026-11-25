@@ -40,7 +40,7 @@ export function useSystemStatus() {
   })
 
   const connectionState = computed(function () {
-    if (isChecking.value) {
+    if (queries.value.some(query => query.isPending)) {
       return 'checking'
     }
     if (errors.value.length > 0) {

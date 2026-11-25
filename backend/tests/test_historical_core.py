@@ -72,7 +72,7 @@ def test_fixed_window_communities_evidence_and_index_reuse(app_with_test_core, m
             assert (result["metrics"]["node_count"], result["metrics"]["internal_edges"]) == (members, edges)
             assert result["metrics"]["min_degree"] >= result["parameters"]["k"]
             assert result["evidence"]["qualifying_member_counts"] == counts
-            record = submitted_history_evidence(Structure(**result), str)
+            record = submitted_history_evidence(Structure(**result))
             assert record["method"] == "PHC-Query"
             assert list(record["members_in_a_k_core_by_window_end"].values()) == counts
 

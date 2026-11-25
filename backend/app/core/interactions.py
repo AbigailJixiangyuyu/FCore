@@ -7,4 +7,7 @@ def undirected_pair(u: str, v: str) -> tuple[str, str]:
 
 def undirected_dataset_version(version: str) -> str:
     suffix = "-undirected-v1"
+    base, separator, grain = version.rpartition(":")
+    if separator and grain in ("weekly", "monthly"):
+        return undirected_dataset_version(base) + separator + grain
     return version if version.endswith(suffix) else version + suffix

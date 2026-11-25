@@ -11,6 +11,7 @@ const props = defineProps({
 
 const { store, selectHistoryRange } = useWorkbench()
 const lastIndex = computed(() => props.snapshots.length - 1)
+const tickStride = computed(() => Math.ceil(props.snapshots.length / 11))
 const boundaries = ['start', 'end']
 const preview = ref(null)
 const committedRange = computed(() =>
@@ -25,8 +26,18 @@ const selectionStyle = computed(() => {
     right: `${((lastIndex.value - end) / props.snapshots.length) * 100}%`,
   }
 })
+function coverage(meta) {
+  const days = (Date.parse(meta.ends_at) - Date.parse(meta.starts_at)) / 86_400_000
+  return days >= 1 ? `${Number(days.toFixed(2))} days` : `${Number((days * 1440).toFixed(2))} min`
+}
+function shortWindowLabel(meta) {
+  if (!meta || !props.snapshots.length) return ''
+  const presentWidth = props.snapshots.at(-1)
+  const duration = m => Date.parse(m.ends_at) - Date.parse(m.starts_at)
+  return duration(meta) < duration(presentWidth) ? ` · ${meta.snapshot_id}: ${coverage(meta)}` : ''
+}
 const caption = computed(() => {
-  if (!selection.value) return `History · S01–${snapshotId(lastIndex.value)}`
+  if (!selection.value) return `History · S01–${snapshotId(lastIndex.value)}${shortWindowLabel(props.snapshots[0])}`
   const [start, end] = selection.value
   const range = start === end ? snapshotId(start) : `${snapshotId(start)}—${snapshotId(end)}`
   return `History · ${range} · ${formatCount(end - start + 1, 'snapshot')}`
@@ -241,11 +252,12 @@ onBeforeUnmount(cancelDrag)
         :key="meta.snapshot_id"
         type="button"
         :class="{ 'in-range': selection && meta.index >= selection[0] && meta.index <= selection[1] }"
+        :title="`${meta.snapshot_id} · ${coverage(meta)} · ${meta.starts_at} – ${meta.ends_at}`"
         :aria-label="`View snapshot ${meta.snapshot_id}`"
         :aria-pressed="committedRange?.[0] === meta.index && committedRange?.[1] === meta.index"
         @click="selectHistoryRange(meta.index, meta.index)"
       >
-        {{ meta.snapshot_id }}
+        <span v-if="(meta.index % tickStride === 0 && lastIndex - meta.index >= tickStride / 2) || meta.index === lastIndex">{{ meta.snapshot_id }}</span>
       </button>
     </div>
   </div>

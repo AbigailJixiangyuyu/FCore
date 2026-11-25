@@ -80,16 +80,39 @@ def observed_window(
     return combine_snapshots(frames), snapshot_ids
 
 
+def current_window_coreness(scope: AnalysisScope, start_snapshot_id: str) -> dict:
+    start, end = window_bounds(scope, start_snapshot_id, scope.manifest.observed_until)
+    frame, _ = observed_window(scope, start, end)
+    return {
+        **scope.metadata("computed", "window-core-numbers-v1"),
+        "start_snapshot_id": start.snapshot_id,
+        "end_snapshot_id": end.snapshot_id,
+        "core_numbers": core_numbers(graph_of(frame)),
+    }
+
+
 def aggregate(scope: AnalysisScope, start_snapshot_id: str, end_snapshot_id: str) -> dict:
     start, end = window_bounds(scope, start_snapshot_id, end_snapshot_id)
     if start.kind != "history" or end.kind != "history":
         raise HTTPException(422, "Choose two historical snapshots for aggregation.")
+    return aggregate_payload(scope, start, end)
+
+
+def observed_aggregate(scope: AnalysisScope) -> dict:
+    start = min(scope.manifest.snapshots, key=lambda meta: meta.index)
+    _, end = window_bounds(scope, start.snapshot_id, scope.manifest.observed_until)
+    return aggregate_payload(scope, start, end)
+
+
+def aggregate_payload(scope: AnalysisScope, start: SnapshotMeta, end: SnapshotMeta) -> dict:
     frame, snapshot_ids = observed_window(scope, start, end)
     payload = graph_payload(scope, frame)
+    period = "historical" if end.kind == "history" else "observed"
+    data = "graph" if frame.static_edges is not None else "transaction"
     return {
-        **scope.metadata("computed", "historical-graph-union-v1" if frame.static_edges is not None else "historical-transaction-union-v1"),
-        "start_snapshot_id": start_snapshot_id,
-        "end_snapshot_id": end_snapshot_id,
+        **scope.metadata("computed", f"{period}-{data}-union-v1"),
+        "start_snapshot_id": start.snapshot_id,
+        "end_snapshot_id": end.snapshot_id,
         "snapshot_ids": snapshot_ids,
         "starts_at": start.starts_at,
         "ends_at": end.ends_at,

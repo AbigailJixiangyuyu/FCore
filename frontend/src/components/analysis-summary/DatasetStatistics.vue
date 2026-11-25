@@ -7,13 +7,14 @@ import { summarizeGraph } from '../../domain/analysisSummary.js'
 import { formatCount, formatNumber } from '../../domain/format.js'
 import QueryState from '../QueryState.vue'
 
-const { store, snapshot, snapshotQuery, currentWindow } =
+const { store, ready, snapshot, snapshotQuery, currentWindow } =
   useWorkbench()
 const stats = computed(function () {
   const frame = currentWindow.value || snapshot.value
   return frame ? summarizeGraph(frame) : null
 })
 const scope = computed(function () {
+  if (!store.stage) return 'All observed snapshots'
   if (store.stage === 'history') return store.historyRangeLabel
   if (store.stage === 'future') return `${store.observedUntil} · Observed`
   return currentWindow.value ? store.currentWindowLabel : store.observedUntil
@@ -52,7 +53,7 @@ const largestComponent = computed(function () {
         <Histogram aria-hidden="true" />
         Dataset Statistics
       </h2>
-      <span class="summary-context">{{ scope }}</span>
+      <span v-if="ready" class="summary-context">{{ scope }}</span>
     </div>
     <template v-if="stats">
       <dl class="summary-metrics dataset-metrics">

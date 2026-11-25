@@ -137,10 +137,7 @@ export function useLifecycleReport(workbench) {
       for await (const event of postJsonLines(path, body, { signal: controller.signal })) {
         if (activeRequest !== controller) return
         if (event.type === 'start') {
-          if (!followUp) {
-            draftReport.value.model = event.model
-            draftReport.value.node_labels = event.node_labels
-          }
+          if (!followUp) draftReport.value.model = event.model
         } else if (event.type === 'thinking') {
           const reply = followUp ? pendingTurn.value : draftReport.value
           thinkingStartedAt ??= performance.now()

@@ -56,9 +56,9 @@ function clearFile() {
       <template v-if="append">
         <dl class="dataset-update-details">
           <dt>Dataset</dt><dd>{{ dataset?.name }}</dd>
-          <dt>Next snapshot</dt><dd>{{ nextSnapshot }}</dd>
+          <dt>Next source snapshot</dt><dd>{{ nextSnapshot }}</dd>
         </dl>
-        <p>Upload the complete undirected graph for {{ nextSnapshot }} as a UTF-8 CSV.</p>
+        <p>Upload the complete undirected graph for {{ nextSnapshot }} at the dataset’s original granularity as a UTF-8 CSV.</p>
         <pre>u,v
 001,002
 002,003

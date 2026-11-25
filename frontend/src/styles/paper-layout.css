@@ -12,11 +12,8 @@
     outline: var(--paper-annotation-width) solid var(--paper-annotation-color);
   }
 
-  .time-navigation {
-    grid-template-columns: minmax(min-content, 42%) minmax(0, 1fr);
-  }
   .time-navigation-settings {
-    grid-template-columns: auto 1fr 1.3fr 1fr;
+    grid-template-columns: auto minmax(max-content, 1fr) minmax(max-content, 1.3fr) minmax(max-content, 1fr);
   }
   .time-navigation-settings::before { content: '1'; }
   #query-setup-title::before { content: '2'; }

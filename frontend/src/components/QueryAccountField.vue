@@ -2,6 +2,7 @@
 import { useWorkbench } from '../composables/workbenchContext.js'
 
 const account = defineModel({ type: String, required: true })
+defineProps({ disabled: Boolean })
 const { anomalyResults, anomalyQuery } = useWorkbench()
 const rankingLoading = anomalyQuery.isFetching
 
@@ -13,14 +14,15 @@ function selectRankedAccount(id) {
 <template>
   <div class="compact-field account-field">
     <label for="query-account-id">Query Vertex</label>
-    <el-input id="query-account-id" v-model="account" placeholder="Vertex ID" />
+    <el-input id="query-account-id" v-model="account" :disabled="disabled" placeholder="Vertex ID" />
     <el-dropdown
       trigger="click"
-      :disabled="!anomalyResults.length"
+      :disabled="disabled || !anomalyResults.length"
       @command="selectRankedAccount"
     >
       <el-button
         size="small"
+        :disabled="disabled"
         :loading="rankingLoading"
       >
         Anomaly Vertices

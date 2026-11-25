@@ -35,7 +35,7 @@ def mining_window(scope: AnalysisScope, request: PatternQuery, history_ids: tupl
         return list(history_ids[first : last + 1])
     if not history_ids:
         raise HTTPException(404, "No historical snapshots are available to mine.")
-    return list(history_ids)
+    return list(history_ids[-11:] if scope.manifest.granularity != "original" else history_ids)
 
 
 def project_snapshots(frames: list[SnapshotData]) -> TemporalSnapshots:

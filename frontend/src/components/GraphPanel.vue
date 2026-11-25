@@ -123,6 +123,7 @@ const scene = computed(function () {
   })
 })
 const graphStamp = computed(function () {
+  if (!store.stage) return 'All observed snapshots · Aggregate graph'
   const windowLabel = rangeLabel.value || store.observedUntil
   if (standaloneLocation.value || (overview.value && future.value)) return `${store.observedUntil} · Observed graph`
   if (overview.value) return `${windowLabel} · Full graph`
@@ -194,13 +195,14 @@ const emptyText = computed(function () {
         <Share aria-hidden="true" />
         Community Visualization
       </h2>
-      <span class="count-chip">{{
+      <span v-if="ready" class="count-chip">{{
         scene
           ? `${formatCount(scene.nodes.length, 'vertex', 'vertices')} · ${formatCount(scene.edges.length, showPrediction ? 'predicted edge' : 'edge')}`
           : 'No graph data'
       }}</span>
     </div>
     <div
+      v-if="ready"
       class="graph-stage"
       :data-layout-state="error ? 'error' : layout ? 'ready' : 'loading'"
     >

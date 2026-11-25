@@ -2,6 +2,7 @@ import { keepPreviousData, useQuery } from '@tanstack/vue-query'
 import { computed } from 'vue'
 
 import { getPredictionModels, matchesContext } from '../../api/analysis.js'
+import { FORECAST_HORIZONS } from '../../domain/timeline.js'
 import { matchesCommunityPrediction } from '../../graph/prediction.js'
 import { useAnalysisQuery } from './useAnalysisQuery.js'
 
@@ -31,9 +32,13 @@ function usePredictionModel(context, horizon, enabled) {
 
 export function useLinkPrediction(store, { context, ready }) {
   const inFuture = computed(() => ready.value && store.stage === 'future')
-  const { query: predictionModels, model: draftModel } = usePredictionModel(
-    context, () => store.futureDraft.horizon, inFuture,
-  )
+  const targets = FORECAST_HORIZONS.map(horizon => ({
+    horizon, ...usePredictionModel(context, () => horizon, inFuture),
+  }))
+  const availableHorizons = computed(() => targets.filter(t => t.model.value?.status === 'ready').map(t => t.horizon))
+  const draftTarget = computed(() => targets[store.futureDraft.horizon - 1])
+  const predictionModels = computed(() => draftTarget.value.query)
+  const draftModel = computed(() => draftTarget.value.model.value)
   const hasActiveRun = computed(() => inFuture.value && !!store.analysisRunId)
   const { query: submittedModels, model: activePredictionModel } = usePredictionModel(
     context, () => store.futureSubmitted.horizon, hasActiveRun,
@@ -86,11 +91,11 @@ export function useLinkPrediction(store, { context, ready }) {
 
   function recheckPredictionModel() {
     if (draftUsesSubmittedModel.value && modelChanged.value) store.clearAnalysis()
-    predictionModels.refetch()
+    for (const target of targets) target.query.refetch()
   }
 
   return {
-    predictionModels, draftModel, activePredictionModel, prediction, matchingPrediction, predictionMessage,
+    predictionModels, availableHorizons, draftModel, activePredictionModel, prediction, matchingPrediction, predictionMessage,
     predictionRequest, canRunPrediction, needsModelCheck, runPrediction, recheckPredictionModel,
   }
 }

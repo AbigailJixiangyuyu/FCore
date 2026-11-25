@@ -26,8 +26,14 @@ MODELS = (
 
 
 def active_model_files():
-    for dataset, model, pointer_name in MODELS:
-        pointer = ROOT / "models" / dataset / model / pointer_name
+    root = ROOT / "models"
+    pointers = [root / dataset / model / name for dataset, model, name in MODELS]
+    for grain in ("monthly", "weekly"):
+        for dataset, model, name in MODELS:
+            if dataset == "email-eu-core-dept3" or (grain == "monthly" and dataset == "ethereum-eth" and model == "slade"):
+                pointers.append(root / "granularity" / grain / dataset / model / name)
+    for pointer in pointers:
+        model = pointer.parent.name
         version = json.loads(pointer.read_text(encoding="utf-8"))["model_version"]
         if not re.fullmatch(rf"{model}-[0-9a-f]{{16}}", version):
             raise ValueError(f"Invalid model version in {pointer}")

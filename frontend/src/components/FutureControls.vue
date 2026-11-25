@@ -2,13 +2,13 @@
 import { TrendCharts } from '@element-plus/icons-vue'
 import { useWorkbench } from '../composables/workbenchContext.js'
 import { predictionAlgorithms } from '../domain/algorithms.js'
-import { FORECAST_HORIZONS, forecastSnapshotId } from '../domain/timeline.js'
+import { forecastSnapshotId } from '../domain/timeline.js'
 import QueryAccountField from './QueryAccountField.vue'
 import QueryCoreField from './QueryCoreField.vue'
 import QueryForm from './QueryForm.vue'
 import QueryState from './QueryState.vue'
 const {
-  store, predictionModels, draftModel, prediction, canRunPrediction, needsModelCheck, runPrediction, recheckPredictionModel,
+  store, snapshot, predictionModels, availableHorizons, draftModel, prediction, canRunPrediction, needsModelCheck, runPrediction, recheckPredictionModel,
 } = useWorkbench()
 const { zebra } = predictionAlgorithms
 </script>
@@ -28,12 +28,15 @@ const { zebra } = predictionAlgorithms
       <label for="forecast-target-input">Target snapshot</label>
       <el-select
         id="forecast-target-input"
-        v-model="store.futureDraft.horizon"
+        :model-value="availableHorizons.includes(store.futureDraft.horizon) ? store.futureDraft.horizon : undefined"
+        :disabled="!availableHorizons.length"
+        placeholder="Unavailable"
+        @update:model-value="store.futureDraft.horizon = $event"
         aria-label="Target snapshot"
         size="small"
       >
         <el-option
-          v-for="horizon in FORECAST_HORIZONS"
+          v-for="horizon in availableHorizons"
           :key="horizon"
           :value="horizon"
           :label="forecastSnapshotId(store.observedUntil, horizon)"
@@ -45,6 +48,7 @@ const { zebra } = predictionAlgorithms
       id="forecast-k-input"
       v-model="store.futureDraft.k"
       :account="store.futureDraftParameters.account"
+      :core-numbers="snapshot?.core_numbers"
     />
     <div class="compact-field forecast-threshold">
       <span>Probability threshold</span>

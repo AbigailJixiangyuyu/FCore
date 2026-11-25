@@ -20,11 +20,11 @@ test('paper refresh restores submitted evidence, Markdown, turns and drafts for 
   original.submit()
   selectFuture()
   original.submit()
-  for (const [question, answer] of [['Summarize', '**N001** remained.'], ['Why?', 'It belongs to all three groups.']]) {
+  for (const [question, answer] of [['Summarize', '**49** remained.'], ['Why?', 'It belongs to all three groups.']]) {
     original.question.value = question
     const request = original.ask()
     const stream = openStream()
-    for (const event of [{ type: 'start', model: 'test', node_labels: { N001: '49' } }, { type: 'thinking', content: 'Checking evidence.' }, { type: 'delta', content: answer }, { type: 'done' }]) {
+    for (const event of [{ type: 'start', model: 'test' }, { type: 'thinking', content: 'Checking evidence.' }, { type: 'delta', content: answer }, { type: 'done' }]) {
       stream.enqueue(textLine(event))
     }
     stream.close()
@@ -87,6 +87,32 @@ function setupReport(t) {
   return { context, workbench, createReport, selectCurrent, selectFuture, fetch, openStream, textLine, flushStream }
 }
 
+test('follow-ups to a saved legacy paper report send its original node IDs', async t => {
+  const { context, workbench, createReport, fetch, openStream, textLine } = setupReport(t)
+  const saved = {
+    slots: { history: { reference: { ...context.value } } },
+    report: { content: '**N001** remained.', thinking: 'Checking N002.', node_labels: { N001: 'E025', N002: 'E031' } },
+    turns: [{ question: 'E031呢？', answer: '历史成员N002。', thinking: 'Check N001.' }],
+    question: 'E025 呢？',
+  }
+  globalThis.window = { localStorage: { getItem: () => JSON.stringify(saved), setItem() {} } }
+  t.after(() => { delete globalThis.window })
+  workbench.viewLayout = ref('paper')
+  const discussion = createReport()
+  assert.equal(discussion.report.value.thinking, 'Checking E031.')
+  assert.equal(discussion.turns.value[0].thinking, 'Check E025.')
+  const request = discussion.ask()
+  const body = JSON.parse(fetch.mock.calls.at(-1).arguments[1].body)
+  assert.equal(body.report_content, '**E025** remained.')
+  assert.deepEqual(body.turns, [{ question: 'E031呢？', answer: '历史成员E031。' }])
+  assert.equal(body.question, 'E025 呢？')
+  const stream = openStream()
+  stream.enqueue(textLine({ type: 'delta', content: 'E025 remained.' }))
+  stream.enqueue(textLine({ type: 'done' }))
+  stream.close()
+  await request
+})
+
 test('paper view restores partial reports and adding evidence starts a new comparison', async t => {
   const records = new Map()
   globalThis.window = { localStorage: { getItem: key => records.get(key), setItem: (key, value) => records.set(key, value) } }
@@ -103,7 +129,7 @@ test('paper view restores partial reports and adding evidence starts a new compa
     assert.deepEqual(['history', 'current', 'future'].filter(stage => stage in body), stages)
     assert.equal('initial_prompt' in body, false)
     const stream = openStream()
-    for (const event of [{ type: 'start', model: 'test', node_labels: {} }, { type: 'delta', content: stages.join(' + ') }, { type: 'done' }]) {
+    for (const event of [{ type: 'start', model: 'test' }, { type: 'delta', content: stages.join(' + ') }, { type: 'done' }]) {
       stream.enqueue(textLine(event))
     }
     stream.close()
@@ -156,7 +182,7 @@ test('each submission enables sending and updated evidence replaces an obsolete 
   assert.equal(firstRequest.initial_prompt, report.question.value)
   assert.equal(firstRequest.future.threshold, 0.5)
   const oldStream = openStream()
-  oldStream.enqueue(textLine({ type: 'start', model: 'test', node_labels: {} }))
+  oldStream.enqueue(textLine({ type: 'start', model: 'test' }))
   oldStream.enqueue(textLine({ type: 'delta', content: 'First part.' }))
   await flushStream()
   assert.equal(report.generating.value, true)
@@ -178,10 +204,9 @@ test('each submission enables sending and updated evidence replaces an obsolete 
   assert.equal(nextRequest.future.result_fingerprint, 'next')
   const stream = openStream()
   const result = {
-    content: '13 members overlap.\n\nN001（q） is forecast to remain.', model: 'test',
-    node_labels: { N001: 'q' }, initial_prompt: '',
+    content: '13 members overlap.\n\nq（query node） is forecast to remain.', model: 'test', initial_prompt: '',
   }
-  stream.enqueue(textLine({ type: 'start', model: result.model, node_labels: result.node_labels }))
+  stream.enqueue(textLine({ type: 'start', model: result.model }))
   const delta = textLine({ type: 'delta', content: result.content })
   const split = delta.indexOf(encoder.encode('（')[0]) + 1
   stream.enqueue(delta.slice(0, split))
@@ -209,10 +234,10 @@ test('follow-ups carry completed turns and a fresh page starts with an empty rep
   const slots = discussion.slots.value
   const question = 'Compare the historical and current communities.'
   const initialReport = {
-    model: 'test', content: '- **N001** belongs to the overlap of 13 members. 〔C01〕', node_labels: { N001: 'q' },
+    model: 'test', content: '- **q** belongs to the overlap of 13 members. 〔C01〕',
     initial_prompt: question,
   }
-  const start = { type: 'start', model: initialReport.model, node_labels: initialReport.node_labels }
+  const start = { type: 'start', model: initialReport.model }
   discussion.question.value = question
   const generation = discussion.ask()
   const reportStream = openStream()

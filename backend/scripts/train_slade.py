@@ -13,6 +13,7 @@ from algorithms.anomaly.slade import SladeConfig
 from algorithms.anomaly.state import MemoryState
 from algorithms.anomaly.training import train
 from app.core.config import Settings
+from app.repositories.granularity import MINUTES, model_directory, view_repository
 from app.repositories.datasets import DatasetRepository
 from app.services.anomalies import prepare_training
 
@@ -22,10 +23,13 @@ def main():
         description="Train SLADE and save its warm-up state through S11."
     )
     parser.add_argument("--dataset", default="synthetic-small")
+    parser.add_argument("--granularity", choices=["original", *MINUTES])
     arguments = parser.parse_args()
     settings = Settings()
     repository = DatasetRepository(settings.data_dir)
+    repository = view_repository(repository, arguments.dataset, arguments.granularity)
     _, manifest = repository.locate(arguments.dataset)
+    models_dir = model_directory(settings.models_dir, manifest)
     events, metadata = prepare_training(repository, manifest)
     runtime = runtime_info()
     print(json.dumps(runtime, ensure_ascii=False), flush=True)
@@ -48,7 +52,7 @@ def main():
     ):
         raise RuntimeError("Training requires the model and its warm-up state on the GPU.")
     artifact = save_artifact(
-        settings.models_dir,
+        models_dir,
         manifest.dataset_id,
         model,
         state,
@@ -58,7 +62,7 @@ def main():
     )
     # Validate the persisted candidate before replacing the serving pointer.
     restored, restored_state, _ = load_artifact(
-        settings.models_dir,
+        models_dir,
         manifest.dataset_id,
         metadata,
         model_version=artifact["model_version"],
@@ -79,7 +83,7 @@ def main():
     actual = restored.score(restored_state, current_frame.present_accounts, cutoff)
     if actual != expected:
         raise RuntimeError("The restored GPU model returned different S12 scores. The previously active model is still selected.")
-    activate_artifact(settings.models_dir, manifest.dataset_id, artifact)
+    activate_artifact(models_dir, manifest.dataset_id, artifact)
     print(
         json.dumps(
             {

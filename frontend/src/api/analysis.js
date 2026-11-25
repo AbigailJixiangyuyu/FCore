@@ -17,9 +17,9 @@ export function matchesContext(response, context) {
   )
 }
 
-export function getCatalog(datasetId, options) {
+export function getCatalog(datasetId, options, granularity) {
   return getJson(
-    `/datasets/${encodeURIComponent(datasetId)}/snapshots`,
+    `/datasets/${encodeURIComponent(datasetId)}/snapshots${granularity ? '?granularity=' + granularity : ''}`,
     options,
   )
 }
@@ -38,6 +38,18 @@ export function getAggregate(context, range, options) {
     `/datasets/${encodeURIComponent(context.dataset_id)}/aggregate?${params}`,
     options,
   )
+}
+
+export function getObservedAggregate(context, options) {
+  return getJson(
+    `/datasets/${encodeURIComponent(context.dataset_id)}/observed-aggregate?${contextParams(context)}`,
+    options,
+  )
+}
+
+export function getWindowCoreness(context, start, options) {
+  const params = contextParams(context, { start_snapshot_id: start })
+  return getJson(`/datasets/${encodeURIComponent(context.dataset_id)}/window-coreness?${params}`, options)
 }
 
 export function analyze(path, context, parameters, options) {

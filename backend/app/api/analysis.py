@@ -6,6 +6,8 @@ from fastapi import APIRouter, Depends, Query, Request, Response
 from starlette.concurrency import run_in_threadpool
 
 from algorithms.link_prediction.data import MAX_FORECAST_HORIZON
+from app.repositories.granularity import view_repository
+from app.schemas.system import Granularity
 from app.services.snapshot_updates import request_repository
 from app.schemas.analysis import (
     AffinityQuery,
@@ -36,6 +38,7 @@ from app.services.context import AnalysisScope
 from app.services.evidence import evidence_series
 from app.services.future_community import forecast_community
 from app.services.graphs import aggregate as aggregate_graph
+from app.services.graphs import current_window_coreness, observed_aggregate
 from app.services.graphs import snapshot as snapshot_graph
 from app.services.legacy_affinity import interaction_shares
 from app.services.link_prediction import model_catalog, predict_selected_links
@@ -56,8 +59,8 @@ def graph_scope(request: Request, dataset_id: str, dataset_version: str, cutoff:
 
 
 @router.get("/datasets/{dataset_id}/snapshots")
-def snapshot_catalog(dataset_id: str, request: Request) -> dict:
-    repository = request_repository(request)
+def snapshot_catalog(dataset_id: str, request: Request, granularity: Granularity | None = None) -> dict:
+    repository = view_repository(request_repository(request), dataset_id, granularity)
     _, manifest = repository.locate(dataset_id)
     return manifest.model_dump()
 
@@ -86,6 +89,26 @@ def aggregate(
 ) -> dict:
     return aggregate_graph(
         graph_scope(request, dataset_id, dataset_version, observed_until), start_snapshot_id, end_snapshot_id
+    )
+
+
+@router.get("/datasets/{dataset_id}/observed-aggregate", response_model=AggregateResponse)
+def dataset_overview(
+    dataset_id: str, dataset_version: str, request: Request, observed_until: str | None = None
+) -> dict:
+    return observed_aggregate(graph_scope(request, dataset_id, dataset_version, observed_until))
+
+
+@router.get("/datasets/{dataset_id}/window-coreness")
+def window_coreness(
+    dataset_id: str,
+    start_snapshot_id: str,
+    dataset_version: str,
+    request: Request,
+    observed_until: str | None = None,
+) -> dict:
+    return current_window_coreness(
+        graph_scope(request, dataset_id, dataset_version, observed_until), start_snapshot_id
     )
 
 

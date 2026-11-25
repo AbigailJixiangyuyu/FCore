@@ -15,6 +15,18 @@ export function readPaperReport(context) {
     if (state.report && (typeof state.report.content !== 'string' ||
       Object.keys(state.slots).length === 0)) return null
     if (state.turns.some(turn => !state.report || typeof turn?.question !== 'string' || typeof turn.answer !== 'string')) return null
+    // Earlier paper sessions stored model replies with a per-report node ID map.
+    const labels = state.report?.node_labels
+    if (labels) {
+      const originalIds = text => text.replace(/\bN\d{3,}\b/g, label => labels[label] ?? label)
+      state.report.content = originalIds(state.report.content)
+      if (state.report.thinking) state.report.thinking = originalIds(state.report.thinking)
+      for (const turn of state.turns) {
+        turn.answer = originalIds(turn.answer)
+        if (turn.thinking) turn.thinking = originalIds(turn.thinking)
+      }
+      delete state.report.node_labels
+    }
     return state
   } catch {
     return null

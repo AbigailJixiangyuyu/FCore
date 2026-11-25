@@ -20,8 +20,8 @@ def replay(model: Zebra, windows):
 
 
 def train(windows, config: ZebraConfig = ZebraConfig(), progress=None):
-    if len(windows) != 11 or config.epochs < 1 or config.patience < 1:
-        raise ValueError("Training requires 11 historical windows and positive epochs/patience")
+    if len(windows) < 4 or config.epochs < 1 or config.patience < 1:
+        raise ValueError("Training requires at least four historical windows and positive epochs/patience")
     device = cuda_device()
     seed_everything(config.seed)
     model = Zebra(config).to(device)
@@ -33,7 +33,7 @@ def train(windows, config: ZebraConfig = ZebraConfig(), progress=None):
         model.train()
         state = model.initial_state()
         losses, counts = [], []
-        for index in range(8):
+        for index in range(len(windows) - 3):
             model.advance(state, windows[index].events)
             pairs, logits = model.all_pairs(state, windows[index].end)
             labels = target_tensors(pairs, windows[index + 1], device)
@@ -56,8 +56,8 @@ def train(windows, config: ZebraConfig = ZebraConfig(), progress=None):
         if not counts:
             raise ValueError("No eligible historical training pairs")
         model.eval()
-        validation_state = replay(model, windows[:9])
-        validation = evaluate(model, validation_state, windows[8].end, windows[9])
+        validation_state = replay(model, windows[:-2])
+        validation = evaluate(model, validation_state, windows[-3].end, windows[-2])
         value = validation["log_loss"]
         if value is None or not math.isfinite(value):
             raise ValueError("No finite validation loss")
@@ -74,17 +74,17 @@ def train(windows, config: ZebraConfig = ZebraConfig(), progress=None):
             break
     model.load_state_dict(best_weights)
     model.eval()
-    state = replay(model, windows[:10])
+    state = replay(model, windows[:-1])
     with torch.no_grad():
-        pairs, logits = model.all_pairs(state, windows[9].end)
-    temperature, calibration = calibrate(logits, target_tensors(pairs, windows[10], device))
-    calibrated_metrics = evaluate(model, state, windows[9].end, windows[10], temperature)
+        pairs, logits = model.all_pairs(state, windows[-2].end)
+    temperature, calibration = calibrate(logits, target_tensors(pairs, windows[-1], device))
+    calibrated_metrics = evaluate(model, state, windows[-2].end, windows[-1], temperature)
     with torch.no_grad():
-        model.advance(state, windows[10].events)
+        model.advance(state, windows[-1].events)
     report = {
         "best_epoch": best_epoch, "epochs_completed": len(curve), "curve": curve,
         "training_samples": sample_counts, "calibration": calibration,
         "calibration_metrics": calibrated_metrics, "validation_loss": best_loss,
-        "protocol": "train targets S02-S09; select S10; calibrate S11; frozen backtest S12; predict S13",
+        "protocol": "train on early history; validate and calibrate on the last two historical windows; backtest current",
     }
     return model, state, temperature, report

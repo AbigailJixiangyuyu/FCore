@@ -59,7 +59,11 @@
   padding-inline: 4px;
 }
 .account-field {
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: max-content minmax(7ch, 1fr) max-content;
+}
+.account-field .el-input__wrapper,
+.account-field .el-button {
+  padding-inline: 5px;
 }
 .number-field, .forecast-target {
   grid-template-columns: auto minmax(0, 1fr);

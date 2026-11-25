@@ -1,6 +1,18 @@
 from typing import Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, computed_field
+
+
+Granularity = Literal["original", "weekly", "monthly"]
+MINUTES = {"weekly": 7 * 1440, "monthly": 30 * 1440}
+
+
+def available_granularities(dataset_id: str, snapshot_minutes: int) -> list[Granularity]:
+    if dataset_id == "email-eu-core-dept3" or snapshot_minutes == MINUTES["weekly"]:
+        return ["weekly", "monthly"]
+    if snapshot_minutes == MINUTES["monthly"]:
+        return ["monthly", "weekly"]
+    return ["original", "weekly", "monthly"]
 
 
 class HealthResponse(BaseModel):
@@ -39,6 +51,11 @@ class DatasetSummary(BaseModel):
     observed_until: str = ""
     has_demo_updates: bool = False
     query_defaults: DatasetQueryDefaults | None = None
+
+    @computed_field
+    @property
+    def granularities(self) -> list[Granularity]:
+        return available_granularities(self.dataset_id, self.snapshot_minutes)
 
 
 class DatasetsResponse(BaseModel):

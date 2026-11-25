@@ -49,25 +49,30 @@ def read_window(repository, manifest, meta, origin_timestamp: float) -> Window:
 
 def prepare_history(repository, manifest) -> tuple[tuple[Window, ...], dict]:
     metas = sorted(manifest.snapshots, key=lambda m: m.index)
-    if [m.kind for m in metas] != ["history"] * 11 + ["present", "future"]:
-        raise ValueError("Link prediction requires 11 historical snapshots, one current snapshot, and one future snapshot of equal duration.")
-    if metas[11].snapshot_id != manifest.observed_until:
+    history = metas[:-2]
+    if len(history) < 4:
+        raise ValueError("Zebra needs at least 4 historical snapshots.")
+    if any(m.kind != "history" for m in history) or [m.kind for m in metas[-2:]] != ["present", "future"]:
+        raise ValueError("Invalid historical window sequence.")
+    if metas[-2].snapshot_id != manifest.observed_until:
         raise ValueError("The observation cutoff must match the current snapshot.")
     origin = datetime.fromisoformat(metas[0].starts_at).timestamp()
     width = manifest.snapshot_minutes * 60
+    previous = origin
     for i, meta in enumerate(metas):
         start = datetime.fromisoformat(meta.starts_at).timestamp()
         end = datetime.fromisoformat(meta.ends_at).timestamp()
-        if start != origin + i * width or end != start + width:
-            raise ValueError("Link prediction requires consecutive snapshots of equal duration.")
-    windows = tuple(read_window(repository, manifest, meta, origin) for meta in metas[:11])
+        if start != previous or not 0 < end - start <= width or (i and end - start != width):
+            raise ValueError("Zebra requires consecutive windows of the selected duration.")
+        previous = end
+    windows = tuple(read_window(repository, manifest, meta, origin) for meta in history)
     metadata = {
         "dataset_id": manifest.dataset_id, "dataset_version": manifest.dataset_version,
         "origin_timestamp": origin, "window_seconds": width,
         "history_snapshot_ids": [w.snapshot_id for w in windows],
-        "training_target_snapshot_ids": [w.snapshot_id for w in windows[1:9]],
-        "validation_snapshot_id": windows[9].snapshot_id,
-        "calibration_snapshot_id": windows[10].snapshot_id,
+        "training_target_snapshot_ids": [w.snapshot_id for w in windows[1:-2]],
+        "validation_snapshot_id": windows[-2].snapshot_id,
+        "calibration_snapshot_id": windows[-1].snapshot_id,
         "warmup_until": windows[-1].snapshot_id, "warmup_cutoff": windows[-1].end,
         "history_event_count": sum(len(w.events) for w in windows),
         "history_fingerprint": event_fingerprint(e for w in windows for e in w.events),

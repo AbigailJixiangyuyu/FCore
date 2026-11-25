@@ -81,6 +81,8 @@ GET /api/datasets/synthetic-small/aggregate?start_snapshot_id=S03&end_snapshot_i
 
 ## 2. 查询与结构传递
 
+Current Search 更改 TCCS 的起始快照时，通过 `GET /api/datasets/{dataset_id}/window-coreness` 传入 `start_snapshot_id`、`dataset_version` 和 `observed_until`，取得从起点至观测截止的无向聚合图核数，并将查询顶点的核数填入 Core k。单快照窗口直接复用当前快照的 `core_numbers`。用户可编辑 k 后再运行查询。
+
 当前 S12 并行核分解请求示例：
 
 ```text
@@ -286,11 +288,11 @@ Zebra 加载权重和 S11 预热状态，再处理真实 S12 事件。匹配模�
 
 按已提交阶段传给模型的证据包括历史方法的实际发现〔H01〕、当前社区结构及可用的历史对比〔C01〕、当前社区成员的 SLADE 分布及重点节点〔C02〕、预测社区及可用的跨期对比〔P01〕。SLADE 均值和中位数按有评分的成员计算。重点节点包括社区内评分前三及全部进入全图前十的社区成员。可评分但预测社区为空时，预计成员数为零。没有可评分节点对时，未来成员变化记为未知。
 
-算法输入阈值只用于复核提交引用。DeepSeek 收到统计值、时间范围和各节点所属的阶段，同一节点跨阶段使用同一个代号，页面通过 `node_labels` 还原为原始 ID。追问复用首份报告使用的同一组提交引用。
+算法输入阈值只用于复核提交引用。DeepSeek 收到统计值、时间范围和各节点所属的阶段。查询点、成员名单和评分记录均使用图中的原始节点 ID，例如 `E025`。追问复用首份报告使用的同一组提交引用。
 
-DeepSeek 以 Thinking 模式分析证据，再流式生成英文正文。单次生成最多使用 4,096 个 token，包含思考和正文。接口成功时返回 `application/jsonl`，每行是一个事件。
+报告和追问均使用 `reasoning_effort="high"`。每次模型调用的输出上限为 8,192 个 token，包含思考和正文。如果模型耗尽额度时尚未输出有效正文，后端会用同一组消息关闭思考模式重试一次。接口成功时返回 `application/jsonl`，每行是一个事件。[DeepSeek 推理强度说明](https://api-docs.deepseek.com/guides/thinking_mode/)
 
-- `start` 提供模型名 `model` 和报告中的节点代号映射 `node_labels`。
+- `start` 提供模型名 `model`。
 - `thinking` 的 `content` 来自上游 `delta.reasoning_content`，页面在正文前以 **Thinking:** 标记并逐段显示。追问上下文只携带已完成的问答正文。
 - `delta` 的 `content` 是一段模型原文，页面收到后即追加显示。
 - `done` 表示模型流已结束，页面保存拼接后的报告。
@@ -314,3 +316,10 @@ DeepSeek 以 Thinking 模式分析证据，再流式生成英文正文。单次�
 - `app/repositories/datasets.py`：本地数据读取与未来回放隔离。
 
 接入正式方法时保留数据版本、时间边界、固定成员、完整候选归一化与来源标识，再为该方法补充相应验证。SLADE 已实际训练并接入 GPU，正式亲和度模型与真实金融数据仍属于后续阶段。
+
+## Temporal granularity
+
+Read the dataset's `granularities` from `GET /api/datasets`, then request `GET /api/datasets/{id}/snapshots` with an optional `granularity` query parameter. The first listed value is the default. EmailDept3 supports `weekly` and `monthly`. An explicit `original` request for EmailDept3 returns HTTP 422.
+Use the catalog's `dataset_version` and `observed_until` for all following graph, model and report requests. Weekly and monthly windows span 7 and 30 days, respectively, counted backwards from the original observation cutoff. The earliest observed window may be shorter. Every observed event falls into exactly one half-open window. A matching native interval uses the original catalog and model artifacts.
+
+Static CSV updates advance the original dataset by one native interval. A resliced view includes each static graph once, in the window containing the closing instant of its native interval. These edges carry unknown interaction counts. The ordinary analysis APIs use observed data only.

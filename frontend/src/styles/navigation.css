@@ -1,6 +1,6 @@
 .time-navigation {
   display: grid;
-  grid-template-columns: minmax(0, 42%) minmax(0, 1fr);
+  grid-template-columns: minmax(min-content, 42%) minmax(0, 1fr);
   align-items: center;
   gap: 18px;
   margin-top: 7px;
@@ -9,7 +9,7 @@
 }
 .time-navigation-settings {
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1.3fr) minmax(0, 1fr);
+  grid-template-columns: minmax(max-content, 1fr) minmax(max-content, 1.3fr) minmax(max-content, 1fr);
   align-items: center;
   gap: 10px;
 }
@@ -25,6 +25,7 @@
   border-color: #6f8edf;
 }
 .time-setting-caret {
+  flex-shrink: 0;
   width: 10px;
   height: 10px;
   margin-left: 5px;
@@ -33,13 +34,6 @@
 .dataset-current {
   margin-left: 10px;
   color: #315ed1;
-}
-.snapshot-granularity {
-  display: grid;
-  gap: 4px;
-}
-.snapshot-granularity span {
-  color: var(--muted);
 }
 .dataset-update-details {
   display: grid;
@@ -72,7 +66,7 @@
 }
 .historical-timeline .history-track,
 .historical-timeline .history-ticks {
-  min-width: calc(var(--history-length) * 28px);
+  min-width: min(100%, 308px);
 }
 .history-caption {
   display: flex;

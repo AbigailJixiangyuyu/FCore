@@ -16,6 +16,8 @@ def interaction_shares(
     *,
     reveal: bool = False,
 ) -> dict:
+    if scope.manifest.granularity != "original":
+        raise HTTPException(422, "Interaction shares require the original snapshot granularity.")
     if scope.manifest.has_demo_updates:
         raise HTTPException(503, "Interaction shares are unavailable for static graph updates.")
     structure = resolve_structure(scope, request.structure, parallel_core)

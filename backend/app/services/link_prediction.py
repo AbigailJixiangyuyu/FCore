@@ -19,6 +19,7 @@ from algorithms.link_prediction.data import (
 )
 from algorithms.runtime import ModelUnavailable, inference_device
 from app.schemas.analysis import LinkPredictionQuery
+from app.repositories.granularity import model_directory
 from app.services.context import AnalysisScope
 from app.services.parallel_core import ParallelCoreCache
 from app.services.selection import resolve_structure
@@ -57,6 +58,7 @@ def _remember(cache, key, value):
 
 
 def list_models(repository, manifest, models_dir, *, horizon=1):
+    models_dir = model_directory(models_dir, manifest)
     row = {"id": "zebra", "name": ZEBRA.name, "status": "not_ready", "model_version": None, "message": ""}
     if manifest.has_demo_updates:
         row["message"] = "Zebra is unavailable for this static graph update."
@@ -85,6 +87,7 @@ def list_models(repository, manifest, models_dir, *, horizon=1):
 
 
 def full_network_prediction(repository, manifest, models_dir, *, horizon=1):
+    models_dir = model_directory(models_dir, manifest)
     history, metadata = prepare_history(repository, manifest)
     _, artifact = ZEBRA.artifacts.read_artifact(models_dir, manifest.dataset_id, metadata, horizon=horizon)
     inference_device(ZEBRA.name)

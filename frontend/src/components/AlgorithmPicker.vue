@@ -4,6 +4,7 @@ import { algorithmLabel } from '../domain/algorithms.js'
 defineProps({
   algorithms: { type: Object, required: true },
   label: { type: String, required: true },
+  disabled: Boolean,
 })
 const selected = defineModel({ type: String, required: true })
 </script>
@@ -11,7 +12,7 @@ const selected = defineModel({ type: String, required: true })
 <template>
   <section class="algorithm-picker">
     <h3>Model Selection</h3>
-    <el-radio-group v-model="selected" class="paper-options" :aria-label="label">
+    <el-radio-group v-model="selected" class="paper-options" :aria-label="label" :disabled="disabled">
       <el-radio
         v-for="(algorithm, id) in algorithms"
         :key="id"

@@ -9,6 +9,7 @@ from algorithms.anomaly.events import event_fingerprint, seconds, snapshot_event
 from algorithms.runtime import ModelUnavailable
 from algorithms.anomaly.slade import METHOD
 from app.schemas.analysis import AnomalyQuery
+from app.repositories.granularity import model_directory
 from app.services.context import AnalysisScope
 
 
@@ -46,6 +47,7 @@ def prepare_training(repository, manifest):
 
 
 def model_ready(repository, manifest, models_dir: Path) -> bool:
+    models_dir = model_directory(models_dir, manifest)
     if manifest.has_demo_updates:
         return False
     try:
@@ -58,9 +60,18 @@ def model_ready(repository, manifest, models_dir: Path) -> bool:
 
 def score_accounts(scope: AnalysisScope, request: AnomalyQuery, models_dir: Path) -> dict:
     repository, manifest = scope.repository, scope.manifest
+    models_dir = model_directory(models_dir, manifest)
     snapshot_id = request.snapshot_id
     frame = repository.snapshot(manifest.dataset_id, snapshot_id)
-    if snapshot_id != manifest.observed_until or manifest.has_demo_updates:
+    has_history = any(m.kind == "history" for m in manifest.snapshots)
+    unavailable = ""
+    if snapshot_id != manifest.observed_until:
+        unavailable = f"Anomaly scores are available for {manifest.observed_until}."
+    elif manifest.has_demo_updates:
+        unavailable = "SLADE is unavailable for this static graph update."
+    elif not has_history:
+        unavailable = "SLADE needs historical interactions to train."
+    if unavailable:
         return {
             **scope.metadata("computed", METHOD),
             "snapshot_id": snapshot_id,
@@ -69,8 +80,7 @@ def score_accounts(scope: AnalysisScope, request: AnomalyQuery, models_dir: Path
             "training_snapshot_ids": [],
             "accounts": [],
             "unscored_accounts": [],
-            "message": ("SLADE is unavailable for this static graph update." if manifest.has_demo_updates
-                        else f"Anomaly scores are available for {manifest.observed_until}."),
+            "message": unavailable,
         }
     try:
         _, training = prepare_training(repository, manifest)

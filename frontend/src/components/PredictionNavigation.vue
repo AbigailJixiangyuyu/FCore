@@ -6,7 +6,7 @@ const { store, selectTime } = useWorkbench()
 
 <template>
   <div
-    v-if="store.stage !== 'history'"
+    v-if="store.stage === 'present' || store.stage === 'future'"
     class="prediction-actions"
     role="group"
     aria-label="Prediction navigation"

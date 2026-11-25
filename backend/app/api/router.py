@@ -56,10 +56,11 @@ def capabilities(request: Request) -> CapabilitiesResponse:
 @router.get("/datasets", response_model=DatasetsResponse)
 def datasets(request: Request) -> DatasetsResponse:
     repository = request_repository(request)
+    manifests = sorted(repository.manifests(), key=lambda item: item.dataset_id != "ethereum-eth")
     return DatasetsResponse(
         datasets=[
             DatasetSummary.model_validate(item.model_dump())
-            for item in repository.manifests()
+            for item in manifests
         ]
     )
 
